@@ -77,6 +77,7 @@ const App = () => (
 
               {/* Company Recruiter routes */}
               <Route path="/company" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/company/dashboard" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/tests" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyTests /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/candidates" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyCandidates /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/reports" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyReports /></DashboardLayout></ProtectedRoute>} />

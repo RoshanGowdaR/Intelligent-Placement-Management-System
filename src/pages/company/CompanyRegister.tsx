@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,40 +101,65 @@ export default function CompanyRegister() {
       const newUserId = authData.user?.id;
       if (!newUserId) throw new Error("Could not initialize recruiter account.");
 
-      // 2. Insert into public.companies
-      const { data: companyRecord, error: companyError } = await supabase
-        .from("companies")
-        .insert({
-          name: companyName.trim(),
-          user_id: newUserId,
-          website: website.trim() || null,
-          industry: industry.trim() || null,
-          description: description.trim() || null,
-          hr_name: hrName.trim() || null,
-          hr_phone: phone.trim() || null,
-          job_role: jobRole.trim() || null,
-          salary_package: salaryPackage.trim() || null,
-          max_backlogs: Number(maxBacklogs) || 0,
-        })
-        .select()
-        .single();
+      // 2. Insert or update in public.companies
+      try {
+        const { data: existingComp } = await supabase
+          .from("companies")
+          .select("id")
+          .ilike("name", companyName.trim())
+          .maybeSingle();
 
-      if (companyError) {
-        console.warn("Company record insert warning:", companyError);
+        if (existingComp) {
+          await supabase
+            .from("companies")
+            .update({
+              user_id: newUserId,
+              website: website.trim() || null,
+              industry: industry.trim() || null,
+              description: description.trim() || null,
+              hr_name: hrName.trim() || null,
+              hr_phone: phone.trim() || null,
+              job_role: jobRole.trim() || null,
+              salary_package: salaryPackage.trim() || null,
+              max_backlogs: Number(maxBacklogs) || 0,
+            })
+            .eq("id", existingComp.id);
+        } else {
+          await supabase.from("companies").insert({
+            name: companyName.trim(),
+            user_id: newUserId,
+            website: website.trim() || null,
+            industry: industry.trim() || null,
+            description: description.trim() || null,
+            hr_name: hrName.trim() || null,
+            hr_phone: phone.trim() || null,
+            job_role: jobRole.trim() || null,
+            salary_package: salaryPackage.trim() || null,
+            max_backlogs: Number(maxBacklogs) || 0,
+          });
+        }
+      } catch (companyError) {
+        console.warn("Company record sync notice:", companyError);
       }
 
       // 3. Assign 'company' role in public.user_roles
-      await supabase.from("user_roles").upsert(
-        { user_id: newUserId, role: "company" as any },
-        { onConflict: "user_id,role" }
-      );
+      try {
+        await supabase.from("user_roles").upsert(
+          { user_id: newUserId, role: "company" as any },
+          { onConflict: "user_id,role" }
+        );
+      } catch (roleErr) {
+        console.warn("User role assign notice:", roleErr);
+      }
 
       // 4. Mark invite as accepted if token existed
       if (token) {
-        await supabase
-          .from("company_invites" as any)
-          .update({ accepted_at: new Date().toISOString() })
-          .eq("token", token);
+        try {
+          await supabase
+            .from("company_invites" as any)
+            .update({ accepted_at: new Date().toISOString() })
+            .eq("token", token);
+        } catch (_) {}
       }
 
       // 5. Broadcast notification to all students
@@ -155,7 +180,7 @@ export default function CompanyRegister() {
       }
 
       toast.success("Company account registered successfully! Welcome aboard.");
-      navigate("/company/dashboard");
+      navigate("/company");
     } catch (err: any) {
       console.error("Company registration failed:", err);
       toast.error(err?.message || "Failed to complete registration");
