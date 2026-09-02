@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Analytics Dashboard - Pro Placement Plus v3</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#e4dfff",
+                        "surface-container-lowest": "#0e0e13",
+                        "surface": "#131318",
+                        "secondary": "#c6bfff",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#c6bfff",
+                        "on-primary": "#2900a0",
+                        "primary-fixed-dim": "#c6bfff",
+                        "tertiary": "#ffb77d",
+                        "surface-variant": "#35343a",
+                        "inverse-primary": "#5847d2",
+                        "on-secondary-fixed-variant": "#454077",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#faf6ff",
+                        "on-primary-fixed-variant": "#4029ba",
+                        "on-error-container": "#ffdad6",
+                        "inverse-on-surface": "#303036",
+                        "on-primary-fixed": "#160066",
+                        "tertiary-container": "#ac5d00",
+                        "surface-container-high": "#2a292f",
+                        "on-tertiary": "#4d2600",
+                        "primary": "#c6bfff",
+                        "inverse-surface": "#e4e1e9",
+                        "secondary-fixed": "#e4dfff",
+                        "secondary-container": "#454077",
+                        "on-surface": "#e4e1e9",
+                        "surface-tint": "#c6bfff",
+                        "primary-container": "#6c5ce7",
+                        "surface-container-low": "#1b1b20",
+                        "on-secondary-fixed": "#191249",
+                        "on-surface-variant": "#c8c4d7",
+                        "tertiary-fixed": "#ffdcc3",
+                        "surface-dim": "#131318",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "background": "#131318",
+                        "on-secondary": "#2f295e",
+                        "on-secondary-container": "#b5aeed",
+                        "outline": "#928ea0",
+                        "outline-variant": "#474554",
+                        "surface-container-highest": "#35343a",
+                        "surface-bright": "#39383e",
+                        "surface-container": "#1f1f25",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "on-tertiary-container": "#fff5f1",
+                        "on-background": "#e4e1e9",
+                        "on-tertiary-fixed": "#2f1500"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "80px",
+                        "md": "24px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "sm": "12px",
+                        "lg": "48px",
+                        "gutter": "24px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Space Grotesk"],
+                        "h1": ["Space Grotesk"],
+                        "h1-mobile": ["Space Grotesk"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "h3": ["Space Grotesk"],
+                        "label-caps": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "h2": ["32px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "h1": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h1-mobile": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h3": ["24px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .podium-1 {
+            background: linear-gradient(180deg, rgba(108, 92, 231, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-top: 2px solid rgba(108, 92, 231, 0.6);
+            box-shadow: 0 -10px 30px rgba(108, 92, 231, 0.2);
+        }
+        
+        .podium-2, .podium-3 {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .blob-bg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vh;
+            background: radial-gradient(circle, rgba(108, 92, 231, 0.15) 0%, rgba(19, 19, 24, 0) 70%);
+            filter: blur(100px);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .chart-bar {
+            background: linear-gradient(180deg, theme('colors.primary-container') 0%, rgba(108, 92, 231, 0.1) 100%);
+            border-top: 1px solid theme('colors.primary');
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.2);
+            border-radius: 4px 4px 0 0;
+            transition: height 1s ease-out;
+        }
+
+        .chart-line {
+            fill: none;
+            stroke: theme('colors.primary-container');
+            stroke-width: 3;
+            filter: drop-shadow(0 0 8px rgba(108, 92, 231, 0.5));
+        }
+
+        .chart-area {
+            fill: url(#gradient-area);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-white">
+<div class="blob-bg"></div>
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/5 backdrop-blur-3xl border-b border-white/10 shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset] shadow-2xl shadow-indigo-500/10">
+<div class="flex justify-between items-center px-margin-desktop py-base w-full max-w-full">
+<div class="flex items-center gap-md">
+<span class="font-h2 text-h2 font-bold text-on-primary-container tracking-tight">Pro Placement Plus v3</span>
+</div>
+<div class="flex items-center gap-lg">
+<!-- Search on Left -->
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="glass-panel w-64 pl-xl pr-sm py-xs rounded-full text-body-md font-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" placeholder="Search analytics..." type="text"/>
+</div>
+<div class="flex items-center gap-md">
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/10 transition-colors duration-200 active:scale-95 text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border border-white/20">
+<img alt="User profile photo" class="w-full h-full object-cover" data-alt="Close up portrait of a professional corporate user in an engineered futurism setting. Dark dramatic lighting with subtle indigo rim light. The subject is confident and modern, suited for a high-end tech platform avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsvE09kJkgRwuU_rvEPxv2iVpZ6k_TJkWpK7NCTeft_bsN8VYMQ00J9vNGAtTEcUE8ApdWIVPF1ogst07blftZ1mR-07PUIv8uPjBdo-8t_mWaDllhCEZX92TtiHZmoqRW87SkxnLAYJRGHrsWB0NBBhrBJIL5WHOUtGMFFBezjq4Ed5pBlOkZRxNHmNJZv5ctrrdc2GzThYbcaJipLWJHB7bjcL1QOgXr1ow-zrTT3Iq_Tqm-TJc"/>
+</div>
+</div>
+</div>
+</div>
+</nav>
+<!-- SideNavBar & Main Content Wrapper -->
+<div class="flex pt-[80px]">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[240px] bg-white/5 backdrop-blur-3xl border-r border-white/10 shadow-xl hidden lg:flex flex-col gap-base p-md z-40 pt-[100px]">
+<div class="mb-lg px-xs">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-2">Platform</p>
+</div>
+<nav class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:text-white hover:bg-white/5 transition-all duration-300 ease-in-out font-body-md text-body-md font-medium" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:text-white hover:bg-white/5 transition-all duration-300 ease-in-out font-body-md text-body-md font-medium" href="#">
+<span class="material-symbols-outlined">work</span>
+                    Opportunities
+                </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:text-white hover:bg-white/5 transition-all duration-300 ease-in-out font-body-md text-body-md font-medium" href="#">
+<span class="material-symbols-outlined">description</span>
+                    Applications
+                </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:text-white hover:bg-white/5 transition-all duration-300 ease-in-out font-body-md text-body-md font-medium" href="#">
+<span class="material-symbols-outlined">school</span>
+                    Training
+                </a>
+<a class="flex items-center gap-sm px-sm py-sm bg-primary-container text-on-primary-container rounded-lg shadow-[0_0_15px_rgba(108,92,231,0.4)] transition-all duration-300 ease-in-out font-body-md text-body-md font-medium active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+                    Analytics
+                </a>
+</nav>
+<div class="mt-auto">
+<button class="w-full glass-panel py-sm rounded-lg font-body-md text-body-md font-medium text-white hover:bg-white/10 transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-tertiary">bolt</span>
+                    Upgrade to Pro
+                </button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 lg:ml-[240px] p-margin-mobile md:p-margin-desktop w-full">
+<header class="mb-xl">
+<h1 class="font-h1 text-h1-mobile md:text-h1 text-white mb-xs">System Analytics</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Real-time performance metrics and distribution telemetry.</p>
+</header>
+<!-- KPI Row -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-xl">
+<!-- KPI 1 -->
+<div class="glass-panel rounded-xl p-md flex items-center gap-md relative overflow-hidden group">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary-container/20 rounded-full blur-2xl group-hover:bg-primary-container/30 transition-all duration-500"></div>
+<div class="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center border border-white/10 shadow-lg relative z-10">
+<img alt="Total Students Icon" class="w-8 h-8 object-contain" data-alt="A 3D rendered stylized icon of a graduation cap or student figure. Highly glossy, dimensional glass material with vibrant indigo inner light on a dark studio background. Engineered futuristic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDglsuuuu8m8hPUrlQIT_gaOpMnxrSmL8S_4LPJ0ZRLD36X2VfjvDVQC9q1Cgj11V8ZoR1KWI8evDCTdbasZDO18NkyikmdGl29Uwf4MM_kmDxhT-MdWWr6bEjwgtnSJ1CQraqFLVjgjWmgeqBv9YUY33XjXFAx9oEYwKrrsBaBjAJTKRQc8sKkAytf55RSxfed0rqUR3ibWvMYs0W_C69M4G1_dGAT0DMZ1_3jvUICwdBQMP6-Wx8"/>
+</div>
+<div class="relative z-10">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Total Students</p>
+<p class="font-h2 text-h2 text-white">12,480</p>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="glass-panel rounded-xl p-md flex items-center gap-md relative overflow-hidden group">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-tertiary/20 rounded-full blur-2xl group-hover:bg-tertiary/30 transition-all duration-500"></div>
+<div class="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center border border-white/10 shadow-lg relative z-10">
+<img alt="Active Drives Icon" class="w-8 h-8 object-contain" data-alt="A 3D rendered stylized icon of a briefcase or folder. Highly glossy, dimensional glass material with warm orange/tertiary inner light on a dark studio background. Engineered futuristic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvGqCzudRejxtyQK4gyRMILVDyVpuGANN0_wv6MCA7hGUr55-BQdegfja3P2LpF2N2NwTvD5NHXtSzz3fmnAO6RGayGj8ClEm5gFBDBz0lqlPCKT6aCCa7u_W1SvAN0vvRGFDa4Li2IMu-ryjN7o3c_oUL3vnue-f4iUEfcLIiZtIvAiJOsGY_2TJFLsI8eodnmJ35t0Y-eSRc67UJEbEncGFQAFYmwl33ADgqxeg4QWWmpiYKWTQ"/>
+</div>
+<div class="relative z-10">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Active Drives</p>
+<p class="font-h2 text-h2 text-white">142</p>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="glass-panel rounded-xl p-md flex items-center gap-md relative overflow-hidden group">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary-container/20 rounded-full blur-2xl group-hover:bg-primary-container/30 transition-all duration-500"></div>
+<div class="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center border border-white/10 shadow-lg relative z-10">
+<img alt="Placement Rate Icon" class="w-8 h-8 object-contain" data-alt="A 3D rendered stylized icon of a rising trend chart. Highly glossy, dimensional glass material with bright indigo inner light on a dark studio background. Engineered futuristic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6KB9p-L-s7gZZPCAmKyWJATI9nQlq4RQ3ncAxDcrTl1dkEFSZ9NG0I0L-VajwzcZ7CNuS9QV6hJpb4BF2c2Inp14kSGpxqG_O1rydXteu7Z7-sVcp713hWY6gqRDfkP8SrWKehcjsmr2vHpyeVFIXQLG6oNkjSU5Hz98fdN80Bc99ggQGXzNMe3Ky6xJh_ONon1Sqc5YepRibDMYFDVQXm1Mt5fzRVuOZIZdIVff4v7vnJ61N5-Y"/>
+</div>
+<div class="relative z-10">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Placement Rate</p>
+<p class="font-h2 text-h2 text-white">87.4%</p>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="glass-panel rounded-xl p-md flex items-center gap-md relative overflow-hidden group">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-secondary/20 rounded-full blur-2xl group-hover:bg-secondary/30 transition-all duration-500"></div>
+<div class="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center border border-white/10 shadow-lg relative z-10">
+<img alt="Avg Time to Hire Icon" class="w-8 h-8 object-contain" data-alt="A 3D rendered stylized icon of a stopwatch or timer. Highly glossy, dimensional glass material with soft purple inner light on a dark studio background. Engineered futuristic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMSMDSlHcX6pOH5-Se4h2BsOTQ1gqVDPv9kD2DcHogsxR7iVHLvGuNKZrBI4JoZKwuSTpTzvBG7BDxSraahEOufW7FOkiYxpRENsdFFpigqhx1IcVdamo1FUoy4xvT_b3SnRC68F_-tQf8kgR0tR71kMzfMe0UsswnFZRLebIvYbAR8NRRh5V-5OZXnSFCfJ4y5ggwBhrBID98YAReWd39flMO43LkpGm69c3bd5EmLvYbI907WW8"/>
+</div>
+<div class="relative z-10">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-1">Avg Time to Hire</p>
+<p class="font-h2 text-h2 text-white">18 Days</p>
+</div>
+</div>
+</section>
+<!-- Main Dashboard Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Charts Area (Spans 2 columns on large screens) -->
+<div class="lg:col-span-2 flex flex-col gap-gutter">
+<!-- Score Distribution Histogram -->
+<div class="glass-panel rounded-xl p-md h-[400px] flex flex-col">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-h3 text-h3 text-white">Score Distribution</h3>
+<button class="glass-panel px-sm py-xs rounded-md text-label-caps font-label-caps text-on-surface-variant hover:text-white transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+                                Filter
+                            </button>
+</div>
+<div class="flex-1 flex items-end justify-between gap-1 sm:gap-2 pb-sm border-b border-white/10 relative">
+<!-- Y-axis labels -->
+<div class="absolute left-0 top-0 h-full flex flex-col justify-between text-label-caps font-label-caps text-on-surface-variant opacity-50 py-sm">
+<span>100</span>
+<span>75</span>
+<span>50</span>
+<span>25</span>
+<span>0</span>
+</div>
+<!-- Histogram Bars (Heights are inline styles to simulate data) -->
+<div class="w-full flex items-end justify-between gap-xs sm:gap-sm pl-8">
+<div class="chart-bar w-full" style="height: 10%;"></div>
+<div class="chart-bar w-full" style="height: 15%;"></div>
+<div class="chart-bar w-full" style="height: 25%;"></div>
+<div class="chart-bar w-full" style="height: 40%;"></div>
+<div class="chart-bar w-full" style="height: 60%;"></div>
+<div class="chart-bar w-full" style="height: 85%;"></div>
+<div class="chart-bar w-full" style="height: 100%;"></div>
+<div class="chart-bar w-full" style="height: 75%;"></div>
+<div class="chart-bar w-full" style="height: 45%;"></div>
+<div class="chart-bar w-full" style="height: 20%;"></div>
+<div class="chart-bar w-full" style="height: 5%;"></div>
+</div>
+</div>
+<!-- X-axis labels -->
+<div class="flex justify-between mt-sm pl-8 text-label-caps font-label-caps text-on-surface-variant opacity-75">
+<span>&lt;50</span>
+<span>60</span>
+<span>70</span>
+<span>80</span>
+<span>90</span>
+<span>100</span>
+</div>
+</div>
+<!-- Pass Rate Line Chart -->
+<div class="glass-panel rounded-xl p-md h-[300px] flex flex-col relative overflow-hidden">
+<div class="flex justify-between items-center z-10">
+<h3 class="font-h3 text-h3 text-white">Pass Rate Trajectory</h3>
+<div class="flex gap-sm">
+<span class="text-label-caps font-label-caps px-sm py-xs rounded-md bg-white/10 text-white">Q1</span>
+<span class="text-label-caps font-label-caps px-sm py-xs rounded-md text-on-surface-variant hover:text-white cursor-pointer">Q2</span>
+<span class="text-label-caps font-label-caps px-sm py-xs rounded-md text-on-surface-variant hover:text-white cursor-pointer">Q3</span>
+</div>
+</div>
+<div class="absolute inset-0 mt-[60px] p-md">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 800 200">
+<defs>
+<lineargradient id="gradient-area" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="rgba(108, 92, 231, 0.4)"></stop>
+<stop offset="100%" stop-color="rgba(108, 92, 231, 0.0)"></stop>
+</lineargradient>
+</defs>
+<path class="chart-area" d="M0,150 L100,120 L200,130 L300,80 L400,90 L500,40 L600,60 L700,20 L800,30 L800,200 L0,200 Z"></path>
+<path class="chart-line" d="M0,150 L100,120 L200,130 L300,80 L400,90 L500,40 L600,60 L700,20 L800,30"></path>
+<!-- Data Points -->
+<circle cx="300" cy="80" fill="#fff" r="5" stroke="#6C5CE7" stroke-width="2"></circle>
+<circle cx="500" cy="40" fill="#fff" r="5" stroke="#6C5CE7" stroke-width="2"></circle>
+<circle cx="700" cy="20" fill="#fff" r="5" stroke="#6C5CE7" stroke-width="2"></circle>
+</svg>
+</div>
+</div>
+</div>
+<!-- Leaderboard (Right Column) -->
+<div class="glass-panel rounded-xl p-md flex flex-col h-full min-h-[600px]">
+<h3 class="font-h3 text-h3 text-white mb-md">Top Performers</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-xl">Global ranking by composite score.</p>
+<!-- 3D Podium Container -->
+<div class="flex-1 flex items-end justify-center gap-xs sm:gap-sm mt-auto pb-lg relative">
+<!-- 2nd Place -->
+<div class="flex flex-col items-center w-1/3">
+<div class="mb-sm text-center">
+<div class="w-12 h-12 rounded-full overflow-hidden border-2 border-surface-variant mx-auto mb-2 relative">
+<div class="absolute inset-0 border-2 border-white/20 rounded-full z-10"></div>
+<img alt="2nd Place User" class="w-full h-full object-cover" data-alt="Portrait of a female professional in a futuristic corporate environment. High contrast lighting. Used as an avatar for a 2nd place leaderboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFzoSNeGqNB7nh3wheOu_zRZaBXb3yj38AuMD_lompA46n2SF4opRSTD3I4-jXw-EpM91_CkduWwYgG7998Z-O5487dhGxcknb9QE-1weZfFIyJStcs_InVpAAcx1mJJi4LUbEADibTZ_iuu9Sy9rxeeDOu_21cIb4LI6Mu0qi8utB_l5OKDzRyX_kU1wPRtu9COxPz2dyYHxQ4b_NVCY8DLugkuz-Y64Vmz6xjNOmZWLzCrVdmU0"/>
+</div>
+<p class="font-body-md text-body-md text-white font-semibold">Sarah J.</p>
+<p class="font-label-caps text-label-caps text-primary">94.2 pts</p>
+</div>
+<div class="w-full h-[120px] podium-2 rounded-t-lg flex items-start justify-center pt-sm relative overflow-hidden backdrop-blur-md">
+<span class="font-h2 text-h2 text-on-surface-variant opacity-50 font-bold">2</span>
+<!-- Glass inner highlight -->
+<div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+</div>
+</div>
+<!-- 1st Place -->
+<div class="flex flex-col items-center w-1/3 z-10">
+<div class="mb-sm text-center relative">
+<span class="material-symbols-outlined absolute -top-8 left-1/2 -translate-x-1/2 text-tertiary drop-shadow-[0_0_10px_rgba(255,183,125,0.8)]" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-primary-container mx-auto mb-2 shadow-[0_0_20px_rgba(108,92,231,0.5)] relative">
+<div class="absolute inset-0 border-2 border-white/30 rounded-full z-10"></div>
+<img alt="1st Place User" class="w-full h-full object-cover" data-alt="Portrait of a male professional looking confident in a high-tech corporate setting. Cinematic lighting with indigo rim light. Used as an avatar for a 1st place leaderboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDM3rWIiTVrlAvc7b4uRJBmCcAAsJ9b4wQv6D8MGADSXx-Hs26H3u4zip4da3prmgNzrSm-j-6n3z4wZuPj7L5gBV7dpkQfY0EbcwIQg1TRZTCYo-AYTtpthYj8DX-SszQ4qSXNHGeW0j4JLpjG7-MpuAve1h7k415M8-W50JWuZpH0jdMKFp2kNbIG8rE9kmpjh2_DK7GBI1dKnNUGOflK2iYS-CMidBlD9R6k4rAPVpivC30twNg"/>
+</div>
+<p class="font-h3 text-h3 text-white">Marcus T.</p>
+<p class="font-label-caps text-label-caps text-primary">98.7 pts</p>
+</div>
+<div class="w-full h-[180px] podium-1 rounded-t-lg flex items-start justify-center pt-sm relative overflow-hidden backdrop-blur-xl">
+<span class="font-h1 text-h1 text-white font-bold drop-shadow-md">1</span>
+<!-- Glass inner highlight -->
+<div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none"></div>
+<div class="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-primary-container/20 to-transparent"></div>
+</div>
+</div>
+<!-- 3rd Place -->
+<div class="flex flex-col items-center w-1/3">
+<div class="mb-sm text-center">
+<div class="w-12 h-12 rounded-full overflow-hidden border-2 border-surface-variant mx-auto mb-2 relative">
+<div class="absolute inset-0 border-2 border-white/20 rounded-full z-10"></div>
+<img alt="3rd Place User" class="w-full h-full object-cover" data-alt="Portrait of a person in a futuristic corporate environment. Subtle cool lighting. Used as an avatar for a 3rd place leaderboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVDdRE-IDuXguT9igKOxqJsui-6dCERrzh-XZn6lej3tfcrnR_WT0Ny_rWzaE-kFIsSaSXu3Az2m9RrbPtnHYieq8NIcaE5v-WI4SyvafaVJqoQOBjwgQT7HDPAVxYzkXQaHtdvHBCzJbUaa3u4eTL33V4vLd-19OtaGKlSvoG9jzWvSEuLrJofPI2Q-RndSL0tPuK9QZ5qGmozni3oaCK7BtKQpZPg3IKfXvmTZMBuLB2_FO0Ttk"/>
+</div>
+<p class="font-body-md text-body-md text-white font-semibold">Elena R.</p>
+<p class="font-label-caps text-label-caps text-primary">91.5 pts</p>
+</div>
+<div class="w-full h-[90px] podium-3 rounded-t-lg flex items-start justify-center pt-sm relative overflow-hidden backdrop-blur-sm">
+<span class="font-h2 text-h2 text-on-surface-variant opacity-40 font-bold">3</span>
+<!-- Glass inner highlight -->
+<div class="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

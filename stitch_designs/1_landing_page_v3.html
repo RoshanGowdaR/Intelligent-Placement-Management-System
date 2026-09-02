@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pro Placement Plus v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#e4dfff",
+                        "surface-container-lowest": "#0e0e13",
+                        "surface": "#131318",
+                        "secondary": "#c6bfff",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#c6bfff",
+                        "on-primary": "#2900a0",
+                        "primary-fixed-dim": "#c6bfff",
+                        "tertiary": "#ffb77d",
+                        "surface-variant": "#35343a",
+                        "inverse-primary": "#5847d2",
+                        "on-secondary-fixed-variant": "#454077",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#faf6ff",
+                        "on-primary-fixed-variant": "#4029ba",
+                        "on-error-container": "#ffdad6",
+                        "inverse-on-surface": "#303036",
+                        "on-primary-fixed": "#160066",
+                        "tertiary-container": "#ac5d00",
+                        "surface-container-high": "#2a292f",
+                        "on-tertiary": "#4d2600",
+                        "primary": "#c6bfff",
+                        "inverse-surface": "#e4e1e9",
+                        "secondary-fixed": "#e4dfff",
+                        "secondary-container": "#454077",
+                        "on-surface": "#e4e1e9",
+                        "surface-tint": "#c6bfff",
+                        "primary-container": "#6c5ce7",
+                        "surface-container-low": "#1b1b20",
+                        "on-secondary-fixed": "#191249",
+                        "on-surface-variant": "#c8c4d7",
+                        "tertiary-fixed": "#ffdcc3",
+                        "surface-dim": "#131318",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "background": "#131318",
+                        "on-secondary": "#2f295e",
+                        "on-secondary-container": "#b5aeed",
+                        "outline": "#928ea0",
+                        "outline-variant": "#474554",
+                        "surface-container-highest": "#35343a",
+                        "surface-bright": "#39383e",
+                        "surface-container": "#1f1f25",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "on-tertiary-container": "#fff5f1",
+                        "on-background": "#e4e1e9",
+                        "on-tertiary-fixed": "#2f1500"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "80px",
+                        "md": "24px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "sm": "12px",
+                        "lg": "48px",
+                        "gutter": "24px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Space Grotesk"],
+                        "h1": ["Space Grotesk"],
+                        "h1-mobile": ["Space Grotesk"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "h3": ["Space Grotesk"],
+                        "label-caps": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "h2": ["32px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "h1": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h1-mobile": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h3": ["24px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0F;
+            color: #FFFFFF;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .text-glow {
+            text-shadow: 0 0 20px rgba(108, 92, 231, 0.4);
+        }
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.3;
+            animation: float 20s infinite ease-in-out alternate;
+        }
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 30px) scale(1.1); }
+            100% { transform: translate(-30px, 50px) scale(0.9); }
+        }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden relative">
+<!-- Ambient Background Blobs -->
+<div class="blob bg-primary-container w-[600px] h-[600px] top-[-100px] left-[-100px]"></div>
+<div class="blob bg-inverse-primary w-[500px] h-[500px] top-[40%] right-[-50px]" style="animation-delay: -5s;"></div>
+<div class="blob bg-secondary w-[700px] h-[700px] bottom-[-200px] left-[20%] opacity-20" style="animation-delay: -10s;"></div>
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/5 backdrop-blur-3xl text-primary border-b border-white/10 shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset] shadow-2xl shadow-indigo-500/10">
+<div class="flex justify-between items-center px-margin-desktop py-base w-full max-w-full">
+<div class="font-h2 text-h2 font-bold text-on-primary-container tracking-tight">Pro Placement Plus v3</div>
+<div class="hidden md:flex gap-md items-center">
+<!-- Navigation items would go here for logged in view, but this is landing -->
+</div>
+<div class="flex items-center gap-md">
+<button class="font-body-md text-white hover:text-primary transition-colors">Log In</button>
+<button class="bg-primary-container text-white px-md py-sm rounded-lg font-body-md font-semibold hover:bg-inverse-primary transition-colors duration-200">Get Started</button>
+</div>
+</div>
+</nav>
+<main class="pt-[120px] pb-xl px-margin-desktop min-h-screen flex flex-col relative z-10">
+<!-- Hero Section -->
+<section class="flex flex-col md:flex-row items-center justify-between gap-lg mb-xl min-h-[716px]">
+<div class="md:w-1/2 flex flex-col gap-md z-10">
+<h1 class="font-h1 text-h1 md:text-[64px] leading-tight text-white font-bold tracking-tight">
+                    Placements, <br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary text-glow">run like a product</span>
+</h1>
+<p class="font-body-lg text-body-lg text-white opacity-90 max-w-lg mt-sm">
+                    Engineered for high-tier professionals. Automate, assess, and place with precision instrumentation in a unified, high-performance digital environment.
+                </p>
+<div class="flex gap-md mt-lg">
+<button class="bg-primary-container text-white px-lg py-sm rounded-lg font-body-md font-semibold hover:bg-inverse-primary transition-all duration-300 shadow-[0_0_20px_rgba(108,92,231,0.4)] hover:scale-105 active:scale-95">
+                        Get Started
+                    </button>
+<button class="glass-panel text-white px-lg py-sm rounded-lg font-body-md font-semibold hover:bg-white/10 hover:border-primary transition-all duration-300 active:scale-95 flex items-center gap-sm">
+                        View Demo <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 0;">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- 3D Glass Bento Arrangement (Hero Image Area) -->
+<div class="md:w-1/2 relative h-[500px] w-full perspective-[1000px] group">
+<!-- Abstract representation of the floating 3D dashboards -->
+<div class="absolute inset-0 flex items-center justify-center transform-gpu rotate-y-[-15deg] rotate-x-[5deg] group-hover:rotate-y-[-5deg] group-hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
+<div class="w-[120%] h-[120%] bg-contain bg-center bg-no-repeat absolute z-10" data-alt="A highly detailed, 3D extruded isometric digital dashboard interface floating in a dark void. The interface is composed of multiple semi-transparent frosted glass panels (glassmorphism) reflecting a strong top-left cool white light source. The color palette is deep black, indigo, and bright cyan accents. The overall aesthetic is engineered futurism, premium, and highly technical." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDBGWkALsT_ADXC2mDTXDQYlypLLT6OMt--r1RVuKdyn2Wwi2vwVN0zNeWu_zISCG2D_IU3F7P3LgA-bA81tjBlzhzIt0Xup8mAo9rqMX8it-4d_fT_Ma__3vxyTGW_KQ0UWEnhka7h5MbREI6BXvg4B7L2kITw4aaHiPTYur6hAzArd_a7w8SDPJvn9wZhfeBba33D0sPIlRaaq-kklAPfAMuHUqcWdEQKiBcg7S7JwiKhrb6SbXU')"></div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Features -->
+<section class="w-full max-w-7xl mx-auto z-10 mt-xl">
+<h2 class="font-h2 text-h2 text-white mb-lg text-center">Engineered Core Capabilities</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Card 1 (Large) -->
+<div class="glass-panel rounded-xl p-lg md:col-span-2 flex flex-col justify-between group hover:-translate-y-1 transition-transform duration-300">
+<div class="flex justify-between items-start mb-md">
+<div>
+<span class="font-label-caps text-label-caps text-primary uppercase tracking-widest block mb-sm">Automated</span>
+<h3 class="font-h3 text-h3 text-white">Eligibility Routing</h3>
+</div>
+<div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center shadow-inner border border-white/10 group-hover:border-primary/50 transition-colors">
+<img class="w-10 h-10 object-contain" data-alt="A highly detailed 3D rendering of an abstract route or pathway icon, extruded from brushed metal and frosted glass. It is illuminated by a sharp top-left blue light source, casting a deep shadow on a dark matte surface. Engineered futurism style, high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_yfLd18mZNvt4sB-wffWDyPB5C8OA6Q2gAujzVzQl8sktwtFXpKUPBh3ktXJ3jvytCgRedcvJMYvosO8DZ3a9WklGWFBfkItH4iEnMMGOR-kWpM--YLXF9siJUbsN2lf1Kbe7KV6pv3HJNIQB_U8HNcXxeF8-_CEYoUnplhLhuOe_85fO-E1YgnzBgoGKB5X8z0JlitT3vnrIitLLjipdesNlC-x8UmGu_fIucIhxC_dnYOMrG28"/>
+</div>
+</div>
+<p class="font-body-md text-white opacity-90 mt-auto">Intelligent parsing protocols instantly categorize and route candidates based on complex matrix configurations.</p>
+</div>
+<!-- Card 2 -->
+<div class="glass-panel rounded-xl p-lg flex flex-col justify-between group hover:-translate-y-1 transition-transform duration-300">
+<div class="mb-md">
+<div class="w-12 h-12 rounded-lg bg-primary-container/20 flex items-center justify-center border border-primary/30 mb-md shadow-[0_0_15px_rgba(108,92,231,0.2)]">
+<img class="w-8 h-8 object-contain" data-alt="A meticulously crafted 3D lock icon made of clear crystal and dark titanium, illuminated from above to highlight crisp edges. Dark background, premium high-tech aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDE2Hfl6xUMBZgQQHKZdykneowmwXurNW67_ZCVPn6hI2RJ2maaWELAyF5-r1Z9GvXYoZ8GSAnFuQKPRLi6U1TZn-QE-aXsxOaHPd_ddTc0fNF62fKx3j5sasy9ZG6UgCBMzb1pXFZFfrlULUTbLpuZtlgKABKxBK5d95NDF0EYz_EuJuMZ7HWINBNRJGdmPYaA5s5QbEaQKc9OtgwvFMwKaAgzq9YdVBlaiQuzv0HNnwvOnBIHAM0"/>
+</div>
+<h3 class="font-h3 text-h3 text-white">Secure Assessments</h3>
+</div>
+<p class="font-body-md text-white opacity-90">Tamper-proof environments for high-stakes technical evaluation.</p>
+</div>
+<!-- Card 3 -->
+<div class="glass-panel rounded-xl p-lg flex flex-col justify-between group hover:-translate-y-1 transition-transform duration-300">
+<div class="mb-md">
+<div class="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center border border-secondary/30 mb-md">
+<img class="w-8 h-8 object-contain" data-alt="A 3D extruded brain icon with glowing neural pathways, rendered in frosted glass and neon indigo lights. High-tech, futuristic laboratory aesthetic against a pure black background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4uHVwjHOMvaGkXs47mUHCprHM6qzRRIvSWL1mUdjxAP2KzYufdXj1ffZRO1_3-SMvp1W-tB3g7jG4XzeQTo4LKcKR36exHd0A1I4mJgmT5X_jMGBRd4IqdFXcWQ1n9kvsG9xVitAoq8cb1xu7M_cCYuaNkWVzLWxqOk_Y3-vTMDFCVIaZbA8wFuRFI0xljw7gdtXMq7FefBUrmfo9VtzUzsu_Nc8c2-1cQ1hCi4uoHGlC7FNbEc8"/>
+</div>
+<h3 class="font-h3 text-h3 text-white">AI Question Gen</h3>
+</div>
+<p class="font-body-md text-white opacity-90">Dynamically synthesized problem sets tailored to candidate skill velocity.</p>
+</div>
+<!-- Card 4 (Large) -->
+<div class="glass-panel rounded-xl p-lg md:col-span-2 flex flex-col justify-between group hover:-translate-y-1 transition-transform duration-300">
+<div class="flex justify-between items-start mb-md">
+<div>
+<h3 class="font-h3 text-h3 text-white mb-sm">Real-time Telemetry</h3>
+<p class="font-body-md text-white opacity-90 max-w-md">Instantaneous status updates and pipeline velocity metrics delivered through low-latency socket connections.</p>
+</div>
+<div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center shadow-inner border border-white/10 group-hover:border-primary/50 transition-colors">
+<img class="w-10 h-10 object-contain" data-alt="A 3D radar or signal pulse icon, built from layered transparent acrylic panels with glowing indigo edges. Set against a deep space dark background with volumetric lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3XbwsCR1eEBbFoNj1PgZ_XvCMbg6NU3yvaO8yrDmSUAGiBTTrLIgQXjAvaQJ4fiv2TVpkRJhH3VoX6LJb-UwxgmDttgPNDS90qwhw13pA3iyp4UflOMgcJB7vPAZNl0hSeSZzgQPWdvuB8HuDCx0jGDsNDiQxrdnL2WSIt0Q_E9SsGBhX0RucGQ52aqGF6EAtiDMf8L6MU6RpGFkKpbWIRwsFltHjtU0sfAfpJzzZVJg-UT17oi8"/>
+</div>
+</div>
+<!-- Decorative element for real-time -->
+<div class="h-2 w-full bg-white/10 rounded-full mt-lg overflow-hidden">
+<div class="h-full bg-primary-container w-1/3 rounded-full relative shadow-[0_0_10px_#6c5ce7]">
+<div class="absolute right-0 top-0 bottom-0 w-4 bg-white/50 blur-sm rounded-full animate-pulse"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-lg bg-surface-container-lowest border-t border-white/5 flex flex-col md:flex-row justify-between items-center px-margin-desktop gap-md relative z-10">
+<div class="font-h3 text-h3 text-white">Pro Placement Plus</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">© 2024 Pro Placement Plus. Engineered for Excellence.</div>
+<div class="flex gap-md font-label-caps text-label-caps text-on-surface-variant">
+<a class="hover:text-primary transition-colors" href="#">Terms of Service</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-primary transition-colors" href="#">Technical Specifications</a>
+<a class="hover:text-primary transition-colors" href="#">Support</a>
+</div>
+</footer>
+</body></html>

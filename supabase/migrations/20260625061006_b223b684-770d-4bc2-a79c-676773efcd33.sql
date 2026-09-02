@@ -1,0 +1,1 @@
+CREATE POLICY "Admins can delete attempts" ON public.test_attempts FOR DELETE USING (has_role(auth.uid(), 'admin'::app_role));
