@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/3d/GlassCard";
@@ -46,9 +46,9 @@ export default function AdminDashboard() {
         supabase.from("tests").select("id", { count: "exact", head: true }),
         supabase.from("companies").select("id", { count: "exact", head: true }),
         supabase.from("test_attempts").select("passed, tab_switches, auto_submitted"),
-        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, companies(name)").order("scheduled_date", { ascending: true }).limit(4),
-        supabase.from("test_attempts").select("id, total_score, passed, tab_switches, completed_at, profiles(name, email, branch), tests(title)").order("completed_at", { ascending: false }).limit(6),
-        supabase.from("companies").select("id, name, job_role, salary_package, job_location").order("created_at", { ascending: false }).limit(4),
+        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, companies:company_id(name)").order("scheduled_date", { ascending: true }).limit(4),
+        supabase.from("test_attempts").select("id, total_score, passed, tab_switches, completed_at, profiles:student_id(name, email, branch), tests:test_id(title)").order("completed_at", { ascending: false }).limit(6),
+        supabase.from("companies").select("id, name, hr_name, website, industry, created_at").order("created_at", { ascending: false }).limit(4),
       ]);
 
       const attempts = attemptsRes.data ?? [];
