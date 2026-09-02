@@ -27,12 +27,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "zqlzwrezlbrfmety").replace(/\s+/g, "");
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: gmailUser,
         pass: gmailAppPassword,
       },
-    });
+      tls: {
+        rejectUnauthorized: false,
+      },
+      // Force IPv4 to avoid ENETUNREACH on systems with incomplete IPv6 routing
+      family: 4,
+    } as any);
 
     let mailSubject = subject || `🏢 Campus Placement Drive Invitation — ${companyName || "Recruiter"}`;
     let mailHtml = html || `

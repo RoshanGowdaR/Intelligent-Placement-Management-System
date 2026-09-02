@@ -52,13 +52,20 @@ export default defineConfig(({ mode }) => ({
               const gmailUser = process.env.GMAIL_USER || "gowdaroshan49@gmail.com";
               const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "zqlzwrezlbrfmety").replace(/\s+/g, "");
 
+              // Use IPv4 to prevent Windows/Node ENETUNREACH on IPv6
               const transporter = nodemailer.createTransport({
-                service: "gmail",
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true,
                 auth: {
                   user: gmailUser,
                   pass: gmailAppPassword,
                 },
-              });
+                tls: {
+                  rejectUnauthorized: false,
+                },
+                family: 4,
+              } as any);
 
               let mailSubject = data.subject || `🏢 Campus Placement Drive Invitation — ${data.companyName || "Recruiter"}`;
               let mailHtml = data.html;
