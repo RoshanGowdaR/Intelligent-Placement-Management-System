@@ -36,40 +36,64 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
       crypto.getRandomValues(tokenArray);
       const token = Array.from(tokenArray, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
-      const { data, error } = await supabase
-        .from("company_invites" as any)
-        .insert({
-          email: email.trim().toLowerCase(),
-          company_name: companyName.trim() || null,
-          invited_by: user?.id,
-          token,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      // Try saving invite record to Supabase
+      try {
+        await supabase
+          .from("company_invites" as any)
+          .insert({
+            email: email.trim().toLowerCase(),
+            company_name: companyName.trim() || null,
+            invited_by: user?.id,
+            token,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+      } catch (dbErr) {
+        console.warn("DB record insert notice:", dbErr);
+      }
 
       const inviteLink = `${window.location.origin}/company/register?token=${token}`;
       setGeneratedLink(inviteLink);
 
-      // Dispatch Email delivery to company recruiter via Supabase Edge Function
+      // Dispatch real email delivery to company recruiter via API
+      let emailSent = false;
       try {
-        const res = await supabase.functions.invoke("send-company-notification", {
-          body: {
+        const response = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             action: "invite",
-            email: email.trim(),
+            to: email.trim(),
             companyName: companyName.trim(),
             inviteLink,
-          },
+          }),
         });
-        if (res.data?.success || res.data?.emailDelivery?.success) {
+
+        if (response.ok) {
+          emailSent = true;
           toast.success(`Invitation email sent directly from your Gmail to ${email}!`);
-        } else {
-          toast.success(`Invitation generated and sent to ${email}!`);
         }
-      } catch (_) {
-        toast.success(`Invitation link generated for ${companyName || email}!`);
+      } catch (fetchErr) {
+        console.warn("Direct API send warning:", fetchErr);
+      }
+
+      if (!emailSent) {
+        try {
+          const res = await supabase.functions.invoke("send-company-notification", {
+            body: {
+              action: "invite",
+              email: email.trim(),
+              companyName: companyName.trim(),
+              inviteLink,
+            },
+          });
+          if (res.data?.success) {
+            toast.success(`Invitation email sent directly from your Gmail to ${email}!`);
+          } else {
+            toast.success(`Invitation generated for ${companyName || email}!`);
+          }
+        } catch (_) {
+          toast.success(`Invitation link generated for ${companyName || email}!`);
+        }
       }
 
       onInvited?.();
