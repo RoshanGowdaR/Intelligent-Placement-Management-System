@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -156,6 +157,16 @@ export function NotificationCenter() {
             </div>
           )}
         </ScrollArea>
+        <div className="p-2 border-t border-border/60 text-center bg-muted/20">
+          <Link
+            to="/dashboard/notifications"
+            onClick={() => setOpen(false)}
+            className="text-xs font-bold text-[#5b51d8] hover:underline inline-flex items-center gap-1"
+          >
+            <span>View All Notification History</span>
+            <span>&rarr;</span>
+          </Link>
+        </div>
       </PopoverContent>
     </Popover>
   );

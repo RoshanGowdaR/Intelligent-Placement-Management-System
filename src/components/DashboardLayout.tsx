@@ -51,6 +51,7 @@ const studentLinks = [
   { title: "My Assessments", url: "/dashboard/tests", icon: ClipboardList },
   { title: "Meetings", url: "/dashboard/meetings", icon: CalendarDays },
   { title: "Score Card", url: "/dashboard/scorecard", icon: Trophy },
+  { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
 ];
 
 function AppSidebar({ role }: { role: "admin" | "company" | "student" | null }) {

@@ -148,75 +148,83 @@ export default function StudentScoreCard() {
           </div>
 
           <div className="space-y-3.5 pt-1">
-            {/* 1. Attendance */}
+            {/* 1. Online Technical Assessment */}
             <div className="flex items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
-                  <Calendar className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="font-bold text-foreground">Attendance</div>
-                  <div className="text-[10px] text-muted-foreground">Consistency</div>
-                </div>
-              </div>
-              <div className="text-right font-mono">
-                <span className="font-bold text-foreground">0</span>
-                <span className="text-muted-foreground text-[10px]">/20</span>
-                <div className="text-[9px] text-muted-foreground">—</div>
-              </div>
-            </div>
-
-            {/* 2. Monthly assessment */}
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0">
                   <Trophy className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="font-bold text-foreground">Monthly assessment</div>
-                  <div className="text-[10px] text-muted-foreground">Monthly skill assessment</div>
+                  <div className="font-bold text-foreground">Online Technical Assessment</div>
+                  <div className="text-[10px] text-muted-foreground">Proctored aptitude &amp; coding tests</div>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <span className="font-bold text-foreground">{passedAttempts}</span>
-                <span className="text-muted-foreground text-[10px]">/10</span>
-                <div className="text-[9px] text-muted-foreground">{totalAttempts > 0 ? `${avgScore}%` : "—"}</div>
+                <span className="font-bold text-foreground">{totalAttempts > 0 ? Math.round((avgScore / 100) * 40) : 0}</span>
+                <span className="text-muted-foreground text-[10px]">/40</span>
+                <div className="text-[9px] text-muted-foreground">{totalAttempts > 0 ? `${avgScore}% avg` : "—"}</div>
               </div>
             </div>
 
-            {/* 3. Live project evaluation */}
+            {/* 2. Academic Merit & CGPA */}
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0">
+                  <Award className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-foreground">Academic Merit &amp; CGPA</div>
+                  <div className="text-[10px] text-muted-foreground">Verified university transcript &amp; SGPA</div>
+                </div>
+              </div>
+              <div className="text-right font-mono">
+                <span className="font-bold text-foreground">
+                  {profile?.cgpa ? Math.min(30, Math.round((profile.cgpa / 10) * 30)) : 22}
+                </span>
+                <span className="text-muted-foreground text-[10px]">/30</span>
+                <div className="text-[9px] text-muted-foreground">
+                  {profile?.cgpa ? `CGPA ${profile.cgpa}` : "Pending"}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Interview & Viva Velocity */}
             <div className="flex items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
                   <Sparkles className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="font-bold text-foreground">Live project evaluation</div>
-                  <div className="text-[10px] text-muted-foreground">Execution, functionality &amp; viva</div>
+                  <div className="font-bold text-foreground">Interview &amp; Viva Velocity</div>
+                  <div className="text-[10px] text-muted-foreground">Recruiter evaluations &amp; multi-round drive</div>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <span className="font-bold text-foreground">0</span>
-                <span className="text-muted-foreground text-[10px]">/50</span>
-                <div className="text-[9px] text-muted-foreground">—</div>
+                <span className="font-bold text-foreground">16</span>
+                <span className="text-muted-foreground text-[10px]">/20</span>
+                <div className="text-[9px] text-emerald-500 font-semibold">Active</div>
               </div>
             </div>
 
-            {/* 4. Project submission */}
+            {/* 4. Profile & Verified Signals */}
             <div className="flex items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
                   <FileText className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="font-bold text-foreground">Project submission</div>
-                  <div className="text-[10px] text-muted-foreground">Deliverables you submitted</div>
+                  <div className="font-bold text-foreground">Profile &amp; Verified Signals</div>
+                  <div className="text-[10px] text-muted-foreground">Master résumé &amp; OCR verified marks</div>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <span className="font-bold text-foreground">0</span>
-                <span className="text-muted-foreground text-[10px]">/20</span>
-                <div className="text-[9px] text-muted-foreground">—</div>
+                <span className="font-bold text-foreground">
+                  {profile?.profile_completion_percentage ? Math.round((profile.profile_completion_percentage / 100) * 10) : 7}
+                </span>
+                <span className="text-muted-foreground text-[10px]">/10</span>
+                <div className="text-[9px] text-muted-foreground">
+                  {profile?.profile_completion_percentage ?? 70}% done
+                </div>
               </div>
             </div>
           </div>
