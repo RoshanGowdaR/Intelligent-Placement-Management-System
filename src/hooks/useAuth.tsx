@@ -87,13 +87,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "company";
       }
 
-      // 3. Auto-detect Company Recruiter by checking email in company_invites or companies
+      // 3. Auto-detect Admin or Company Recruiter by checking email in company_invites
       if (normalizedEmail) {
         const { data: invite } = await supabase
           .from("company_invites" as any)
           .select("id, company_name, accepted_at")
           .ilike("email", normalizedEmail)
           .maybeSingle();
+
+        // 3a. Admin invite auto-provisioning
+        if (invite && invite.company_name === "Placement Admin") {
+          await supabase.from("user_roles").upsert(
+            { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
+            { onConflict: "user_id,role" }
+          );
+          if (!invite.accepted_at) {
+            await supabase
+              .from("company_invites" as any)
+              .update({ accepted_at: new Date().toISOString() })
+              .eq("id", invite.id);
+          }
+          setRole("admin");
+          return "admin";
+        }
 
         const { data: matchedComp } = await supabase
           .from("companies")

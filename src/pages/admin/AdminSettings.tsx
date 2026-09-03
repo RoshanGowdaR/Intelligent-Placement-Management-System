@@ -376,29 +376,99 @@ function InviteSection() {
   const [email, setEmail] = useState("");
   const [invites, setInvites] = useState<any[]>([]);
   const [sending, setSending] = useState(false);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const { log } = useAuditLog();
 
+  const fetchInvites = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("company_invites" as any)
+        .select("*")
+        .eq("company_name", "Placement Admin")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setInvites(data);
+      }
+    } catch (_) {}
+  };
+
   useEffect(() => {
-    supabase.from("admin_invites").select("*").order("created_at", { ascending: false }).then(({ data }) => setInvites(data ?? []));
+    fetchInvites();
   }, []);
 
   const sendInvite = async () => {
-    if (!email || !user) return;
+    if (!email.trim() || !user) return;
     setSending(true);
-    const { data, error } = await supabase.from("admin_invites").insert({ email, invited_by: user.id }).select().single();
-    setSending(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Invite sent to ${email}`);
-    await log("admin_invited", "admin_invites", data.id, { email });
-    setEmail("");
-    setInvites((prev) => [data, ...prev]);
+
+    try {
+      const tokenArray = new Uint8Array(24);
+      crypto.getRandomValues(tokenArray);
+      const token = Array.from(tokenArray, (byte) => byte.toString(16).padStart(2, "0")).join("");
+      const cleanEmail = email.trim().toLowerCase();
+
+      const { data, error } = await supabase
+        .from("company_invites" as any)
+        .insert({
+          email: cleanEmail,
+          company_name: "Placement Admin",
+          invited_by: user.id,
+          token,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        toast.error(error.message);
+        setSending(false);
+        return;
+      }
+
+      const inviteLink = `${window.location.origin}/signup?admin_invite=${token}&email=${encodeURIComponent(cleanEmail)}`;
+
+      // Dispatch direct email delivery to the invited admin
+      try {
+        await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "invite",
+            to: cleanEmail,
+            companyName: "Placement Admin",
+            subject: "🎓 Placement Admin Invitation — Intelligent Placement Management System",
+            inviteLink,
+          }),
+        });
+      } catch (_) {}
+
+      toast.success(`Admin invite sent to ${cleanEmail}!`);
+      try {
+        await log("admin_invited", "company_invites", data?.id, { email: cleanEmail });
+      } catch (_) {}
+
+      setEmail("");
+      setInvites((prev) => [data, ...prev]);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to send admin invite");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copyInviteLink = (token: string, email: string) => {
+    const link = `${window.location.origin}/signup?admin_invite=${token}&email=${encodeURIComponent(email)}`;
+    navigator.clipboard.writeText(link);
+    setCopiedToken(token);
+    toast.success("Admin invite link copied to clipboard!");
+    setTimeout(() => setCopiedToken(null), 2500);
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" /> Admin Invites</CardTitle>
-        <CardDescription>Only invited users can become admins. Share the invite token securely.</CardDescription>
+        <CardDescription>Only invited users can become admins. Share the invite token securely or send via email.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
@@ -414,16 +484,17 @@ function InviteSection() {
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
-                <TableHead>Token</TableHead>
+                <TableHead>Invite Link</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Expires</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invites.map((inv) => (
                 <TableRow key={inv.id}>
                   <TableCell className="font-medium">{inv.email}</TableCell>
-                  <TableCell><code className="rounded bg-muted px-1 text-xs">{inv.token.slice(0, 12)}…</code></TableCell>
+                  <TableCell><code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{inv.token.slice(0, 12)}…</code></TableCell>
                   <TableCell>
                     <Badge variant={inv.accepted_at ? "default" : new Date(inv.expires_at) < new Date() ? "destructive" : "secondary"}>
                       {inv.accepted_at ? "Accepted" : new Date(inv.expires_at) < new Date() ? "Expired" : "Pending"}
@@ -431,6 +502,16 @@ function InviteSection() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(inv.expires_at).toLocaleDateString("en-IN")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-8 rounded-lg"
+                      onClick={() => copyInviteLink(inv.token, inv.email)}
+                    >
+                      {copiedToken === inv.token ? "Copied!" : "Copy Link"}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -447,8 +528,16 @@ function AuditSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(100)
-      .then(({ data }) => { setLogs(data ?? []); setLoading(false); });
+    supabase
+      .from("audit_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (!error && data) setLogs(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   return (
@@ -471,7 +560,7 @@ function AuditSection() {
             {loading ? (
               <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">Loading…</TableCell></TableRow>
             ) : logs.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">No audit logs yet</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">No audit logs recorded yet</TableCell></TableRow>
             ) : (
               logs.map((l) => (
                 <TableRow key={l.id}>

@@ -138,12 +138,14 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap items-center gap-3">
           {/* AI Assistant Button */}
           <Button
-            onClick={() => setAssistantOpen(true)}
+            asChild
             className="h-11 px-4 rounded-xl bg-gradient-to-r from-primary to-indigo-600 font-bold text-white shadow-[0_4px_20px_rgba(108,92,231,0.4)] hover:scale-105 active:scale-95 transition-all gap-2"
           >
-            <Bot className="h-4 w-4" />
-            <span>Ask Placement AI</span>
-            <Mic className="h-3.5 w-3.5 opacity-80" />
+            <Link to="/admin/ai">
+              <Bot className="h-4 w-4" />
+              <span>Ask Placement AI</span>
+              <Mic className="h-3.5 w-3.5 opacity-80" />
+            </Link>
           </Button>
 
           {/* Invite Company */}
@@ -398,16 +400,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* Floating Quick Trigger for Placement Assistant */}
-      <motion.button
-        onClick={() => setAssistantOpen(true)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_35px_rgba(108,92,231,0.5)] border border-white/20"
+      <Link
+        to="/admin/ai"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_35px_rgba(108,92,231,0.5)] border border-white/20 hover:scale-105 transition-transform"
       >
         <Bot className="h-4 w-4" />
         <span>Placement Oracle AI</span>
         <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-      </motion.button>
+      </Link>
 
       {/* Modals */}
       <AdminAIAssistant open={assistantOpen} onOpenChange={setAssistantOpen} />

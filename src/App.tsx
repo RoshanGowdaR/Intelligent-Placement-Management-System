@@ -41,6 +41,7 @@ import CompanyDriveRounds from "./pages/company/CompanyDriveRounds";
 import CompanyTests from "./pages/company/CompanyTests";
 import CompanyCandidates from "./pages/company/CompanyCandidates";
 import CompanyReports from "./pages/company/CompanyReports";
+import PlacementAIChat from "./pages/ai/PlacementAIChat";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +79,7 @@ const App = () => (
 
               {/* Admin routes */}
               <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/admin/ai" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><PlacementAIChat forcedRole="admin" /></DashboardLayout></ProtectedRoute>} />
               <Route path="/admin/companies" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminCompanies /></DashboardLayout></ProtectedRoute>} />
               <Route path="/admin/tests" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminTests /></DashboardLayout></ProtectedRoute>} />
               <Route path="/admin/students" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminStudents /></DashboardLayout></ProtectedRoute>} />
@@ -88,6 +90,7 @@ const App = () => (
 
               {/* Company Recruiter routes */}
               <Route path="/company" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/company/ai" element={<ProtectedRoute requiredRole="company"><DashboardLayout><PlacementAIChat forcedRole="company" /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/dashboard" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/rounds" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDriveRounds /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/tests" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyTests /></DashboardLayout></ProtectedRoute>} />
@@ -96,6 +99,7 @@ const App = () => (
 
               {/* Student routes */}
               <Route path="/dashboard" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentDashboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/dashboard/ai" element={<ProtectedRoute requiredRole="student"><DashboardLayout><PlacementAIChat forcedRole="student" /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/tests" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentTests /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/results" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentResults /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/schedule" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentSchedule /></DashboardLayout></ProtectedRoute>} />

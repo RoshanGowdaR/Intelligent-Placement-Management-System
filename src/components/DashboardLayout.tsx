@@ -18,7 +18,7 @@ import {
 import {
   LayoutDashboard, Building2, FileText, Users, BarChart3, ClipboardList,
   GraduationCap, CalendarDays, Trophy, UserCircle, LogOut, Menu, Shield, GitBranch,
-  Search, Sparkles, Settings, HelpCircle, ChevronDown, Bell, CheckCircle2, Lock,
+  Search, Sparkles, Settings, HelpCircle, ChevronDown, Bell, CheckCircle2, Lock, Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -27,6 +27,7 @@ import { StudentAIAssistant } from "@/components/assistant/StudentAIAssistant";
 
 const adminLinks = [
   { title: "Overview", url: "/admin", icon: LayoutDashboard },
+  { title: "AI Assistant", url: "/admin/ai", icon: Bot },
   { title: "Companies", url: "/admin/companies", icon: Building2 },
   { title: "Assessments", url: "/admin/tests", icon: ClipboardList },
   { title: "Students", url: "/admin/students", icon: Users },
@@ -38,6 +39,7 @@ const adminLinks = [
 
 const companyLinks = [
   { title: "Overview", url: "/company", icon: LayoutDashboard },
+  { title: "Placement AI", url: "/company/ai", icon: Bot },
   { title: "Drive Rounds", url: "/company/rounds", icon: GitBranch },
   { title: "Assessments", url: "/company/tests", icon: ClipboardList },
   { title: "Candidates", url: "/company/candidates", icon: Users },
@@ -46,6 +48,7 @@ const companyLinks = [
 
 const studentLinks = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+  { title: "AI Assistant", url: "/dashboard/ai", icon: Bot },
   { title: "Profile Studio", url: "/dashboard/profile", icon: UserCircle },
   { title: "Applications", url: "/dashboard/companies", icon: Building2 },
   { title: "My Assessments", url: "/dashboard/tests", icon: ClipboardList },

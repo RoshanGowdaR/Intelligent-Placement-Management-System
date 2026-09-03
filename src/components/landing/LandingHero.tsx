@@ -78,11 +78,11 @@ export function LandingHero() {
           <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary/30 to-secondary/20 blur-2xl opacity-70 group-hover:opacity-100 transition-opacity" />
 
           {/* 3D Container with Glass Highlights */}
-          <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-white/20 bg-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.45)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)]">
+          <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-white/20 bg-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.45)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)] min-h-[300px] md:min-h-[420px] flex items-center justify-center">
             <img
-              src="/lovable-uploads/617945d8-9df2-4752-a548-aee6e66c07ab.png"
+              src="/ipms_hero_3d_dashboard.jpg"
               alt="Intelligent Placement Management System 3D Futuristic Telemetry Interface"
-              className="w-full h-auto object-cover transform group-hover:scale-[1.02] transition-transform duration-700 ease-out"
+              className="w-full h-full object-cover min-h-[300px] md:min-h-[420px] transform group-hover:scale-[1.02] transition-transform duration-700 ease-out"
               loading="eager"
             />
             
