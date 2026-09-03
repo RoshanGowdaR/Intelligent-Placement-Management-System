@@ -1,4 +1,4 @@
-﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import nodemailer from "nodemailer";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -23,8 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Missing recipient email" });
     }
 
-    const gmailUser = process.env.GMAIL_USER || "gowdaroshan49@gmail.com";
-    const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "zqlzwrezlbrfmety").replace(/\s+/g, "");
+    const gmailUser = process.env.GMAIL_USER || "";
+    const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",

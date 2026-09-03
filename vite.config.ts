@@ -49,8 +49,8 @@ export default defineConfig(({ mode }) => ({
                 return;
               }
 
-              const gmailUser = process.env.GMAIL_USER || "gowdaroshan49@gmail.com";
-              const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "zqlzwrezlbrfmety").replace(/\s+/g, "");
+              const gmailUser = process.env.GMAIL_USER || "";
+              const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
 
               // Use IPv4 to prevent Windows/Node ENETUNREACH on IPv6
               const transporter = nodemailer.createTransport({

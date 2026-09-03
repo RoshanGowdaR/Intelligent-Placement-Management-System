@@ -1,4 +1,4 @@
-﻿const corsHeaders = {
+const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
@@ -20,8 +20,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const gmailUser = Deno.env.get('GMAIL_USER') || 'gowdaroshan49@gmail.com';
-    const gmailAppPassword = (Deno.env.get('GMAIL_APP_PASSWORD') || 'zqlzwrezlbrfmety').replace(/\s+/g, '');
+    const gmailUser = Deno.env.get('GMAIL_USER') || '';
+    const gmailAppPassword = (Deno.env.get('GMAIL_APP_PASSWORD') || '').replace(/\s+/g, '');
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
