@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingFeatures } from "@/components/landing/LandingFeatures";
+import { LandingTeam } from "@/components/landing/LandingTeam";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingFooter } from "@/components/landing/LandingFooter";
@@ -28,6 +29,7 @@ export default function Index() {
         <LandingNav />
         <LandingHero />
         <LandingFeatures />
+        <LandingTeam />
         <LandingCTA />
         <LandingFooter />
         <LandingChatbot />
