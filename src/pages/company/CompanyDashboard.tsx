@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,11 +35,35 @@ export default function CompanyDashboard() {
 
     try {
       // 1. Fetch current company record linked to user_id
-      const { data: compData } = await supabase
+      let { data: compData } = await supabase
         .from("companies")
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      // If not linked yet, look up company by invite email or company_name
+      if (!compData && user.email) {
+        const { data: invite } = await supabase
+          .from("company_invites" as any)
+          .select("company_name")
+          .ilike("email", user.email)
+          .maybeSingle();
+
+        const targetCompanyName = invite?.company_name || user.user_metadata?.company_name;
+
+        if (targetCompanyName) {
+          const { data: matchedComp } = await supabase
+            .from("companies")
+            .select("*")
+            .ilike("name", targetCompanyName)
+            .maybeSingle();
+
+          if (matchedComp) {
+            await supabase.from("companies").update({ user_id: user.id }).eq("id", matchedComp.id);
+            compData = { ...matchedComp, user_id: user.id };
+          }
+        }
+      }
 
       const currentCompany = compData || {
         name: user.user_metadata?.company_name || "Visiting Recruiter",

@@ -26,27 +26,135 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchRole = async (userId: string, userEmail?: string): Promise<AppRole | null> => {
     try {
-      // Primary admin email auto-provisioning
-      if (userEmail === "gowdaroshan49@gmail.com") {
+      const normalizedEmail = (userEmail || "").trim().toLowerCase();
+
+      // 1. Primary admin email auto-provisioning
+      if (normalizedEmail === "gowdaroshan49@gmail.com") {
         await supabase.from("user_roles").upsert(
           { user_id: userId, role: "admin" as AppRole },
           { onConflict: "user_id,role" }
         );
+        setRole("admin");
+        return "admin";
       }
 
-      const { data, error } = await supabase
+      // 2. Check existing assigned roles in user_roles
+      const { data: roleRecords } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId);
 
-      if (error) {
-        console.warn("Could not fetch user_roles:", error.message);
+      const existingRoles = (roleRecords ?? []).map((r) => r.role);
+
+      if (existingRoles.includes("admin")) {
+        setRole("admin");
+        return "admin";
       }
 
-      const roles = (data ?? []).map((r) => r.role);
-      const isUserAdmin = roles.includes("admin") || userEmail === "gowdaroshan49@gmail.com";
-      const resolvedRole: AppRole = isUserAdmin ? "admin" : (roles[0] ?? "student");
+      if (existingRoles.includes("company")) {
+        // Sync pending company profile if stored during registration flow
+        try {
+          const rawPending = sessionStorage.getItem("pending_company_details");
+          if (rawPending) {
+            const pending = JSON.parse(rawPending);
+            sessionStorage.removeItem("pending_company_details");
+            await supabase.from("companies").upsert({
+              user_id: userId,
+              name: pending.name || "Visiting Company",
+              website: pending.website || null,
+              industry: pending.industry || null,
+              description: pending.description || null,
+              hr_name: pending.hrName || null,
+              hr_phone: pending.phone || null,
+              job_role: pending.jobRole || null,
+              salary_package: pending.salaryPackage || null,
+              max_backlogs: Number(pending.maxBacklogs) || 0,
+            });
+          }
+        } catch (_) {}
 
+        setRole("company");
+        return "company";
+      }
+
+      // 3. Auto-detect Company Recruiter by checking email in company_invites or companies
+      if (normalizedEmail) {
+        const { data: invite } = await supabase
+          .from("company_invites" as any)
+          .select("id, company_name, accepted_at")
+          .ilike("email", normalizedEmail)
+          .maybeSingle();
+
+        const { data: matchedComp } = await supabase
+          .from("companies")
+          .select("id, name")
+          .or(`user_id.eq.${userId}`)
+          .maybeSingle();
+
+        if (invite || matchedComp) {
+          // Provision company role
+          await supabase.from("user_roles").upsert(
+            { user_id: userId, role: "company" as AppRole },
+            { onConflict: "user_id,role" }
+          );
+
+          // Link company database row with user ID
+          if (matchedComp) {
+            await supabase.from("companies").update({ user_id: userId }).eq("id", matchedComp.id);
+          } else if (invite) {
+            // Check if company exists by name
+            const { data: compByName } = await supabase
+              .from("companies")
+              .select("id")
+              .ilike("name", invite.company_name || "")
+              .maybeSingle();
+
+            if (compByName) {
+              await supabase.from("companies").update({ user_id: userId }).eq("id", compByName.id);
+            } else {
+              await supabase.from("companies").insert({
+                name: invite.company_name || "Visiting Partner",
+                user_id: userId,
+              });
+            }
+          }
+
+          // Mark invite accepted
+          if (invite) {
+            await supabase
+              .from("company_invites" as any)
+              .update({ accepted_at: new Date().toISOString() })
+              .ilike("email", normalizedEmail);
+          }
+
+          // Sync pending company profile if stored
+          try {
+            const rawPending = sessionStorage.getItem("pending_company_details");
+            if (rawPending) {
+              const pending = JSON.parse(rawPending);
+              sessionStorage.removeItem("pending_company_details");
+              await supabase.from("companies").upsert({
+                user_id: userId,
+                name: pending.name || invite?.company_name || "Visiting Company",
+                website: pending.website || null,
+                industry: pending.industry || null,
+                description: pending.description || null,
+                hr_name: pending.hrName || null,
+                hr_phone: pending.phone || null,
+                job_role: pending.jobRole || null,
+                salary_package: pending.salaryPackage || null,
+                max_backlogs: Number(pending.maxBacklogs) || 0,
+              });
+            }
+          } catch (_) {}
+
+          setRole("company");
+          return "company";
+        }
+      }
+
+      // 4. Default to student
+      const resolvedRole: AppRole = existingRoles[0] ?? "student";
       setRole(resolvedRole);
       return resolvedRole;
     } catch (err) {

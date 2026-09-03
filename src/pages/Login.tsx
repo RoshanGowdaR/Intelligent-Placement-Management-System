@@ -68,7 +68,15 @@ export default function Login() {
       
     const roles = (rolesData ?? []).map((r) => r.role);
     const isAdmin = roles.includes("admin") || userData.user.email === "gowdaroshan49@gmail.com";
-    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+    const isCompany = roles.includes("company");
+
+    if (isAdmin) {
+      navigate("/admin", { replace: true });
+    } else if (isCompany) {
+      navigate("/company", { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   };
 
   const checkMfaAndNavigate = async () => {
@@ -97,6 +105,8 @@ export default function Login() {
       // For admin accounts, check MFA assurance level before navigation
       if (role === "admin") {
         checkMfaAndNavigate();
+      } else if (role === "company") {
+        navigate("/company", { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }
@@ -127,7 +137,14 @@ export default function Login() {
     setIsLoading(true);
     try {
       const { error } = await signIn(email, password);
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        if (error.message.toLowerCase().includes("invalid login credentials")) {
+          toast.error("Invalid credentials. If you used Google to sign up, please click 'Continue with Google' above, or use 'Forgot password?'.");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
       toast.success("Signed in successfully");
       await checkMfaAndNavigate();
     } catch (err: any) {
