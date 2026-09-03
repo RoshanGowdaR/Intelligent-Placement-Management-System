@@ -128,36 +128,31 @@ export default function StudentProfile() {
 
   const readinessPercentage = calculateReadiness();
 
-  // Scrollspy via IntersectionObserver
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const secId = entry.target.id.replace("section-", "");
-            if (secId) setActiveSection(secId);
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin: "-20% 0px -50% 0px",
-        threshold: 0.1,
-      }
-    );
+  const handleRightScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const containerScrollTop = container.scrollTop;
 
-    sections.forEach((sec) => {
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const sec = sections[i];
       const el = document.getElementById(`section-${sec.id}`);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
+      if (el) {
+        const relativeTop = el.offsetTop - container.offsetTop;
+        if (relativeTop <= containerScrollTop + 140) {
+          setActiveSection(sec.id);
+          break;
+        }
+      }
+    }
+  };
 
   const scrollToSection = (secId: string) => {
     setActiveSection(secId);
+    const container = document.getElementById("profile-scroll-container");
     const el = document.getElementById(`section-${secId}`);
-    if (el) {
+    if (container && el) {
+      const targetScroll = el.offsetTop - container.offsetTop;
+      container.scrollTo({ top: Math.max(0, targetScroll - 10), behavior: "smooth" });
+    } else if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
@@ -295,8 +290,8 @@ export default function StudentProfile() {
       {/* Main 2-Column Layout */}
       <div className="grid lg:grid-cols-12 gap-8 items-start">
         
-        {/* LEFT COLUMN: Sticky Navigation & Progress (4 Cols) */}
-        <div className="lg:col-span-4 lg:sticky lg:top-4 self-start space-y-6">
+        {/* LEFT COLUMN: Fixed Still Navigation & Progress (4 Cols) */}
+        <div className="lg:col-span-4 lg:sticky lg:top-0 self-start space-y-6 shrink-0">
           <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
             
             {/* Readiness Bar */}
@@ -370,7 +365,11 @@ export default function StudentProfile() {
         </div>
 
         {/* RIGHT COLUMN: Continuous Scrolling Form Workspace (8 Cols) */}
-        <div className="lg:col-span-8 space-y-6">
+        <div
+          id="profile-scroll-container"
+          onScroll={handleRightScroll}
+          className="lg:col-span-8 lg:h-[calc(100vh-160px)] lg:overflow-y-auto pr-1 space-y-6 scroll-smooth"
+        >
           
           {/* Blue Check Verification Banner matching Image 1 */}
           <div className="p-6 rounded-3xl bg-[#0e172a] text-white border border-blue-900/40 shadow-sm relative overflow-hidden">
