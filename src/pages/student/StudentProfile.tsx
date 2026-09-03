@@ -876,7 +876,7 @@ export default function StudentProfile() {
             </div>
           )}
 
-          {/* SECTION 09: LANGUAGES */}
+          {/* SECTION 09: LANGUAGES matching Image 1 */}
           {activeSection === "09" && (
             <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
               <div>
@@ -884,21 +884,43 @@ export default function StudentProfile() {
                   <span>09</span>
                   <span>Languages</span>
                 </div>
-                <h3 className="font-display text-xl font-bold text-foreground mt-1">Communication Proficiencies</h3>
-                <p className="text-xs text-muted-foreground">Languages spoken and written for corporate communication.</p>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Languages</h3>
+                <p className="text-xs text-muted-foreground">Spoken languages and proficiency.</p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => {
+                  const lang = prompt("Enter language (e.g. English, German, French):");
+                  if (lang && !form.languages.includes(lang.trim())) {
+                    setForm({ ...form, languages: [...form.languages, lang.trim()] });
+                  }
+                }}
+                variant="outline"
+                className="w-full h-11 rounded-2xl border-dashed border-border/80 text-xs font-bold gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Add a language
+              </Button>
+
+              <div className="flex flex-wrap gap-2 pt-2">
                 {form.languages.map((lang) => (
-                  <Badge key={lang} variant="secondary" className="text-xs font-semibold py-1.5 px-3 rounded-xl">
-                    {lang}
-                  </Badge>
+                  <span
+                    key={lang}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-muted/60 text-foreground border border-border text-xs font-semibold"
+                  >
+                    <span>{lang}</span>
+                    <button
+                      onClick={() => setForm({ ...form, languages: form.languages.filter(l => l !== lang) })}
+                      className="hover:text-rose-500 text-muted-foreground ml-1 text-sm font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
                 ))}
               </div>
             </div>
           )}
 
-          {/* SECTION 10: JOB PREFERENCES */}
+          {/* SECTION 10: JOB PREFERENCES matching Image 1 & 2 */}
           {activeSection === "10" && (
             <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
               <div>
@@ -906,24 +928,84 @@ export default function StudentProfile() {
                   <span>10</span>
                   <span>Job preferences</span>
                 </div>
-                <h3 className="font-display text-xl font-bold text-foreground mt-1">Role &amp; Location Expectations</h3>
-                <p className="text-xs text-muted-foreground">Help matching algorithms pair you with visiting recruiters.</p>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Job preferences</h3>
+                <p className="text-xs text-muted-foreground">What you're open to — recruiters use this to match and filter.</p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                {/* OPEN TO ROLES */}
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Target Role</Label>
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Open to Roles</Label>
                   <Input
-                    placeholder="e.g. Software Development Engineer (SDE-1)"
-                    defaultValue="Software Engineer"
+                    placeholder="Full-Stack Developer, Backend Engineer..."
+                    defaultValue="Full-Stack Developer, Backend Engineer, SDE-1"
                     className="h-10 rounded-xl bg-muted/30 border-border"
                   />
                 </div>
+
+                {/* WORK MODE & EMPLOYMENT TYPE */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Work Mode</Label>
+                    <Select defaultValue="hybrid">
+                      <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="in_office">In-office</SelectItem>
+                        <SelectItem value="hybrid">Hybrid</SelectItem>
+                        <SelectItem value="remote">Remote</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Employment Type</Label>
+                    <Select defaultValue="full_time">
+                      <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full_time">Full-time</SelectItem>
+                        <SelectItem value="internship">Internship</SelectItem>
+                        <SelectItem value="contract">Contract</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* PREFERRED LOCATIONS & NOTICE PERIOD */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Preferred Locations</Label>
+                    <Input
+                      placeholder="Bengaluru, Remote"
+                      defaultValue="Bengaluru, Remote"
+                      className="h-10 rounded-xl bg-muted/30 border-border"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Notice Period</Label>
+                    <Select defaultValue="immediate">
+                      <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="immediate">Immediate</SelectItem>
+                        <SelectItem value="15_days">15 Days</SelectItem>
+                        <SelectItem value="1_month">1 Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* EXPECTED CTC */}
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Preferred Location</Label>
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Expected CTC</Label>
                   <Input
-                    placeholder="e.g. Bengaluru, Hyderabad, Remote"
-                    defaultValue="Bengaluru"
+                    placeholder="e.g. ₹6–8 LPA"
+                    defaultValue="₹8–12 LPA"
                     className="h-10 rounded-xl bg-muted/30 border-border"
                   />
                 </div>

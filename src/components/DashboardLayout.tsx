@@ -49,8 +49,8 @@ const studentLinks = [
   { title: "Profile Studio", url: "/dashboard/profile", icon: UserCircle },
   { title: "Applications", url: "/dashboard/companies", icon: Building2 },
   { title: "My Assessments", url: "/dashboard/tests", icon: ClipboardList },
-  { title: "Results & Ranks", url: "/dashboard/results", icon: Trophy },
-  { title: "Drive Schedule", url: "/dashboard/schedule", icon: CalendarDays },
+  { title: "Meetings", url: "/dashboard/meetings", icon: CalendarDays },
+  { title: "Score Card", url: "/dashboard/scorecard", icon: Trophy },
 ];
 
 function AppSidebar({ role }: { role: "admin" | "company" | "student" | null }) {

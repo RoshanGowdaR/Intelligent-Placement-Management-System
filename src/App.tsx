@@ -30,6 +30,8 @@ import StudentResults from "./pages/student/StudentResults";
 import StudentSchedule from "./pages/student/StudentSchedule";
 import StudentProfile from "./pages/student/StudentProfile";
 import StudentCompanies from "./pages/student/StudentCompanies";
+import StudentMeetings from "./pages/student/StudentMeetings";
+import StudentScoreCard from "./pages/student/StudentScoreCard";
 import CompanyDetail from "./pages/student/CompanyDetail";
 
 import CompanyRegister from "./pages/company/CompanyRegister";
@@ -96,6 +98,8 @@ const App = () => (
               <Route path="/dashboard/tests" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentTests /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/results" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentResults /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/schedule" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentSchedule /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/dashboard/meetings" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentMeetings /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/dashboard/scorecard" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentScoreCard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/profile" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentProfile /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/companies" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentCompanies /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard/companies/:id" element={<ProtectedRoute requiredRole="student"><DashboardLayout><CompanyDetail /></DashboardLayout></ProtectedRoute>} />
