@@ -6,6 +6,7 @@ import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { LandingChatbot } from "@/components/landing/LandingChatbot";
 import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 
 export default function Index() {
@@ -29,6 +30,7 @@ export default function Index() {
         <LandingFeatures />
         <LandingCTA />
         <LandingFooter />
+        <LandingChatbot />
       </div>
     </div>
   );
