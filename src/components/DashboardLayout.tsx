@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
+import { StudentAIAssistant } from "@/components/assistant/StudentAIAssistant";
 
 const adminLinks = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -160,6 +161,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
           <main className="flex-1 overflow-auto p-6 md:p-8">{children}</main>
+          {role === "student" && <StudentAIAssistant />}
         </div>
       </div>
 

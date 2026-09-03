@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
 import { askGemini } from "@/lib/gemini";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -23,6 +24,8 @@ interface Message {
 }
 
 export function AdminAIAssistant({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { role } = useAuth();
+  if (role !== "admin") return null;
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -71,28 +74,47 @@ export function AdminAIAssistant({ open, onOpenChange }: { open: boolean; onOpen
   // Direct database query & Google Gemini intelligence engine
   const executeQuery = async (queryText: string) => {
     try {
-      // Gather multi-table database context
-      const [studentsRes, companiesRes, testsRes, attemptsRes, topStudentsRes] = await Promise.all([
-        supabase.from("profiles").select("id, name, email, usn, branch, cgpa, skills").limit(20),
-        supabase.from("companies").select("id, name, job_role, salary_package, job_location, max_backlogs, allowed_branches").limit(10),
-        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline").limit(10),
-        supabase.from("test_attempts").select("id, total_score, passed, tab_switches, auto_submitted, completed_at").limit(15),
-        supabase.from("profiles").select("name, email, usn, branch, cgpa").order("cgpa", { ascending: false }).limit(5),
+      // Gather comprehensive multi-table institutional database context
+      const [
+        studentsRes,
+        companiesRes,
+        testsRes,
+        attemptsRes,
+        flaggedRes,
+        statsRes
+      ] = await Promise.all([
+        supabase.from("profiles").select("id, name, email, usn, branch, cgpa, backlogs, skills").order("cgpa", { ascending: false }).limit(50),
+        supabase.from("companies").select("id, name, hr_name, job_role, salary_package, job_location, min_cgpa, max_backlogs, allowed_branches, website").order("created_at", { ascending: false }).limit(25),
+        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, pass_percentage").order("scheduled_date", { ascending: true }).limit(25),
+        supabase.from("test_attempts").select("id, student_id, total_score, passed, tab_switches, auto_submitted, completed_at, tests(title)").order("completed_at", { ascending: false }).limit(30),
+        supabase.from("test_attempts").select("id, student_id, total_score, tab_switches, auto_submitted, completed_at, tests(title)").or("tab_switches.gt.0,auto_submitted.eq.true").limit(20),
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
       ]);
 
+      const passedAttempts = (attemptsRes.data || []).filter((a: any) => a.passed);
+      const passRate = attemptsRes.data && attemptsRes.data.length > 0 
+        ? Math.round((passedAttempts.length / attemptsRes.data.length) * 100) 
+        : 0;
+
       const dbContext = {
-        totalStudents: studentsRes.data?.length ?? 0,
-        topStudentsByCGPA: topStudentsRes.data ?? [],
-        visitingCompanies: companiesRes.data ?? [],
-        assessments: testsRes.data ?? [],
-        recentAttempts: attemptsRes.data ?? [],
+        totalRegisteredStudents: statsRes.count ?? (studentsRes.data?.length ?? 0),
+        candidateProfiles: studentsRes.data ?? [],
+        visitingRecruiters: companiesRes.data ?? [],
+        scheduledAssessments: testsRes.data ?? [],
+        recentTestAttempts: attemptsRes.data ?? [],
+        proctoringIntegrityFlags: flaggedRes.data ?? [],
+        platformPassRate: `${passRate}%`,
       };
 
-      const systemPrompt = `You are the "Placement Oracle AI", the central intelligent AI advisor for the Intelligent Placement Management System (IPMS).
-You have live real-time access to the institutional placement database:
+      const systemPrompt = `You are the "Placement Oracle AI", the high-level executive recruitment intelligence system for university administrators.
+You have administrative-level read access to the complete placement and assessment database:
 ${JSON.stringify(dbContext, null, 2)}
 
-Provide concise, highly actionable, well-formatted markdown responses with emojis. Highlight specific candidate names, scores, companies, or recommendations when relevant.`;
+Instructions:
+1. Provide precise, executive-level insights, candidate statistics, company drive statuses, and proctoring audit summaries.
+2. Specifically name candidates, their USN, CGPA, or branch when answering about top performers, unplaced students, or specific questions.
+3. Detail proctoring anomalies (tab switches, auto-submissions) when answering about exam integrity.
+4. Format responses cleanly using bold headers, bullet points, and emojis.`;
 
       // Call Google Gemini AI
       const geminiResponse = await askGemini(queryText, systemPrompt);
