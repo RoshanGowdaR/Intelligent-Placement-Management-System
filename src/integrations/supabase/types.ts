@@ -85,6 +85,7 @@ export type Database = {
           created_at: string
           description: string | null
           eligibility_criteria: Json | null
+          email: string | null
           id: string
           job_location: string | null
           job_role: string | null
@@ -97,6 +98,7 @@ export type Database = {
           skills_priority: Json | null
           test_date: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           allowed_branches?: string[] | null
@@ -105,6 +107,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           eligibility_criteria?: Json | null
+          email?: string | null
           id?: string
           job_location?: string | null
           job_role?: string | null
@@ -117,6 +120,7 @@ export type Database = {
           skills_priority?: Json | null
           test_date?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           allowed_branches?: string[] | null
@@ -125,6 +129,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           eligibility_criteria?: Json | null
+          email?: string | null
           id?: string
           job_location?: string | null
           job_role?: string | null
@@ -137,6 +142,7 @@ export type Database = {
           skills_priority?: Json | null
           test_date?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -430,18 +436,21 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          email: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
+          email?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
+          email?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string

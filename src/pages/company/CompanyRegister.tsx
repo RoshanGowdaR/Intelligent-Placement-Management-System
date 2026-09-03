@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -207,6 +207,7 @@ export default function CompanyRegister() {
               description: description.trim() || null,
               hr_name: hrName.trim() || null,
               hr_phone: phone.trim() || null,
+              email: cleanEmail,
               job_role: jobRole.trim() || null,
               salary_package: salaryPackage.trim() || null,
               max_backlogs: Number(maxBacklogs) || 0,
@@ -216,6 +217,7 @@ export default function CompanyRegister() {
           await supabase.from("companies").insert({
             name: companyName.trim(),
             user_id: activeUserId,
+            email: cleanEmail,
             website: website.trim() || null,
             industry: industry.trim() || null,
             description: description.trim() || null,
@@ -230,10 +232,10 @@ export default function CompanyRegister() {
         console.warn("Company record sync notice:", companyError);
       }
 
-      // 4. Assign 'company' role in public.user_roles
+      // 4. Assign 'company' role in public.user_roles with email
       try {
         await supabase.from("user_roles").upsert(
-          { user_id: activeUserId, role: "company" as any },
+          { user_id: activeUserId, role: "company" as any, email: cleanEmail },
           { onConflict: "user_id,role" }
         );
       } catch (roleErr) {

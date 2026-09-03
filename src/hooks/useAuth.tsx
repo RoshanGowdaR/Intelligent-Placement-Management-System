@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 1. Primary admin email auto-provisioning
       if (normalizedEmail === "gowdaroshan49@gmail.com") {
         await supabase.from("user_roles").upsert(
-          { user_id: userId, role: "admin" as AppRole },
+          { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
           { onConflict: "user_id,role" }
         );
         setRole("admin");
@@ -41,8 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 2. Check existing assigned roles in user_roles
       const { data: roleRecords } = await supabase
         .from("user_roles")
-        .select("role")
+        .select("role, email")
         .eq("user_id", userId);
+
+      // Backfill email on user_role if it was missing
+      if (roleRecords && roleRecords.some((r) => !r.email) && normalizedEmail) {
+        await supabase
+          .from("user_roles")
+          .update({ email: normalizedEmail })
+          .eq("user_id", userId)
+          .is("email", null);
+      }
 
       const existingRoles = (roleRecords ?? []).map((r) => r.role);
 
@@ -60,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             sessionStorage.removeItem("pending_company_details");
             await supabase.from("companies").upsert({
               user_id: userId,
+              email: normalizedEmail,
               name: pending.name || "Visiting Company",
               website: pending.website || null,
               industry: pending.industry || null,
@@ -88,19 +98,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: matchedComp } = await supabase
           .from("companies")
           .select("id, name")
-          .or(`user_id.eq.${userId}`)
+          .or(`user_id.eq.${userId},email.ilike.${normalizedEmail}`)
           .maybeSingle();
 
         if (invite || matchedComp) {
-          // Provision company role
+          // Provision company role with email
           await supabase.from("user_roles").upsert(
-            { user_id: userId, role: "company" as AppRole },
+            { user_id: userId, role: "company" as AppRole, email: normalizedEmail },
             { onConflict: "user_id,role" }
           );
 
-          // Link company database row with user ID
+          // Link company database row with user ID and email
           if (matchedComp) {
-            await supabase.from("companies").update({ user_id: userId }).eq("id", matchedComp.id);
+            await supabase
+              .from("companies")
+              .update({ user_id: userId, email: normalizedEmail })
+              .eq("id", matchedComp.id);
           } else if (invite) {
             // Check if company exists by name
             const { data: compByName } = await supabase
@@ -110,11 +123,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .maybeSingle();
 
             if (compByName) {
-              await supabase.from("companies").update({ user_id: userId }).eq("id", compByName.id);
+              await supabase
+                .from("companies")
+                .update({ user_id: userId, email: normalizedEmail })
+                .eq("id", compByName.id);
             } else {
               await supabase.from("companies").insert({
                 name: invite.company_name || "Visiting Partner",
                 user_id: userId,
+                email: normalizedEmail,
               });
             }
           }
