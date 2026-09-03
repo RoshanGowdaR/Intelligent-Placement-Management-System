@@ -1,4 +1,4 @@
-﻿# 🎓 Intelligent Placement Management System (IPMS Elite v3.0)
+# 🎓 Intelligent Placement Management System (IPMS Elite v3.0)
 
 > **Next-Generation Autonomous Campus Placement, AI Assessment & Recruitment Intelligence Ecosystem**
 
@@ -110,7 +110,6 @@ Create a `.env` file in the root directory:
 VITE_SUPABASE_PROJECT_ID="xvkswalqrepcdwkanxaz"
 VITE_SUPABASE_PUBLISHABLE_KEY="sb_publishable_185TMklN9X-lL4Ds2wv2IA_F4J_VFJE"
 VITE_SUPABASE_URL="https://xvkswalqrepcdwkanxaz.supabase.co"
-VITE_GEMINI_API_KEY="your-gemini-api-key"
 GEMINI_API_KEY="your-gemini-api-key"
 GMAIL_USER="your-email@gmail.com"
 GMAIL_APP_PASSWORD="your-google-app-password"
