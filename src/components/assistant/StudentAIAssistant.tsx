@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
 import { askGemini } from "@/lib/gemini";
+import ReactMarkdown from "react-markdown";
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   GraduationCap, Mic, MicOff, Volume2, VolumeX, Send, Sparkles, Loader2,
   Trophy, CheckCircle2, AlertTriangle, BookOpen, Calendar, ChevronDown,
-  RefreshCw, Bot, User, ArrowRight
+  RefreshCw, Bot, User, ArrowRight, Maximize2, Minimize2, MoveDiagonal2,
+  ArrowUpRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -24,6 +27,10 @@ interface Message {
 export function StudentAIAssistant() {
   const { user, role } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 440, height: 600 });
+  const [isDragging, setIsDragging] = useState(false);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -60,7 +67,40 @@ export function StudentAIAssistant() {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isOpen, isLoading]);
+  }, [messages, isOpen, isMaximized, isLoading]);
+
+  // Drag to resize handler (top-left corner)
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = dimensions.width;
+    const startHeight = dimensions.height;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = startX - moveEvent.clientX;
+      const deltaY = startY - moveEvent.clientY;
+
+      const maxWidth = typeof window !== "undefined" ? window.innerWidth * 0.94 : 900;
+      const maxHeight = typeof window !== "undefined" ? window.innerHeight * 0.88 : 850;
+
+      const newWidth = Math.min(Math.max(startWidth + deltaX, 350), maxWidth);
+      const newHeight = Math.min(Math.max(startHeight + deltaY, 440), maxHeight);
+
+      setDimensions({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
 
   // Don't render for non-students
   if (role !== "student" || !user) return null;
@@ -179,7 +219,7 @@ Instructions:
 2. When answering about test performance, cite their exact scores, tests taken, pass/fail status, and whether any proctoring tab switches occurred.
 3. If their scores are low in any test, provide specific, encouraging advice on core topics to revise (Data Structures, Algorithms, Aptitude, Core CS concepts).
 4. When answering about company eligibility, clearly list the visiting companies they qualify for based on their CGPA (${studentProfile.cgpa || 0}) and backlogs.
-5. Keep responses concise, structured, motivating, and easy to read using markdown with bullet points and emojis.`;
+5. Format responses cleanly using bold headers, bullet points, and emojis.`;
 
       // Call Google Gemini AI
       const aiResponse = await askGemini(query, systemPrompt);
@@ -234,11 +274,26 @@ Instructions:
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="mb-4 flex h-[580px] w-[92vw] max-w-[420px] flex-col overflow-hidden rounded-3xl border border-primary/30 bg-[#0e0e17]/95 shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-2xl"
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{
+              width: isMaximized ? "min(94vw, 840px)" : `${dimensions.width}px`,
+              height: isMaximized ? "min(88vh, 780px)" : `${dimensions.height}px`,
+            }}
+            className="relative mb-4 flex flex-col overflow-hidden rounded-3xl border border-emerald-500/30 bg-[#0e0e17]/95 shadow-[0_25px_90px_rgba(0,0,0,0.9)] backdrop-blur-3xl transition-all duration-150"
           >
+            {/* Draggable Corner Resize Handle (Top-Left) */}
+            {!isMaximized && (
+              <div
+                onMouseDown={handleResizeStart}
+                className="group absolute top-0 left-0 z-30 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-br-xl bg-white/5 hover:bg-emerald-500/20 border-r border-b border-white/10 transition-colors"
+                title="Drag to resize mentor window"
+              >
+                <MoveDiagonal2 className="h-3 w-3 text-slate-400 group-hover:text-emerald-400 transition-colors rotate-90" />
+              </div>
+            )}
+
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-emerald-500/20 via-primary/20 to-transparent px-5 py-4">
+            <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-emerald-500/20 via-primary/20 to-transparent px-5 py-4 pl-8">
               <div className="flex items-center gap-3">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-primary text-white shadow-[0_0_20px_rgba(16,185,129,0.5)]">
                   <GraduationCap className="h-5 w-5" />
@@ -262,6 +317,18 @@ Instructions:
 
               {/* Action Icons */}
               <div className="flex items-center gap-1">
+                {/* Maximize / Restore */}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  title={isMaximized ? "Restore standard size" : "Expand screen"}
+                >
+                  {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </Button>
+
+                {/* Voice Readout Toggle */}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -270,13 +337,14 @@ Instructions:
                     setTtsEnabled(!ttsEnabled);
                   }}
                   className={`h-8 w-8 rounded-lg text-slate-400 hover:text-white ${
-                    ttsEnabled ? "text-primary bg-primary/10" : ""
+                    ttsEnabled ? "text-emerald-400 bg-emerald-500/10" : ""
                   }`}
                   title={ttsEnabled ? "Disable voice read-out" : "Enable voice read-out"}
                 >
                   {ttsEnabled ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4" />}
                 </Button>
 
+                {/* Clear Chat */}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -287,6 +355,7 @@ Instructions:
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
 
+                {/* Minimize / Close */}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -300,28 +369,93 @@ Instructions:
             </div>
 
             {/* Messages Scroll Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex gap-2.5 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.sender === "assistant" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-0.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-0.5 shadow-sm">
                       <Bot className="h-3.5 w-3.5" />
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[82%] rounded-2xl p-3.5 leading-relaxed ${
+                    className={`max-w-[88%] rounded-2xl p-4 leading-relaxed ${
                       msg.sender === "user"
-                        ? "bg-gradient-to-r from-primary to-indigo-600 text-white rounded-tr-none shadow-[0_4px_15px_rgba(108,92,231,0.3)]"
-                        : "bg-white/5 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md"
+                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-none shadow-[0_4px_15px_rgba(16,185,129,0.3)] text-xs"
+                        : "bg-white/[0.04] border border-white/10 text-slate-100 rounded-tl-none backdrop-blur-md shadow-md"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                    {msg.sender === "assistant" ? (
+                      <div className="prose prose-invert max-w-none text-xs leading-relaxed space-y-2">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => (
+                              <p className="mb-2 leading-relaxed text-[13px] text-slate-200 last:mb-0">
+                                {children}
+                              </p>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-bold text-white bg-emerald-500/25 px-1.5 py-0.5 rounded text-[12.5px] border border-emerald-500/30">
+                                {children}
+                              </strong>
+                            ),
+                            h1: ({ children }) => (
+                              <h1 className="font-display text-base font-bold text-white mb-2 mt-3 flex items-center gap-1.5 border-b border-white/10 pb-1">
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="font-display text-sm font-bold text-emerald-400 mb-1.5 mt-2.5 flex items-center gap-1">
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="font-display text-xs font-bold text-teal-300 mb-1 mt-2">
+                                {children}
+                              </h3>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="my-2 space-y-1.5 pl-4 list-disc marker:text-emerald-400">
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="my-2 space-y-1.5 pl-4 list-decimal marker:text-emerald-400">
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }) => (
+                              <li className="text-[12.5px] text-slate-300 leading-normal pl-0.5">
+                                {children}
+                              </li>
+                            ),
+                            code: ({ children }) => (
+                              <code className="bg-white/10 text-emerald-300 px-1.5 py-0.5 rounded font-mono text-xs border border-white/10">
+                                {children}
+                              </code>
+                            ),
+                            a: ({ href, children }) => (
+                              <Link
+                                to={href || "#"}
+                                className="inline-flex items-center gap-1 font-bold text-emerald-400 hover:text-white underline underline-offset-4 bg-emerald-500/10 px-2 py-0.5 rounded-md hover:bg-emerald-500/25 transition-all text-xs"
+                              >
+                                {children} <ArrowUpRight className="h-3 w-3" />
+                              </Link>
+                            ),
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.text}</div>
+                    )}
+
                     <div
-                      className={`mt-1.5 text-[9px] ${
+                      className={`mt-2 text-[9px] ${
                         msg.sender === "user" ? "text-white/70 text-right" : "text-slate-400"
                       }`}
                     >
@@ -343,7 +477,7 @@ Instructions:
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                     <Sparkles className="h-3.5 w-3.5 animate-spin" />
                   </div>
-                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-white/5 px-4 py-2.5 text-slate-300">
+                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-white/5 px-4 py-2.5 text-slate-300 shadow-sm">
                     <span className="flex items-center gap-1 text-[11px]">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-bounce" />
                       <span

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import {
   MessageSquare,
   X,
@@ -19,6 +20,9 @@ import {
   Cpu,
   Mic,
   MicOff,
+  Maximize2,
+  Minimize2,
+  MoveDiagonal2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,9 +56,9 @@ Key Knowledge Base:
    - Company Recruiter Registration: /company/register
 
 Tone & Guidelines:
-- Keep answers friendly, authoritative, well-structured, and concise.
-- Use markdown bullet points and emojis to make explanations easy to scan.
-- Suggest next steps (e.g. "Feel free to try Get Started Free or Explore System").`;
+- Structure answers clearly with short paragraphs, numbered lists, bullet points, and emojis.
+- Highlight key terms in bold.
+- Suggest next steps (e.g. "Feel free to click Get Started Free or explore recruiter features").`;
 
 const SUGGESTED_QUESTIONS = [
   "What is IPMS?",
@@ -66,6 +70,10 @@ const SUGGESTED_QUESTIONS = [
 
 export function LandingChatbot() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 440, height: 600 });
+  const [isDragging, setIsDragging] = useState(false);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -92,7 +100,7 @@ export function LandingChatbot() {
     if (isOpen) {
       scrollToBottom();
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isMaximized]);
 
   // Speech Recognition (STT) setup
   useEffect(() => {
@@ -119,6 +127,40 @@ export function LandingChatbot() {
       recognitionRef.current = recognition;
     }
   }, []);
+
+  // Top-left corner drag to resize handler
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = dimensions.width;
+    const startHeight = dimensions.height;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      // Pinned to bottom-right, so moving left increases width, moving up increases height
+      const deltaX = startX - moveEvent.clientX;
+      const deltaY = startY - moveEvent.clientY;
+
+      const maxWidth = typeof window !== "undefined" ? window.innerWidth * 0.94 : 900;
+      const maxHeight = typeof window !== "undefined" ? window.innerHeight * 0.88 : 850;
+
+      const newWidth = Math.min(Math.max(startWidth + deltaX, 350), maxWidth);
+      const newHeight = Math.min(Math.max(startHeight + deltaY, 440), maxHeight);
+
+      setDimensions({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
@@ -219,11 +261,26 @@ export function LandingChatbot() {
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="mb-4 flex h-[580px] w-[92vw] max-w-[420px] flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0e0e17]/95 shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-2xl"
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{
+              width: isMaximized ? "min(94vw, 840px)" : `${dimensions.width}px`,
+              height: isMaximized ? "min(88vh, 780px)" : `${dimensions.height}px`,
+            }}
+            className="relative mb-4 flex flex-col overflow-hidden rounded-3xl border border-white/20 bg-[#0e0e17]/95 shadow-[0_25px_90px_rgba(0,0,0,0.9)] backdrop-blur-3xl transition-all duration-150"
           >
+            {/* Draggable Corner Resize Handle (Top-Left) */}
+            {!isMaximized && (
+              <div
+                onMouseDown={handleResizeStart}
+                className="group absolute top-0 left-0 z-30 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-br-xl bg-white/5 hover:bg-primary/20 border-r border-b border-white/10 transition-colors"
+                title="Drag to resize chatbot"
+              >
+                <MoveDiagonal2 className="h-3 w-3 text-slate-400 group-hover:text-primary transition-colors rotate-90" />
+              </div>
+            )}
+
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-primary/20 via-purple-600/15 to-transparent px-5 py-4">
+            <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-primary/20 via-purple-600/15 to-transparent px-5 py-4 pl-8">
               <div className="flex items-center gap-3">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-purple-500 text-white shadow-[0_0_20px_rgba(108,92,231,0.6)]">
                   <Bot className="h-5 w-5" />
@@ -247,6 +304,18 @@ export function LandingChatbot() {
 
               {/* Action Icons */}
               <div className="flex items-center gap-1">
+                {/* Maximize / Restore Toggle */}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  title={isMaximized ? "Restore standard size" : "Expand screen"}
+                >
+                  {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </Button>
+
+                {/* Voice Readout Toggle */}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -262,9 +331,10 @@ export function LandingChatbot() {
                   }`}
                   title={speechEnabled ? "Mute audio read-out" : "Enable voice read-out"}
                 >
-                  {speechEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  {speechEnabled ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4" />}
                 </Button>
 
+                {/* Clear Chat */}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -275,6 +345,7 @@ export function LandingChatbot() {
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
 
+                {/* Minimize / Close */}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -288,28 +359,93 @@ export function LandingChatbot() {
             </div>
 
             {/* Messages Scroll Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary border border-primary/30 mt-0.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary border border-primary/30 mt-0.5 shadow-sm">
                       <Sparkles className="h-3.5 w-3.5" />
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[82%] rounded-2xl p-3.5 leading-relaxed ${
+                    className={`max-w-[88%] rounded-2xl p-4 leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-gradient-to-r from-primary to-indigo-600 text-white rounded-tr-none shadow-[0_4px_15px_rgba(108,92,231,0.3)]"
-                        : "bg-white/5 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md"
+                        ? "bg-gradient-to-r from-primary to-indigo-600 text-white rounded-tr-none shadow-[0_4px_15px_rgba(108,92,231,0.3)] text-xs"
+                        : "bg-white/[0.04] border border-white/10 text-slate-100 rounded-tl-none backdrop-blur-md shadow-md"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    {msg.role === "assistant" ? (
+                      <div className="prose prose-invert max-w-none text-xs leading-relaxed space-y-2">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => (
+                              <p className="mb-2 leading-relaxed text-[13px] text-slate-200 last:mb-0">
+                                {children}
+                              </p>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-bold text-white bg-primary/25 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/30">
+                                {children}
+                              </strong>
+                            ),
+                            h1: ({ children }) => (
+                              <h1 className="font-display text-base font-bold text-white mb-2 mt-3 flex items-center gap-1.5 border-b border-white/10 pb-1">
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="font-display text-sm font-bold text-primary mb-1.5 mt-2.5 flex items-center gap-1">
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="font-display text-xs font-bold text-purple-300 mb-1 mt-2">
+                                {children}
+                              </h3>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="my-2 space-y-1.5 pl-4 list-disc marker:text-primary">
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="my-2 space-y-1.5 pl-4 list-decimal marker:text-primary">
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }) => (
+                              <li className="text-[12.5px] text-slate-300 leading-normal pl-0.5">
+                                {children}
+                              </li>
+                            ),
+                            code: ({ children }) => (
+                              <code className="bg-white/10 text-purple-300 px-1.5 py-0.5 rounded font-mono text-xs border border-white/10">
+                                {children}
+                              </code>
+                            ),
+                            a: ({ href, children }) => (
+                              <Link
+                                to={href || "#"}
+                                className="inline-flex items-center gap-1 font-bold text-primary hover:text-white underline underline-offset-4 bg-primary/10 px-2 py-0.5 rounded-md hover:bg-primary/25 transition-all text-xs"
+                              >
+                                {children} <ArrowUpRight className="h-3 w-3" />
+                              </Link>
+                            ),
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+
                     <div
-                      className={`mt-1.5 text-[9px] ${
+                      className={`mt-2 text-[9px] ${
                         msg.role === "user" ? "text-white/70 text-right" : "text-slate-400"
                       }`}
                     >
@@ -331,7 +467,7 @@ export function LandingChatbot() {
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary border border-primary/30">
                     <Sparkles className="h-3.5 w-3.5 animate-spin" />
                   </div>
-                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-white/5 px-4 py-2.5 text-slate-300">
+                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-white/5 px-4 py-2.5 text-slate-300 shadow-sm">
                     <span className="flex items-center gap-1 text-[11px]">
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
                       <span

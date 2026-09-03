@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
 import { askGemini } from "@/lib/gemini";
+import ReactMarkdown from "react-markdown";
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -257,7 +259,27 @@ Instructions:
                     : "bg-surface-container-high/70 border border-white/10 text-slate-100 backdrop-blur-xl shadow-md"
                 }`}
               >
-                <div className="whitespace-pre-line">{msg.text}</div>
+                {msg.sender === "assistant" ? (
+                  <div className="prose prose-invert max-w-none text-xs leading-relaxed space-y-2">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 leading-relaxed text-[13px] text-slate-200 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-bold text-white bg-primary/25 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/30">{children}</strong>,
+                        h1: ({ children }) => <h1 className="font-display text-base font-bold text-white mb-2 mt-3 border-b border-white/10 pb-1">{children}</h1>,
+                        h2: ({ children }) => <h2 className="font-display text-sm font-bold text-primary mb-1.5 mt-2.5">{children}</h2>,
+                        h3: ({ children }) => <h3 className="font-display text-xs font-bold text-purple-300 mb-1 mt-2">{children}</h3>,
+                        ul: ({ children }) => <ul className="my-2 space-y-1.5 pl-4 list-disc marker:text-primary">{children}</ul>,
+                        ol: ({ children }) => <ol className="my-2 space-y-1.5 pl-4 list-decimal marker:text-primary">{children}</ol>,
+                        li: ({ children }) => <li className="text-[12.5px] text-slate-300 leading-normal pl-0.5">{children}</li>,
+                        code: ({ children }) => <code className="bg-white/10 text-purple-300 px-1.5 py-0.5 rounded font-mono text-xs border border-white/10">{children}</code>,
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-line">{msg.text}</div>
+                )}
 
                 <div className="mt-2 text-[10px] text-right opacity-60">
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
