@@ -4,17 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  Upload, FileText, Loader2, AlertTriangle, CheckCircle2, GraduationCap,
-  Sparkles, ShieldCheck, Copy, ExternalLink, Download, UserCheck, Award,
-  Mail, Calendar, Briefcase, Trophy, ChevronRight
+  Upload, FileText, Loader2, CheckCircle2, Circle, Check,
+  Sparkles, ExternalLink, Download, UserCheck, ShieldCheck,
+  Eye, Copy, Plus, Trash2, ArrowRight, Github, Linkedin, Globe,
+  Briefcase, GraduationCap, Award, Languages, Settings2
 } from "lucide-react";
 
 interface MarksCardEntry {
@@ -40,122 +40,174 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 export default function StudentProfile() {
   const { user } = useAuth();
+  const [activeSection, setActiveSection] = useState("01");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // Form State
   const [form, setForm] = useState({
     name: "",
-    yearOfPassing: "",
+    title: "",
+    summary: "",
+    email: "",
+    phone: "",
+    location: "",
+    website: "",
+    linkedin: "",
+    github: "",
+    twitter: "",
+    leetcode: "",
+    hackerrank: "",
+    skills: [] as string[],
+    newSkill: "",
+    experiences: [] as { role: string; company: string; duration: string; description: string }[],
+    projects: [] as { title: string; link: string; stack: string; description: string }[],
+    education: [] as { degree: string; institution: string; year: string; score: string }[],
+    certifications: [] as { name: string; issuer: string; link: string }[],
+    achievements: [] as string[],
+    languages: [] as string[],
+    jobPreferences: { role: "", location: "", remote: true },
     usn: "",
     branch: "",
-    skills: "",
-    title: "Full Stack Developer",
+    yearOfPassing: "",
   });
-  const [completion, setCompletion] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState("studio");
 
-  // Marks card state
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [isLateralEntry, setIsLateralEntry] = useState<boolean | null>(null);
   const [currentSemester, setCurrentSemester] = useState<number | null>(null);
   const [marksCards, setMarksCards] = useState<MarksCardEntry[]>([]);
   const [uploadingSem, setUploadingSem] = useState<number | null>(null);
   const [cgpa, setCgpa] = useState<number | null>(null);
-  const [nameAndUsnSaved, setNameAndUsnSaved] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data }) => {
       if (data) {
-        const d = data as Record<string, unknown>;
-        setForm({
-          name: (d.name as string) ?? "",
+        const d = data as Record<string, any>;
+        setForm(prev => ({
+          ...prev,
+          name: d.name ?? "",
+          title: d.headline ?? "Full Stack Developer",
+          summary: d.bio ?? "Passionate software engineer focused on building scalable, user-centric web applications.",
+          email: user.email ?? "",
+          phone: d.phone ?? "",
+          location: d.location ?? "Bengaluru, Karnataka",
+          website: d.portfolio_url ?? "",
+          linkedin: d.linkedin_url ?? "",
+          github: d.github_url ?? "",
+          twitter: d.twitter_url ?? "",
+          leetcode: d.leetcode_url ?? "",
+          hackerrank: d.hackerrank_url ?? "",
+          skills: (d.skills as string[]) ?? ["React", "TypeScript", "Node.js", "Python", "SQL"],
+          experiences: (d.experience as any[]) ?? [],
+          projects: (d.projects as any[]) ?? [],
+          education: (d.education as any[]) ?? [
+            { degree: "B.Tech in Computer Science", institution: "Engineering College", year: "2026", score: "8.5 CGPA" }
+          ],
+          certifications: (d.certifications as any[]) ?? [],
+          achievements: (d.achievements as string[]) ?? [],
+          languages: (d.languages as string[]) ?? ["English", "Kannada", "Hindi"],
+          usn: d.usn ?? "",
+          branch: d.branch ?? "",
           yearOfPassing: d.year_of_passing ? String(d.year_of_passing) : "",
-          usn: (d.usn as string) ?? "",
-          branch: (d.branch as string) ?? "",
-          skills: ((d.skills as string[]) ?? []).join(", "),
-          title: (d.headline as string) ?? "Aspiring Software Engineer",
-        });
-        setCompletion((d.profile_completion_percentage as number) ?? 0);
-        setResumeUrl(d.resume_url as string | null);
-        setIsLateralEntry(d.is_lateral_entry as boolean | null);
-        setCurrentSemester(d.current_semester as number | null);
-        setMarksCards(((d.marks_cards as MarksCardEntry[]) ?? []));
+        }));
+
+        setResumeUrl(d.resume_url ?? null);
+        setIsLateralEntry(d.is_lateral_entry ?? null);
+        setCurrentSemester(d.current_semester ?? null);
+        setMarksCards((d.marks_cards as MarksCardEntry[]) ?? []);
 
         const sgpas = (d.sgpas as Record<string, number>) ?? {};
         const sgpaValues = Object.values(sgpas);
         if (sgpaValues.length > 0) {
           setCgpa(parseFloat((sgpaValues.reduce((a, b) => a + b, 0) / sgpaValues.length).toFixed(2)));
         } else {
-          setCgpa(d.cgpa as number | null);
-        }
-
-        if ((d.name as string)?.trim() && (d.usn as string)?.trim()) {
-          setNameAndUsnSaved(true);
+          setCgpa(d.cgpa ?? null);
         }
       }
     });
   }, [user]);
 
-  const calcCompletion = () => {
+  // Readiness Calculation
+  const calculateReadiness = () => {
     let score = 0;
-    const fields = [form.name.trim(), form.yearOfPassing, form.usn.trim(), form.branch.trim()];
-    const totalFields = fields.length + 3; // +1 resume, +1 marks cards, +1 skills
-    const perField = 100 / totalFields;
-    fields.forEach((f) => { if (f) score += perField; });
-    if (resumeUrl) score += perField;
-    if (marksCards.length > 0) score += perField;
-    if (form.skills.trim()) score += perField;
-    return Math.min(Math.round(score), 100);
+    if (form.name.trim()) score += 10;
+    if (form.title.trim()) score += 10;
+    if (form.summary.trim()) score += 10;
+    if (form.usn.trim()) score += 10;
+    if (form.skills.length > 0) score += 15;
+    if (form.projects.length > 0 || form.experiences.length > 0) score += 15;
+    if (resumeUrl) score += 15;
+    if (marksCards.length > 0) score += 15;
+    return Math.min(score, 100);
   };
+
+  const readinessPercentage = calculateReadiness();
 
   const handleSave = async () => {
     if (!user) return;
-    if (!form.name.trim() || !form.usn.trim()) {
-      toast.error("Full Name and USN are required");
-      return;
-    }
     setSaving(true);
-    const newCompletion = calcCompletion();
+    try {
+      const { error } = await supabase.from("profiles").update({
+        name: form.name,
+        headline: form.title,
+        bio: form.summary,
+        phone: form.phone,
+        location: form.location,
+        portfolio_url: form.website,
+        linkedin_url: form.linkedin,
+        github_url: form.github,
+        twitter_url: form.twitter,
+        leetcode_url: form.leetcode,
+        hackerrank_url: form.hackerrank,
+        skills: form.skills,
+        experience: form.experiences,
+        projects: form.projects,
+        education: form.education,
+        certifications: form.certifications,
+        achievements: form.achievements,
+        languages: form.languages,
+        usn: form.usn,
+        branch: form.branch,
+        year_of_passing: parseInt(form.yearOfPassing) || null,
+        profile_completion_percentage: readinessPercentage,
+      } as Record<string, any>).eq("id", user.id);
 
-    // Calculate CGPA from SGPAs
-    const sgpas: Record<string, number> = {};
-    marksCards.forEach(mc => {
-      if (mc.sgpa !== null) sgpas[String(mc.semester)] = mc.sgpa;
-    });
-    const sgpaValues = Object.values(sgpas);
-    const calculatedCgpa = sgpaValues.length > 0 ? parseFloat((sgpaValues.reduce((a, b) => a + b, 0) / sgpaValues.length).toFixed(2)) : null;
+      if (error) throw error;
+      toast.success("Profile saved successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const { error } = await supabase.from("profiles").update({
-      name: form.name,
-      cgpa: calculatedCgpa,
-      year_of_passing: parseInt(form.yearOfPassing) || null,
-      usn: form.usn || null,
-      branch: form.branch || null,
-      profile_completion_percentage: newCompletion,
-      is_lateral_entry: isLateralEntry,
-      current_semester: currentSemester,
-      marks_cards: JSON.parse(JSON.stringify(marksCards)),
-      sgpas: JSON.parse(JSON.stringify(sgpas)),
-      skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
-      headline: form.title,
-    } as Record<string, unknown>).eq("id", user.id);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    setCompletion(newCompletion);
-    setCgpa(calculatedCgpa);
-    setNameAndUsnSaved(true);
-    toast.success("Profile saved successfully");
+  const handleAddSkill = () => {
+    if (!form.newSkill.trim()) return;
+    if (!form.skills.includes(form.newSkill.trim())) {
+      setForm(prev => ({
+        ...prev,
+        skills: [...prev.skills, prev.newSkill.trim()],
+        newSkill: "",
+      }));
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setForm(prev => ({
+      ...prev,
+      skills: prev.skills.filter(s => s !== skillToRemove),
+    }));
   };
 
   const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (!nameAndUsnSaved) { toast.error("Please save your Full Name and USN first before uploading"); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("File must be under 5MB"); return; }
     if (!file.name.endsWith(".pdf")) { toast.error("Only PDF files are accepted"); return; }
 
     setUploading(true);
-    const fileName = `${form.usn.trim().toUpperCase()}_${form.name.trim().replace(/\s+/g, "_")}.pdf`;
+    const fileName = `${form.usn.trim() || "CANDIDATE"}_${form.name.trim().replace(/\s+/g, "_")}.pdf`;
     const path = `${user.id}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage.from("resumes").upload(path, file, { upsert: true });
@@ -166,290 +218,216 @@ export default function StudentProfile() {
 
     await supabase.from("profiles").update({
       resume_url: publicUrl,
-      profile_completion_percentage: calcCompletion(),
+      profile_completion_percentage: readinessPercentage,
     }).eq("id", user.id);
 
     setUploading(false);
-    toast.success("Resume uploaded successfully");
+    toast.success("Resume imported successfully");
   };
-
-  const handleMarksCardUpload = async (semester: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    if (!nameAndUsnSaved) { toast.error("Please save your Full Name and USN first"); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error("File must be under 5MB"); return; }
-
-    setUploadingSem(semester);
-
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const base64Data = arrayBufferToBase64(arrayBuffer);
-
-      const res = await supabase.functions.invoke("verify-marks-card", {
-        body: {
-          fileBase64: base64Data,
-          fileType: file.type || "application/pdf",
-          semester,
-          expectedUsn: form.usn.trim(),
-          expectedName: form.name.trim(),
-        },
-      });
-
-      if (res.error) throw new Error(res.error.message || "Verification failed");
-      const verification = res.data;
-
-      const path = `${user.id}/sem_${semester}_${Date.now()}_${file.name}`;
-      await supabase.storage.from("marks-cards").upload(path, file, { upsert: true });
-
-      const newEntry: MarksCardEntry = {
-        semester,
-        path,
-        sgpa: verification.extracted_sgpa ?? null,
-        verified: verification.verified ?? false,
-        uploadedAt: new Date().toISOString(),
-      };
-
-      const updatedCards = [...marksCards.filter(mc => mc.semester !== semester), newEntry].sort((a, b) => a.semester - b.semester);
-      setMarksCards(updatedCards);
-
-      const sgpas: Record<string, number> = {};
-      updatedCards.forEach(mc => { if (mc.sgpa !== null) sgpas[String(mc.semester)] = mc.sgpa; });
-      const sgpaValues = Object.values(sgpas);
-      const newCgpa = sgpaValues.length > 0 ? parseFloat((sgpaValues.reduce((a, b) => a + b, 0) / sgpaValues.length).toFixed(2)) : null;
-
-      await supabase.from("profiles").update({
-        marks_cards: JSON.parse(JSON.stringify(updatedCards)),
-        sgpas: JSON.parse(JSON.stringify(sgpas)),
-        cgpa: newCgpa,
-      } as Record<string, unknown>).eq("id", user.id);
-
-      setCgpa(newCgpa);
-      toast.success(`Semester ${semester} marks card uploaded and verified. SGPA: ${verification.extracted_sgpa ?? 'N/A'}`);
-    } catch (err) {
-      toast.error("Failed to upload marks card: " + (err as Error).message);
-    }
-
-    setUploadingSem(null);
-    e.target.value = "";
-  };
-
-  const getRequiredSemesters = (): number[] => {
-    if (isLateralEntry === null || currentSemester === null) return [];
-    const start = isLateralEntry ? 3 : 1;
-    const semesters: number[] = [];
-    for (let i = start; i <= currentSemester; i++) {
-      semesters.push(i);
-    }
-    return semesters;
-  };
-
-  const requiredSemesters = getRequiredSemesters();
-  const verifiedSignals = marksCards.filter(m => m.verified).length;
-  const skillsCount = form.skills.split(",").filter(s => s.trim().length > 0).length;
-  const trustScore = Math.min(100, Math.round((completion * 0.4) + ((cgpa ? cgpa * 10 : 70) * 0.4) + (verifiedSignals > 0 ? 20 : 0)));
 
   const userInitial = form.name ? form.name.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || "A");
-  const publicSlug = form.name ? form.name.toLowerCase().replace(/\s+/g, "") : "candidate";
+
+  // 10 Navigation Sections matching Reference Images
+  const sections = [
+    { id: "01", label: "Basics" },
+    { id: "02", label: "Links & accounts" },
+    { id: "03", label: "Skills" },
+    { id: "04", label: "Experience" },
+    { id: "05", label: "Projects" },
+    { id: "06", label: "Education" },
+    { id: "07", label: "Certifications" },
+    { id: "08", label: "Achievements" },
+    { id: "09", label: "Languages" },
+    { id: "10", label: "Job preferences" },
+  ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
       
-      {/* 1. PROFILE COVER BANNER MATCHING ZIDIO IMAGE 5 */}
-      <div className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-sm">
-        
-        {/* Dark Navy Cover Header */}
-        <div className="h-36 md:h-44 bg-gradient-to-r from-[#14142b] via-[#1a1a36] to-[#121224] p-6 flex flex-col justify-between relative">
-          <div className="flex items-center justify-between z-10">
-            <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-slate-300">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <span>Campus Verified • Placement Active</span>
-            </div>
-
-            <Badge variant="outline" className="border-white/20 text-white text-[10px] bg-white/5 font-semibold">
-              Pro Verified Profile
-            </Badge>
-          </div>
-
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 w-48 h-48 bg-[#5b51d8]/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Top Studio Action Ribbon matching Image 1 */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="rounded-xl bg-[#0f0f1c] text-white text-xs font-bold gap-1.5 h-9 px-4 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 fill-white" /> Studio
+          </Button>
+          <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground text-xs font-semibold gap-1.5 h-9 px-3 hover:text-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-blue-500" /> Verified Evidence
+          </Button>
+          <Badge variant="outline" className="border-amber-500/30 text-amber-500 bg-amber-500/10 text-[10px] py-1 px-2.5 font-bold gap-1">
+            <Sparkles className="h-3 w-3" /> AI Builder PRO
+          </Badge>
+          <Badge variant="outline" className="border-border text-muted-foreground text-[10px] py-1 px-2 font-semibold">
+            JD Tailor PRO+
+          </Badge>
+          <Badge variant="outline" className="border-border text-muted-foreground text-[10px] py-1 px-2 font-semibold">
+            Export PRO
+          </Badge>
         </div>
 
-        {/* Profile Info Row with Overlapping Avatar */}
-        <div className="px-6 md:px-8 pb-6 relative">
-          
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 -mt-14 mb-4">
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-xl bg-[#5b51d8] hover:bg-[#4d43cc] text-white text-xs font-bold h-9 px-5 gap-1.5 shrink-0 shadow-md"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}
+          Save Changes
+        </Button>
+      </div>
+
+      {/* Main 2-Column Layout */}
+      <div className="grid lg:grid-cols-12 gap-8 items-start">
+        
+        {/* LEFT COLUMN: Section Index & Progress (4 Cols) matching Image 1, 2, 3 */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
             
-            {/* Avatar & Identifiers */}
-            <div className="flex items-end gap-5">
-              <div className="h-24 w-24 md:h-28 md:w-28 rounded-3xl bg-gradient-to-tr from-[#5b51d8] to-[#7f74fc] text-white font-display font-black text-4xl flex items-center justify-center border-4 border-card shadow-lg shrink-0">
-                {userInitial}
+            {/* Readiness Bar */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="uppercase text-[10px] tracking-wider text-muted-foreground">Profile Readiness</span>
+                <span className="font-display text-sm text-foreground">{readinessPercentage}%</span>
               </div>
-
-              <div className="space-y-1 mb-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
-                    {form.name || "Candidate Name"}
-                  </h1>
-                  <Badge className="bg-[#5b51d8]/15 text-[#5b51d8] border-[#5b51d8]/30 text-[10px]">
-                    Verified
-                  </Badge>
-                </div>
-
-                <p className="text-xs text-muted-foreground font-medium flex items-center gap-2">
-                  <span>{form.title}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" /> {user?.email}
-                  </span>
-                </p>
-
-                {/* Vanity Slug URL Pill */}
-                <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground">
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted border border-border">
-                    <span className="font-mono text-foreground">ipms.edu/p/{user?.id?.slice(0, 8)}</span>
-                    <Copy
-                      className="h-3 w-3 cursor-pointer hover:text-foreground"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`https://ipms.edu/p/${user?.id}`);
-                        toast.success("Profile link copied to clipboard");
-                      }}
-                    />
-                  </div>
-                  <span className="text-emerald-500 font-semibold flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Public
-                  </span>
-                  <span className="text-[#5b51d8] font-bold">/{publicSlug} PRO</span>
-                </div>
-              </div>
+              <Progress value={readinessPercentage} className="h-1.5 bg-muted [&>div]:bg-[#5b51d8]" />
             </div>
 
-            {/* Right: Trust Score Widget (Image 5) */}
-            <div className="shrink-0 flex items-center gap-4">
-              <div className="p-3.5 rounded-2xl bg-[#131326] text-white border border-white/10 flex items-center gap-3.5 shadow-md">
-                <div className="text-center font-display">
-                  <div className="text-2xl font-black text-white">{trustScore}</div>
-                  <div className="text-[9px] uppercase font-bold tracking-widest text-[#8e85ff]">Score</div>
-                </div>
-                <div className="border-l border-white/10 pl-3 text-left">
-                  <div className="text-[10px] uppercase font-bold tracking-widest text-slate-300">Trust Score</div>
-                  <div className="text-[11px] text-slate-400">{verifiedSignals} of {requiredSemesters.length || 8} Verified</div>
-                </div>
-              </div>
+            {/* Step Selector List */}
+            <div className="space-y-1">
+              {sections.map((sec) => {
+                const isActive = activeSection === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    onClick={() => setActiveSection(sec.id)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+                      isActive
+                        ? "bg-[#0f0f1c] text-white font-bold shadow-sm"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    }`}
+                  >
+                    <span className={`font-mono text-[11px] ${isActive ? "text-[#8e85ff]" : "text-muted-foreground"}`}>
+                      {sec.id}
+                    </span>
+                    <span>{sec.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Import & Public Profile Actions */}
+            <div className="pt-4 border-t border-border/60 space-y-2.5">
+              <label className="w-full block cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  disabled={uploading}
+                  onChange={handleResumeUpload}
+                  className="hidden"
+                />
+                <Button
+                  asChild
+                  type="button"
+                  className="w-full h-10 rounded-xl bg-[#5b51d8] hover:bg-[#4d43cc] text-white text-xs font-bold gap-2 shadow-sm"
+                >
+                  <span>
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    Import from résumé
+                  </span>
+                </Button>
+              </label>
+
+              {resumeUrl && (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full h-9 rounded-xl border-border text-xs font-semibold gap-2"
+                >
+                  <a href={resumeUrl} target="_blank" rel="noreferrer">
+                    <Eye className="h-3.5 w-3.5" /> View active résumé
+                  </a>
+                </Button>
+              )}
             </div>
 
           </div>
+        </div>
 
-          {/* Action Button Row */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-border/40">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="rounded-xl bg-[#5b51d8] hover:bg-[#4d43cc] text-white text-xs font-bold h-9 px-4 gap-2 shadow-[0_4px_12px_rgba(91,81,216,0.3)]"
-            >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}
-              Save Profile
-            </Button>
+        {/* RIGHT COLUMN: Studio Content matching Images 1, 2, 3, 4, 5 (8 Cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Blue Check Verification Banner matching Image 1 */}
+          <div className="p-6 rounded-3xl bg-[#0e172a] text-white border border-blue-900/40 shadow-sm relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="h-10 w-10 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Verified Candidate</div>
+                  <h3 className="font-display text-lg font-bold text-white mt-0.5">Earn your blue check</h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Verified profiles rank higher in company placement shortlists and recruiters trust them more.
+                  </p>
+                </div>
+              </div>
 
-            {resumeUrl && (
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-xl border-border text-xs font-semibold h-9 px-4 gap-1.5"
-              >
-                <a href={resumeUrl} target="_blank" rel="noreferrer">
-                  <Download className="h-3.5 w-3.5 text-muted-foreground" /> Download Résumé
-                </a>
+              <Button size="sm" className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shrink-0 gap-1.5 h-9 px-4">
+                View evidence <ArrowRight className="h-3.5 w-3.5" />
               </Button>
-            )}
+            </div>
+
+            {/* Check Chips */}
+            <div className="flex flex-wrap items-center gap-2 pt-5 border-t border-white/10 mt-5">
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px] gap-1 py-1 px-2.5">
+                <Check className="h-3 w-3" /> Identity
+              </Badge>
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px] gap-1 py-1 px-2.5">
+                <Check className="h-3 w-3" /> Email verified
+              </Badge>
+              <Badge variant="outline" className="text-slate-400 border-white/10 text-[10px] py-1 px-2.5">
+                Skills verified
+              </Badge>
+              <Badge variant="outline" className="text-slate-400 border-white/10 text-[10px] py-1 px-2.5">
+                Project reviewed
+              </Badge>
+              <Badge variant="outline" className="text-slate-400 border-white/10 text-[10px] py-1 px-2.5">
+                Assessment passed
+              </Badge>
+            </div>
           </div>
 
-        </div>
+          {/* SECTION 01: BASICS matching Image 1 & 2 */}
+          {activeSection === "01" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>01</span>
+                  <span>Basics</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Identity &amp; Profile Summary</h3>
+                <p className="text-xs text-muted-foreground">Identity, headline, and summary — the first thing a recruiter reads.</p>
+              </div>
 
-      </div>
+              {/* Photo Area */}
+              <div className="flex items-center gap-4 pt-2">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white font-display font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0">
+                  {userInitial}
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-foreground">Profile photo</h4>
+                  <p className="text-[11px] text-muted-foreground">A clear headshot. Used on your public profile.</p>
+                  <label className="cursor-pointer inline-block mt-2">
+                    <input type="file" accept="image/*" className="hidden" />
+                    <Button type="button" size="sm" variant="outline" asChild className="h-7 text-[11px] rounded-lg border-border">
+                      <span><Upload className="h-3 w-3 mr-1" /> Upload photo</span>
+                    </Button>
+                  </label>
+                </div>
+              </div>
 
-      {/* 2. 4 METRIC CARDS ROW MATCHING ZIDIO IMAGE 5 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Performance */}
-        <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm space-y-2">
-          <span className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">
-            Performance
-          </span>
-          <div className="flex items-baseline gap-1.5 font-display">
-            <span className="text-2xl font-extrabold text-foreground">
-              {cgpa ? Math.round(cgpa * 10) : 75}
-            </span>
-            <span className="text-xs text-muted-foreground">/ 100</span>
-          </div>
-          <Progress value={cgpa ? cgpa * 10 : 75} className="h-1.5 bg-muted" />
-        </div>
-
-        {/* Profile Readiness */}
-        <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm space-y-2">
-          <span className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">
-            Profile Readiness
-          </span>
-          <div className="flex items-baseline gap-1.5 font-display">
-            <span className="text-2xl font-extrabold text-[#5b51d8]">
-              {completion}%
-            </span>
-          </div>
-          <Progress value={completion} className="h-1.5 bg-muted [&>div]:bg-[#5b51d8]" />
-        </div>
-
-        {/* Verified Signals */}
-        <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm space-y-2">
-          <span className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">
-            Verified Signals
-          </span>
-          <div className="flex items-baseline gap-1.5 font-display">
-            <span className="text-2xl font-extrabold text-foreground">
-              {verifiedSignals}
-            </span>
-            <span className="text-xs text-muted-foreground">/ {requiredSemesters.length || 8}</span>
-          </div>
-          <p className="text-[10px] text-muted-foreground">Marks cards OCR verified</p>
-        </div>
-
-        {/* Skills Verified */}
-        <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm space-y-2">
-          <span className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">
-            Skills Listed
-          </span>
-          <div className="flex items-baseline gap-1.5 font-display">
-            <span className="text-2xl font-extrabold text-foreground">
-              {skillsCount}
-            </span>
-            <span className="text-xs text-muted-foreground">skills</span>
-          </div>
-          <p className="text-[10px] text-muted-foreground">Ready for technical tests</p>
-        </div>
-
-      </div>
-
-      {/* 3. STUDIO NAVIGATION TABS (Image 5) */}
-      <Tabs defaultValue="studio" className="space-y-6">
-        <TabsList className="bg-muted/40 p-1 rounded-2xl border border-border/60 flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="studio" className="rounded-xl text-xs font-semibold data-[state=active]:bg-card data-[state=active]:shadow-sm">
-            Studio Details
-          </TabsTrigger>
-          <TabsTrigger value="marks" className="rounded-xl text-xs font-semibold data-[state=active]:bg-card data-[state=active]:shadow-sm">
-            Marks &amp; Academic Transcripts
-          </TabsTrigger>
-          <TabsTrigger value="resume" className="rounded-xl text-xs font-semibold data-[state=active]:bg-card data-[state=active]:shadow-sm">
-            AI Résumé &amp; Documents
-          </TabsTrigger>
-        </TabsList>
-
-        {/* TAB 1: STUDIO DETAILS */}
-        <TabsContent value="studio" className="space-y-6">
-          <Card className="rounded-3xl border-border/60 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">Personal &amp; Academic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Input Fields */}
+              <div className="space-y-4 pt-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Full Name *</Label>
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Full Name *</Label>
                   <Input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -458,260 +436,504 @@ export default function StudentProfile() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">University Seat Number (USN) *</Label>
-                  <Input
-                    value={form.usn}
-                    onChange={(e) => setForm({ ...form, usn: e.target.value })}
-                    placeholder="e.g. 1RV21CS001"
-                    className="h-10 rounded-xl bg-muted/30 border-border uppercase font-mono"
-                  />
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">University Seat Number (USN) *</Label>
+                    <Input
+                      value={form.usn}
+                      onChange={(e) => setForm({ ...form, usn: e.target.value })}
+                      placeholder="e.g. 1RV21CS001"
+                      className="h-10 rounded-xl bg-muted/30 border-border uppercase font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Engineering Branch</Label>
+                    <Select value={form.branch} onValueChange={(v) => setForm({ ...form, branch: v })}>
+                      <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Computer Science">Computer Science</SelectItem>
+                        <SelectItem value="Information Science">Information Science</SelectItem>
+                        <SelectItem value="Electronics & Communication">Electronics &amp; Communication</SelectItem>
+                        <SelectItem value="Mechanical">Mechanical</SelectItem>
+                        <SelectItem value="Civil">Civil</SelectItem>
+                        <SelectItem value="Electrical">Electrical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Professional Title / Headline</Label>
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Professional Title</Label>
                   <Input
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="e.g. Full Stack Developer | AI Enthusiast"
+                    placeholder="e.g. Full Stack Developer"
                     className="h-10 rounded-xl bg-muted/30 border-border"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Engineering Branch</Label>
-                  <Select value={form.branch} onValueChange={(v) => setForm({ ...form, branch: v })}>
-                    <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border">
-                      <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Computer Science">Computer Science</SelectItem>
-                      <SelectItem value="Information Science">Information Science</SelectItem>
-                      <SelectItem value="Electronics & Communication">Electronics &amp; Communication</SelectItem>
-                      <SelectItem value="Mechanical">Mechanical</SelectItem>
-                      <SelectItem value="Civil">Civil</SelectItem>
-                      <SelectItem value="Electrical">Electrical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Year of Passing</Label>
-                  <Input
-                    type="number"
-                    value={form.yearOfPassing}
-                    onChange={(e) => setForm({ ...form, yearOfPassing: e.target.value })}
-                    placeholder="e.g. 2026"
-                    className="h-10 rounded-xl bg-muted/30 border-border font-mono"
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Professional Summary</Label>
+                  <Textarea
+                    value={form.summary}
+                    onChange={(e) => setForm({ ...form, summary: e.target.value })}
+                    placeholder="2–3 lines on what you build and what you're looking for."
+                    className="rounded-xl bg-muted/30 border-border min-h-[90px] text-xs"
                   />
                 </div>
 
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Email</Label>
+                    <Input
+                      disabled
+                      value={form.email}
+                      className="h-10 rounded-xl bg-muted/50 border-border text-muted-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Phone</Label>
+                    <Input
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="+91 98765 43210"
+                      className="h-10 rounded-xl bg-muted/30 border-border"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Key Skills (Comma Separated)</Label>
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Location</Label>
                   <Input
-                    value={form.skills}
-                    onChange={(e) => setForm({ ...form, skills: e.target.value })}
-                    placeholder="e.g. React, TypeScript, Python, Node.js, SQL"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    placeholder="e.g. Bengaluru, Karnataka"
                     className="h-10 rounded-xl bg-muted/30 border-border"
                   />
                 </div>
               </div>
+            </div>
+          )}
 
-              <div className="pt-2 flex justify-end">
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-xl bg-[#5b51d8] hover:bg-[#4d43cc] text-white font-bold text-xs h-9 px-5"
-                >
-                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save Changes"}
+          {/* SECTION 02: LINKS & ACCOUNTS matching Image 3 */}
+          {activeSection === "02" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>02</span>
+                  <span>Links &amp; accounts</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Social &amp; Coding Portfolios</h3>
+                <p className="text-xs text-muted-foreground">Where recruiters find you. Connected accounts also feed live data into your profile.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Website / Portfolio</Label>
+                  <Input
+                    value={form.website}
+                    onChange={(e) => setForm({ ...form, website: e.target.value })}
+                    placeholder="https://"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">LinkedIn</Label>
+                  <Input
+                    value={form.linkedin}
+                    onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
+                    placeholder="linkedin.com/in/"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">GitHub</Label>
+                  <Input
+                    value={form.github}
+                    onChange={(e) => setForm({ ...form, github: e.target.value })}
+                    placeholder="github.com/"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Twitter / X</Label>
+                  <Input
+                    value={form.twitter}
+                    onChange={(e) => setForm({ ...form, twitter: e.target.value })}
+                    placeholder="x.com/"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">LeetCode</Label>
+                  <Input
+                    value={form.leetcode}
+                    onChange={(e) => setForm({ ...form, leetcode: e.target.value })}
+                    placeholder="leetcode.com/"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">HackerRank</Label>
+                  <Input
+                    value={form.hackerrank}
+                    onChange={(e) => setForm({ ...form, hackerrank: e.target.value })}
+                    placeholder="hackerrank.com/"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 03: SKILLS matching Image 4 */}
+          {activeSection === "03" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>03</span>
+                  <span>Skills</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Technical Skills</h3>
+                <p className="text-xs text-muted-foreground">Green skills are verified by assessments — recruiters trust those most.</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  value={form.newSkill}
+                  onChange={(e) => setForm({ ...form, newSkill: e.target.value })}
+                  placeholder="Type a skill (e.g. Docker, Next.js, GraphQL)"
+                  className="h-10 rounded-xl bg-muted/30 border-border"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
+                />
+                <Button onClick={handleAddSkill} className="rounded-xl bg-[#5b51d8] text-white text-xs font-bold px-4 h-10">
+                  <Plus className="h-4 w-4 mr-1" /> Add skill
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* TAB 2: MARKS & ACADEMIC TRANSCRIPTS */}
-        <TabsContent value="marks" className="space-y-6">
-          <Card className="rounded-3xl border-border/60 shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-bold">Semester Transcripts &amp; OCR Verification</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">Upload VTU/University marks cards for auto SGPA/CGPA computation.</p>
-                </div>
-                {cgpa !== null && (
-                  <Badge className="bg-[#5b51d8]/15 text-[#5b51d8] border-[#5b51d8]/30 font-mono text-xs">
-                    Current CGPA: {cgpa}
-                  </Badge>
-                )}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {form.skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 text-xs font-semibold"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>{skill}</span>
+                    <button onClick={() => handleRemoveSkill(skill)} className="hover:text-rose-500 text-muted-foreground ml-1">
+                      ×
+                    </button>
+                  </span>
+                ))}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/20 border border-border/60">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Admission Type</Label>
-                  <RadioGroup
-                    value={isLateralEntry === null ? "" : isLateralEntry ? "lateral" : "regular"}
-                    onValueChange={(v) => setIsLateralEntry(v === "lateral")}
-                    className="flex gap-4 pt-1"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="regular" id="regular" />
-                      <Label htmlFor="regular" className="text-xs font-medium cursor-pointer">Regular (1st Sem)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="lateral" id="lateral" />
-                      <Label htmlFor="lateral" className="text-xs font-medium cursor-pointer">Lateral Entry (3rd Sem)</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+            </div>
+          )}
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase">Current Semester</Label>
-                  <Select
-                    value={currentSemester ? String(currentSemester) : ""}
-                    onValueChange={(v) => setCurrentSemester(Number(v))}
-                  >
-                    <SelectTrigger className="h-9 rounded-xl bg-card border-border text-xs">
-                      <SelectValue placeholder="Select current sem" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                        <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {/* SECTION 04: EXPERIENCE matching Image 4 */}
+          {activeSection === "04" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>04</span>
+                  <span>Experience</span>
                 </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Work &amp; Internships</h3>
+                <p className="text-xs text-muted-foreground">Roles, companies and impact. Use action verbs and numbers where you can.</p>
               </div>
 
-              {/* Upload Grid */}
-              {requiredSemesters.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {requiredSemesters.map((sem) => {
-                    const card = marksCards.find(mc => mc.semester === sem);
-                    const isUploading = uploadingSem === sem;
+              <Button
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  experiences: [...prev.experiences, { role: "Software Intern", company: "Company Name", duration: "Jun 2025 - Aug 2025", description: "Built key features..." }]
+                }))}
+                variant="outline"
+                className="w-full h-11 rounded-2xl border-dashed border-border/80 text-xs font-bold gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Add a role
+              </Button>
 
-                    return (
-                      <div key={sem} className="p-4 rounded-2xl border border-border/60 bg-muted/10 flex flex-col justify-between gap-3">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs text-foreground">Semester {sem}</span>
-                          {card?.verified ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] gap-1">
-                              <CheckCircle2 className="h-3 w-3" /> Verified
-                            </Badge>
-                          ) : card ? (
-                            <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30">
-                              Uploaded
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                              Pending
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="text-xs">
-                          {card?.sgpa !== null && card?.sgpa !== undefined ? (
-                            <div className="font-mono text-sm font-bold text-foreground">SGPA: {card.sgpa}</div>
-                          ) : (
-                            <div className="text-muted-foreground text-[11px]">Marks card not uploaded</div>
-                          )}
-                        </div>
-
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            accept=".pdf,image/*"
-                            disabled={isUploading}
-                            className="hidden"
-                            onChange={(e) => handleMarksCardUpload(sem, e)}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            asChild
-                            className="w-full h-8 text-[11px] rounded-xl border-border hover:bg-primary hover:text-white"
-                          >
-                            <span>
-                              {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
-                              {card ? "Re-upload" : "Upload Card"}
-                            </span>
-                          </Button>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-xs text-muted-foreground">
-                  Select your admission type and current semester above to view marks card upload slots.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 3: RESUME & DOCUMENTS */}
-        <TabsContent value="resume" className="space-y-6">
-          <Card className="rounded-3xl border-border/60 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">Resume &amp; Credentials</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-6 rounded-2xl border-2 border-dashed border-border/80 text-center space-y-3 bg-muted/5">
-                <FileText className="h-10 w-10 text-[#5b51d8] mx-auto opacity-70" />
-                <div>
-                  <h4 className="font-bold text-sm text-foreground">Upload Master Placement Résumé</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">PDF format only, maximum 5MB.</p>
-                </div>
-
-                <label className="inline-block cursor-pointer">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    disabled={uploading}
-                    onChange={handleResumeUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    asChild
-                    className="rounded-xl bg-[#5b51d8] hover:bg-[#4d43cc] text-white text-xs font-bold h-9 px-5 gap-2 shadow-sm"
-                  >
-                    <span>
-                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      Choose PDF File
-                    </span>
-                  </Button>
-                </label>
-              </div>
-
-              {resumeUrl && (
-                <div className="p-4 rounded-2xl bg-muted/20 border border-border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-emerald-500" />
-                    <div>
-                      <div className="text-xs font-bold text-foreground">Active Resume Document</div>
-                      <div className="text-[11px] text-muted-foreground">Attached to your candidate profile</div>
-                    </div>
+              {form.experiences.map((exp, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Input
+                      value={exp.role}
+                      onChange={(e) => {
+                        const updated = [...form.experiences];
+                        updated[idx].role = e.target.value;
+                        setForm({ ...form, experiences: updated });
+                      }}
+                      className="h-8 font-bold text-xs bg-card border-border max-w-[200px]"
+                    />
+                    <button
+                      onClick={() => setForm({ ...form, experiences: form.experiences.filter((_, i) => i !== idx) })}
+                      className="text-muted-foreground hover:text-rose-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl text-xs h-8 border-border"
-                  >
-                    <a href={resumeUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> View Resume
-                    </a>
-                  </Button>
+                  <Input
+                    placeholder="Company name & duration"
+                    value={exp.company}
+                    onChange={(e) => {
+                      const updated = [...form.experiences];
+                      updated[idx].company = e.target.value;
+                      setForm({ ...form, experiences: updated });
+                    }}
+                    className="h-8 text-xs bg-card border-border"
+                  />
+                  <Textarea
+                    placeholder="Describe impact, tech stack, and achievements..."
+                    value={exp.description}
+                    onChange={(e) => {
+                      const updated = [...form.experiences];
+                      updated[idx].description = e.target.value;
+                      setForm({ ...form, experiences: updated });
+                    }}
+                    className="text-xs bg-card border-border min-h-[60px]"
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              ))}
+            </div>
+          )}
+
+          {/* SECTION 05: PROJECTS matching Image 4 */}
+          {activeSection === "05" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>05</span>
+                  <span>Projects</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Featured Projects</h3>
+                <p className="text-xs text-muted-foreground">Your strongest builds with live links and stack. Mentor-reviewed ones carry the most weight.</p>
+              </div>
+
+              <Button
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  projects: [...prev.projects, { title: "New Project", link: "https://github.com/", stack: "React, Node.js", description: "Built scalable web service..." }]
+                }))}
+                variant="outline"
+                className="w-full h-11 rounded-2xl border-dashed border-border/80 text-xs font-bold gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Add a project
+              </Button>
+
+              {form.projects.map((proj, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Input
+                      value={proj.title}
+                      onChange={(e) => {
+                        const updated = [...form.projects];
+                        updated[idx].title = e.target.value;
+                        setForm({ ...form, projects: updated });
+                      }}
+                      className="h-8 font-bold text-xs bg-card border-border max-w-[200px]"
+                    />
+                    <button
+                      onClick={() => setForm({ ...form, projects: form.projects.filter((_, i) => i !== idx) })}
+                      className="text-muted-foreground hover:text-rose-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <Input
+                    placeholder="Project link or GitHub URL"
+                    value={proj.link}
+                    onChange={(e) => {
+                      const updated = [...form.projects];
+                      updated[idx].link = e.target.value;
+                      setForm({ ...form, projects: updated });
+                    }}
+                    className="h-8 text-xs bg-card border-border"
+                  />
+                  <Textarea
+                    placeholder="Overview of features, architecture, and libraries..."
+                    value={proj.description}
+                    onChange={(e) => {
+                      const updated = [...form.projects];
+                      updated[idx].description = e.target.value;
+                      setForm({ ...form, projects: updated });
+                    }}
+                    className="text-xs bg-card border-border min-h-[60px]"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* SECTION 06: EDUCATION matching Image 5 */}
+          {activeSection === "06" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>06</span>
+                  <span>Education</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Academic Credentials</h3>
+                <p className="text-xs text-muted-foreground">Degrees, institutions, and grades verified by college placement office.</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-foreground">Bachelor of Engineering (B.E / B.Tech)</div>
+                  {cgpa !== null && (
+                    <Badge className="bg-[#5b51d8]/15 text-[#5b51d8] border-[#5b51d8]/30 font-mono text-xs">
+                      CGPA: {cgpa}
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Branch: <span className="font-semibold text-foreground">{form.branch || "Computer Science"}</span> • Graduating Class of <span className="font-semibold text-foreground">{form.yearOfPassing || "2026"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 07: CERTIFICATIONS matching Image 5 */}
+          {activeSection === "07" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>07</span>
+                  <span>Certifications</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Credentials &amp; Badges</h3>
+                <p className="text-xs text-muted-foreground">Courses and credentials, with verification links where you have them.</p>
+              </div>
+
+              <Button
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  certifications: [...prev.certifications, { name: "AWS Certified Cloud Practitioner", issuer: "Amazon Web Services", link: "https://" }]
+                }))}
+                variant="outline"
+                className="w-full h-11 rounded-2xl border-dashed border-border/80 text-xs font-bold gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Add a certificate
+              </Button>
+
+              {form.certifications.map((cert, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-xs text-foreground">{cert.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{cert.issuer}</div>
+                  </div>
+                  <button
+                    onClick={() => setForm({ ...form, certifications: form.certifications.filter((_, i) => i !== idx) })}
+                    className="text-muted-foreground hover:text-rose-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* SECTION 08: ACHIEVEMENTS matching Image 5 */}
+          {activeSection === "08" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>08</span>
+                  <span>Achievements &amp; awards</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Honors &amp; Recognitions</h3>
+                <p className="text-xs text-muted-foreground">Hackathon wins, recognitions, open-source contributions — anything that sets you apart.</p>
+              </div>
+
+              <Button
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  achievements: [...prev.achievements, "Finalist in Smart India Hackathon 2025"]
+                }))}
+                variant="outline"
+                className="w-full h-11 rounded-2xl border-dashed border-border/80 text-xs font-bold gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Add an achievement
+              </Button>
+
+              {form.achievements.map((ach, idx) => (
+                <div key={idx} className="p-3.5 rounded-2xl bg-muted/20 border border-border/60 flex items-center justify-between text-xs font-medium">
+                  <span>{ach}</span>
+                  <button
+                    onClick={() => setForm({ ...form, achievements: form.achievements.filter((_, i) => i !== idx) })}
+                    className="text-muted-foreground hover:text-rose-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* SECTION 09: LANGUAGES */}
+          {activeSection === "09" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>09</span>
+                  <span>Languages</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Communication Proficiencies</h3>
+                <p className="text-xs text-muted-foreground">Languages spoken and written for corporate communication.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {form.languages.map((lang) => (
+                  <Badge key={lang} variant="secondary" className="text-xs font-semibold py-1.5 px-3 rounded-xl">
+                    {lang}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 10: JOB PREFERENCES */}
+          {activeSection === "10" && (
+            <div className="p-6 md:p-8 rounded-3xl bg-card border border-border/60 shadow-sm space-y-6">
+              <div>
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#5b51d8]">
+                  <span>10</span>
+                  <span>Job preferences</span>
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground mt-1">Role &amp; Location Expectations</h3>
+                <p className="text-xs text-muted-foreground">Help matching algorithms pair you with visiting recruiters.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Target Role</Label>
+                  <Input
+                    placeholder="e.g. Software Development Engineer (SDE-1)"
+                    defaultValue="Software Engineer"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Preferred Location</Label>
+                  <Input
+                    placeholder="e.g. Bengaluru, Hyderabad, Remote"
+                    defaultValue="Bengaluru"
+                    className="h-10 rounded-xl bg-muted/30 border-border"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+      </div>
 
     </div>
   );
