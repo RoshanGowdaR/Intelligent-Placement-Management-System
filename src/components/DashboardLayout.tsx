@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminSessionTimeout, getAdminResumeRoute, clearAdminResumeRoute } from "@/hooks/useSessionTimeout";
 import { NavLink } from "@/components/NavLink";
@@ -18,6 +18,7 @@ import {
 import {
   LayoutDashboard, Building2, FileText, Users, BarChart3, ClipboardList,
   GraduationCap, CalendarDays, Trophy, UserCircle, LogOut, Menu, Shield, GitBranch,
+  Search, Sparkles, Settings, HelpCircle, ChevronDown, Bell, CheckCircle2, Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -25,9 +26,9 @@ import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 import { StudentAIAssistant } from "@/components/assistant/StudentAIAssistant";
 
 const adminLinks = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+  { title: "Overview", url: "/admin", icon: LayoutDashboard },
   { title: "Companies", url: "/admin/companies", icon: Building2 },
-  { title: "Tests", url: "/admin/tests", icon: ClipboardList },
+  { title: "Assessments", url: "/admin/tests", icon: ClipboardList },
   { title: "Students", url: "/admin/students", icon: Users },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Reports", url: "/admin/reports", icon: FileText },
@@ -36,7 +37,7 @@ const adminLinks = [
 ];
 
 const companyLinks = [
-  { title: "Dashboard", url: "/company", icon: LayoutDashboard },
+  { title: "Overview", url: "/company", icon: LayoutDashboard },
   { title: "Drive Rounds", url: "/company/rounds", icon: GitBranch },
   { title: "Assessments", url: "/company/tests", icon: ClipboardList },
   { title: "Candidates", url: "/company/candidates", icon: Users },
@@ -44,56 +45,77 @@ const companyLinks = [
 ];
 
 const studentLinks = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Companies", url: "/dashboard/companies", icon: Building2 },
-  { title: "My Tests", url: "/dashboard/tests", icon: ClipboardList },
-  { title: "Results", url: "/dashboard/results", icon: Trophy },
-  { title: "Schedule", url: "/dashboard/schedule", icon: CalendarDays },
-  { title: "Profile", url: "/dashboard/profile", icon: UserCircle },
+  { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Profile Studio", url: "/dashboard/profile", icon: UserCircle },
+  { title: "Applications", url: "/dashboard/companies", icon: Building2 },
+  { title: "My Assessments", url: "/dashboard/tests", icon: ClipboardList },
+  { title: "Results & Ranks", url: "/dashboard/results", icon: Trophy },
+  { title: "Drive Schedule", url: "/dashboard/schedule", icon: CalendarDays },
 ];
 
 function AppSidebar({ role }: { role: "admin" | "company" | "student" | null }) {
   const links = role === "admin" ? adminLinks : role === "company" ? companyLinks : studentLinks;
-  const roleLabel = role === "admin" ? "Admin" : role === "company" ? "Company Recruiter" : "Student";
+  const roleLabel = role === "admin" ? "Placement Admin" : role === "company" ? "Recruiter Portal" : "Candidate Portal";
+  const { signOut, user } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+  };
 
   return (
-    <Sidebar className="border-r border-border/40 bg-sidebar/50 backdrop-blur-3xl">
-      <SidebarContent className="bg-transparent">
-        <div className="flex items-center gap-3 px-5 py-6">
-          <div className="skeuo-icon h-11 w-11 bg-primary text-primary-foreground shadow-[0_0_20px_rgba(108,92,231,0.5)]">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <div className="leading-tight">
-            <div className="font-display text-[15px] font-bold tracking-tight text-foreground line-clamp-1">
-              Intelligent Placement
+    <Sidebar className="border-r border-border/40 bg-card/90 backdrop-blur-3xl">
+      <SidebarContent className="flex flex-col justify-between h-full p-3 bg-transparent">
+        <div>
+          {/* Brand Logo matching Zidio style */}
+          <div className="flex items-center gap-3 px-3 py-4 mb-2">
+            <div className="h-9 w-9 rounded-xl bg-[#5b51d8] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(91,81,216,0.4)]">
+              <Sparkles className="h-5 w-5 fill-white" />
             </div>
-            <span className="text-xs font-semibold text-primary">IPMS Elite v3.0</span>
+            <div className="leading-tight">
+              <div className="font-display text-base font-extrabold tracking-tight text-foreground flex items-center gap-1.5">
+                IPMS <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[#5b51d8]/15 text-[#5b51d8]">ELITE</span>
+              </div>
+              <span className="text-[11px] text-muted-foreground font-medium">Placement Management</span>
+            </div>
           </div>
+
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] uppercase font-bold tracking-[0.15em] text-muted-foreground px-3 mb-1">
+              {roleLabel}
+            </SidebarGroupLabel>
+            <SidebarGroupContent className="px-1">
+              <SidebarMenu className="gap-1.5">
+                {links.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end={item.url === "/admin" || item.url === "/company" || item.url === "/dashboard"}
+                        className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-muted-foreground transition-all duration-200 hover:bg-muted/70 hover:text-foreground"
+                        activeClassName="bg-[#5b51d8] text-white font-bold hover:bg-[#5b51d8] hover:text-white shadow-[0_4px_14px_rgba(91,81,216,0.35)]"
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </div>
-        <SidebarGroup>
-          <SidebarGroupLabel className="label-caps px-5 tracking-[0.15em] text-accent-foreground">
-            {roleLabel}
-          </SidebarGroupLabel>
-          <SidebarGroupContent className="mt-2 px-3">
-            <SidebarMenu className="gap-1">
-              {links.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === "/admin" || item.url === "/company" || item.url === "/dashboard"}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-300 hover:bg-white/5 hover:text-foreground"
-                      activeClassName="nav-pill-active font-semibold hover:bg-primary hover:text-primary-foreground"
-                    >
-                      <item.icon className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+
+        {/* Bottom Area: Dark rounded pill container housing Logout */}
+        <div className="mt-auto px-1 pt-4 pb-2">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#0f0f1c] hover:bg-[#19192f] text-white text-xs font-bold transition-all shadow-md group"
+          >
+            <LogOut className="h-4 w-4 text-rose-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Log out</span>
+          </button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
@@ -109,6 +131,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useAdminSessionTimeout();
 
@@ -127,8 +150,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     if (new URLSearchParams(location.search).get("force_password_reset") === "1") setForceResetOpen(true);
   }, [location.search]);
 
-  const handleSignOut = async () => { await signOut(); toast.success("Signed out"); };
-
   const handlePasswordUpdate = async () => {
     if (newPassword.length < 6) { toast.error("Password must be at least 6 characters"); return; }
     if (newPassword !== confirmPassword) { toast.error("Passwords don't match"); return; }
@@ -144,24 +165,103 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     navigate({ pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : "" }, { replace: true });
   };
 
+  // Compute breadcrumb title from pathname
+  const pathParts = location.pathname.split("/").filter(Boolean);
+  const breadcrumbSection = pathParts[0] ? pathParts[0].charAt(0).toUpperCase() + pathParts[0].slice(1) : "Dashboard";
+  const breadcrumbPage = pathParts[1]
+    ? pathParts[1].charAt(0).toUpperCase() + pathParts[1].slice(1).replace("-", " ")
+    : "Overview";
+
+  const userInitial = user?.email?.charAt(0).toUpperCase() || "A";
+  const displayName = user?.user_metadata?.full_name || (user?.email ? user.email.split("@")[0] : "Candidate");
+
   return (
     <SidebarProvider>
       <div className="relative flex min-h-screen w-full bg-background">
         <AnimatedBackground />
         <AppSidebar role={role as any} />
-        <div className="relative z-10 flex flex-1 flex-col">
-          <header className="flex h-16 items-center justify-between border-b border-border/40 bg-white/5 px-6 shadow-[0_1px_0_0_hsl(0_0%_100%/0.06)_inset] backdrop-blur-3xl">
-            <SidebarTrigger><Menu className="h-5 w-5 text-muted-foreground" /></SidebarTrigger>
-            <div className="flex items-center gap-3">
-              <span className="hidden text-sm font-medium text-muted-foreground sm:block">{user?.email}</span>
-              <NotificationCenter />
+        
+        <div className="relative z-10 flex flex-1 flex-col min-w-0">
+          
+          {/* Top Navbar Header matching Zidio */}
+          <header className="flex h-16 items-center justify-between border-b border-border/40 bg-card/80 px-4 md:px-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] backdrop-blur-3xl gap-4">
+            
+            {/* Left: Sidebar trigger + Brand & Breadcrumb */}
+            <div className="flex items-center gap-3 shrink-0">
+              <SidebarTrigger>
+                <Menu className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer" />
+              </SidebarTrigger>
+
+              <div className="hidden sm:flex items-center gap-2 text-xs">
+                <div className="h-6 w-6 rounded-lg bg-[#5b51d8] flex items-center justify-center text-white">
+                  <Sparkles className="h-3.5 w-3.5 fill-white" />
+                </div>
+                <span className="font-extrabold text-foreground tracking-tight">IPMS</span>
+                <span className="text-muted-foreground">/</span>
+                <span className="font-medium text-muted-foreground">{breadcrumbSection}</span>
+                <span className="text-muted-foreground">/</span>
+                <span className="font-bold text-foreground">{breadcrumbPage}</span>
+              </div>
+            </div>
+
+            {/* Center: Global Search Bar */}
+            <div className="hidden md:flex flex-1 max-w-md items-center relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search projects, tests, companies..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-9 pl-9 pr-12 text-xs rounded-xl bg-muted/40 border border-border/60 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
+                ⌘K
+              </span>
+            </div>
+
+            {/* Right: Actions & User Pill */}
+            <div className="flex items-center gap-2 md:gap-3 shrink-0">
               <ThemeToggle />
-              <Button variant="ghost" size="sm" className="glass-button rounded-lg text-muted-foreground hover:text-accent-foreground" onClick={handleSignOut}>
-                <LogOut className="mr-1.5 h-4 w-4" /> Sign out
-              </Button>
+              <NotificationCenter />
+
+              <button
+                onClick={() => navigate(role === "admin" ? "/admin/settings" : "/dashboard/profile")}
+                className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                title="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => toast.info("Placement Support: Available Mon-Sat 9AM-7PM IST")}
+                className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                title="Help"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+
+              {/* User Profile Pill */}
+              <Link
+                to={role === "admin" ? "/admin/settings" : role === "company" ? "/company" : "/dashboard/profile"}
+                className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full bg-muted/40 hover:bg-muted/70 border border-border/60 transition-all cursor-pointer group"
+              >
+                <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white font-extrabold flex items-center justify-center text-xs shadow-sm">
+                  {userInitial}
+                </div>
+                <div className="hidden xl:flex flex-col text-left leading-tight">
+                  <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors capitalize truncate max-w-[120px]">
+                    {displayName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                    {user?.email}
+                  </span>
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+              </Link>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-6 md:p-8">{children}</main>
+
+          <main className="flex-1 overflow-auto p-4 md:p-8">{children}</main>
           {role === "student" && <StudentAIAssistant />}
         </div>
       </div>
