@@ -215,15 +215,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(async () => {
-            setLoading(true);
-            await fetchRole(session.user.id, session.user.email);
-            sessionStorage.setItem("student_session_active", "true");
-            setLoading(false);
-          }, 0);
+          // Update role and session silently in the background.
+          // DO NOT toggle loading to true so existing page state, test forms & dialogs are NEVER destroyed on tab switch!
+          fetchRole(session.user.id, session.user.email).catch((err) => {
+            console.warn("Background fetchRole notice:", err);
+          });
+          sessionStorage.setItem("student_session_active", "true");
         } else {
           setRole(null);
-          setLoading(false);
         }
       }
     );

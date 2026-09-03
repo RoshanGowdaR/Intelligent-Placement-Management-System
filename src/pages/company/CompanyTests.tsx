@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard } from "@/components/3d/GlassCard";
@@ -18,13 +18,33 @@ export default function CompanyTests() {
   const [createOpen, setCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form State
-  const [title, setTitle] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [duration, setDuration] = useState(60);
-  const [passPercentage, setPassPercentage] = useState(60);
-  const [maxParticipants, setMaxParticipants] = useState(150);
-  const [registrationDeadline, setRegistrationDeadline] = useState("");
+  // Form State with draft persistence
+  const [title, setTitle] = useState(() => sessionStorage.getItem("company_test_title") || "");
+  const [scheduledDate, setScheduledDate] = useState(() => sessionStorage.getItem("company_test_date") || "");
+  const [duration, setDuration] = useState(() => Number(sessionStorage.getItem("company_test_duration")) || 60);
+  const [passPercentage, setPassPercentage] = useState(() => Number(sessionStorage.getItem("company_test_pass")) || 60);
+  const [maxParticipants, setMaxParticipants] = useState(() => Number(sessionStorage.getItem("company_test_participants")) || 150);
+  const [registrationDeadline, setRegistrationDeadline] = useState(() => sessionStorage.getItem("company_test_deadline") || "");
+
+  useEffect(() => {
+    if (title || scheduledDate) {
+      sessionStorage.setItem("company_test_title", title);
+      sessionStorage.setItem("company_test_date", scheduledDate);
+      sessionStorage.setItem("company_test_duration", String(duration));
+      sessionStorage.setItem("company_test_pass", String(passPercentage));
+      sessionStorage.setItem("company_test_participants", String(maxParticipants));
+      sessionStorage.setItem("company_test_deadline", registrationDeadline);
+    }
+  }, [title, scheduledDate, duration, passPercentage, maxParticipants, registrationDeadline]);
+
+  const clearCompanyDraft = () => {
+    sessionStorage.removeItem("company_test_title");
+    sessionStorage.removeItem("company_test_date");
+    sessionStorage.removeItem("company_test_duration");
+    sessionStorage.removeItem("company_test_pass");
+    sessionStorage.removeItem("company_test_participants");
+    sessionStorage.removeItem("company_test_deadline");
+  };
 
   useEffect(() => {
     fetchCompanyTests();
@@ -173,6 +193,7 @@ export default function CompanyTests() {
   };
 
   const resetForm = () => {
+    clearCompanyDraft();
     setTitle("");
     setScheduledDate("");
     setDuration(60);

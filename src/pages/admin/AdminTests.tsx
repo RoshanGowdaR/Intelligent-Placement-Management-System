@@ -78,30 +78,59 @@ export default function AdminTests() {
   const [tests, setTests] = useState<Test[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem("admin_test_open") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [editing, setEditing] = useState<Test | null>(null);
   const [viewingTest, setViewingTest] = useState<Test | null>(null);
   const [attempts, setAttempts] = useState<Tables<"test_attempts">[]>([]);
 
   const GADGET_CLASS_OPTIONS = ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"];
 
-  const [form, setForm] = useState({
-    title: "",
-    scheduled_date: "",
-    duration: "60",
-    max_participants: "100",
-    company_id: "",
-    questions_per_student: "25",
-    min_score_percent: "60",
-    warning_delay_seconds: "5",
-    second_offense_action: "submit" as "submit" | "warn",
-    detection_interval_ms: "1500",
-    confidence_threshold: "0.55",
-    consecutive_frames: "1",
-    watched_classes: [...GADGET_CLASS_OPTIONS] as string[],
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("admin_test_form_draft");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      title: "",
+      scheduled_date: "",
+      duration: "60",
+      max_participants: "100",
+      company_id: "",
+      questions_per_student: "25",
+      min_score_percent: "60",
+      warning_delay_seconds: "5",
+      second_offense_action: "submit" as "submit" | "warn",
+      detection_interval_ms: "1500",
+      confidence_threshold: "0.55",
+      consecutive_frames: "1",
+      watched_classes: ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"],
+    };
   });
 
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("admin_test_questions_draft");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  // Automatically preserve test creation draft across tab switching and page changes
+  useEffect(() => {
+    if (open && !editing) {
+      sessionStorage.setItem("admin_test_open", "true");
+      sessionStorage.setItem("admin_test_form_draft", JSON.stringify(form));
+      sessionStorage.setItem("admin_test_questions_draft", JSON.stringify(questions));
+    } else if (!open && !editing) {
+      sessionStorage.removeItem("admin_test_open");
+    }
+  }, [open, form, questions, editing]);
   const [retakeQuestions, setRetakeQuestions] = useState<Question[]>([]);
   const [qForm, setQForm] = useState<Partial<Question>>({
     type: "mcq", subject: "", topic: "", text: "", options: ["", "", "", ""], correct_answer: "", points: 1,
@@ -129,6 +158,9 @@ export default function AdminTests() {
   useEffect(() => { fetchTests(); fetchCompanies(); }, []);
 
   const resetForm = () => {
+    sessionStorage.removeItem("admin_test_open");
+    sessionStorage.removeItem("admin_test_form_draft");
+    sessionStorage.removeItem("admin_test_questions_draft");
     setForm({ title: "", scheduled_date: "", duration: "60", max_participants: "100", company_id: "", questions_per_student: "25", min_score_percent: "60", warning_delay_seconds: "5", second_offense_action: "submit", detection_interval_ms: "1500", confidence_threshold: "0.55", consecutive_frames: "1", watched_classes: [...GADGET_CLASS_OPTIONS] });
     setQuestions([]);
     setRetakeQuestions([]);

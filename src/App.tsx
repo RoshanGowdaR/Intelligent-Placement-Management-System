@@ -38,7 +38,14 @@ import CompanyTests from "./pages/company/CompanyTests";
 import CompanyCandidates from "./pages/company/CompanyCandidates";
 import CompanyReports from "./pages/company/CompanyReports";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 60 * 1000,
+    },
+  },
+});
 
 function AuthRedirect() {
   const { user, role, loading } = useAuth();
