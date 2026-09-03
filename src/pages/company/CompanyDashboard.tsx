@@ -164,29 +164,29 @@ export default function CompanyDashboard() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 font-mono text-[11px] px-2.5 py-0.5">
+            <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30 font-mono text-[11px] px-2.5 py-0.5">
               RECRUITER PORTAL
             </Badge>
-            <span className="text-xs text-slate-400 font-semibold">{company?.name || "Company Recruiter"}</span>
+            <span className="text-xs text-muted-foreground font-semibold">{company?.name || "Company Recruiter"}</span>
           </div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight text-white md:text-4xl">
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             Recruitment Command Center
           </h1>
-          <p className="text-sm text-slate-400">
-            Schedule hiring assessments, monitor candidate registration deadlines & evaluate performance.
+          <p className="text-sm text-muted-foreground">
+            Schedule hiring assessments, monitor candidate registration deadlines &amp; evaluate performance.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button asChild className="h-11 px-5 rounded-xl bg-primary text-white font-bold shadow-[0_0_20px_rgba(108,92,231,0.5)] gap-2">
+          <Button asChild className="h-11 px-5 rounded-xl bg-primary text-white font-bold shadow-md gap-2">
             <Link to="/company/tests">
               <Plus className="h-4 w-4" /> Create Assessment
             </Link>
           </Button>
 
-          <Button asChild variant="outline" className="h-11 px-4 rounded-xl glass-button text-slate-200 hover:text-white border-white/15 gap-2">
+          <Button asChild variant="outline" className="h-11 px-4 rounded-xl border-border/80 text-foreground hover:bg-muted/80 gap-2">
             <Link to="/company/reports">
-              <FileText className="h-4 w-4 text-emerald-400" /> Drive Reports
+              <FileText className="h-4 w-4 text-emerald-500" /> Drive Reports
             </Link>
           </Button>
         </div>
@@ -201,22 +201,22 @@ export default function CompanyDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.08 }}
           >
-            <GlassCard className={`relative overflow-hidden p-6 border ${card.border}`}>
-              <div className={`absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${card.glow} blur-2xl pointer-events-none`} />
+            <div className={`rounded-3xl bg-card relative overflow-hidden p-6 border border-border/70 shadow-sm ${card.border}`}>
+              <div className={`absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${card.glow} blur-2xl pointer-events-none opacity-40`} />
 
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.title}</span>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 ${card.color}`}>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{card.title}</span>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 border border-border/60 ${card.color}`}>
                   <card.icon className="h-5 w-5" />
                 </div>
               </div>
 
               <div className="mt-4 flex items-baseline gap-3">
-                <span className="font-display text-3xl font-extrabold text-white">{card.value}</span>
+                <span className="font-display text-3xl font-extrabold text-foreground">{card.value}</span>
               </div>
 
-              <div className="mt-2 text-xs text-slate-400">{card.subtitle}</div>
-            </GlassCard>
+              <div className="mt-2 text-xs text-muted-foreground">{card.subtitle}</div>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -227,7 +227,7 @@ export default function CompanyDashboard() {
         {/* Left 4 cols: My Scheduled Assessments */}
         <div className="lg:col-span-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-primary" /> My Scheduled Assessments
             </h2>
             <Link to="/company/tests" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
@@ -237,10 +237,10 @@ export default function CompanyDashboard() {
 
           <div className="space-y-3">
             {companyTests.length === 0 ? (
-              <GlassCard className="p-8 text-center border-white/10">
+              <div className="p-8 text-center rounded-3xl bg-card border border-border/70 shadow-sm">
                 <ClipboardList className="mx-auto h-10 w-10 text-muted-foreground mb-2 opacity-50" />
-                <p className="text-sm font-semibold text-white">No assessments created yet</p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-sm font-semibold text-foreground">No assessments created yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   Create a tailored placement test with custom questions and a registration window for students.
                 </p>
                 <Button asChild size="sm" className="mt-4 rounded-xl bg-primary text-white">
@@ -248,16 +248,16 @@ export default function CompanyDashboard() {
                     <Plus className="mr-1.5 h-3.5 w-3.5" /> Launch First Test
                   </Link>
                 </Button>
-              </GlassCard>
+              </div>
             ) : (
               companyTests.map((t) => {
                 const deadlinePast = t.registration_deadline ? isPast(new Date(t.registration_deadline)) : false;
                 return (
-                  <GlassCard key={t.id} className="p-5 border-white/10 hover:border-primary/40 transition-colors">
+                  <div key={t.id} className="p-5 rounded-2xl bg-card border border-border/70 hover:border-primary/40 transition-colors shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="font-display text-base font-bold text-white">{t.title}</h3>
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                        <h3 className="font-display text-base font-bold text-foreground">{t.title}</h3>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5 text-primary" />
                             Date: {new Date(t.scheduled_date).toLocaleDateString()}
@@ -276,18 +276,18 @@ export default function CompanyDashboard() {
                               Registration Closed
                             </Badge>
                           ) : (
-                            <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                            <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-[10px]">
                               Open till {new Date(t.registration_deadline).toLocaleDateString()}
                             </Badge>
                           )
                         ) : (
-                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">
+                          <Badge className="bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30 text-[10px]">
                             Open
                           </Badge>
                         )}
                       </div>
                     </div>
-                  </GlassCard>
+                  </div>
                 );
               })
             )}
@@ -297,43 +297,43 @@ export default function CompanyDashboard() {
         {/* Right 3 cols: Recent Candidate Submissions */}
         <div className="lg:col-span-3 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-white flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-400" /> Candidate Submissions
+            <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5 text-purple-500" /> Candidate Submissions
             </h2>
             <Link to="/company/candidates" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
               All Candidates <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          <GlassCard className="p-4 divide-y divide-white/10">
+          <div className="p-4 rounded-3xl bg-card border border-border/70 divide-y divide-border/60 shadow-sm">
             {recentCandidates.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400">
+              <div className="p-6 text-center text-xs text-muted-foreground">
                 No candidate submissions for your tests yet.
               </div>
             ) : (
               recentCandidates.map((attempt) => (
                 <div key={attempt.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-white truncate">
+                    <p className="text-xs font-bold text-foreground truncate">
                       {attempt.profiles?.name || attempt.profiles?.email || "Candidate"}
                     </p>
-                    <p className="text-[11px] text-slate-400 truncate">
+                    <p className="text-[11px] text-muted-foreground truncate">
                       {attempt.profiles?.branch || "B.Tech"} • CGPA: {attempt.profiles?.cgpa || "N/A"}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`font-mono text-xs font-bold ${attempt.passed ? "text-emerald-400" : "text-slate-400"}`}>
+                    <span className={`font-mono text-xs font-bold ${attempt.passed ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
                       {attempt.total_score}%
                     </span>
-                    <Badge className={attempt.passed ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]" : "bg-white/5 text-slate-400 text-[10px]"}>
+                    <Badge className={attempt.passed ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
                       {attempt.passed ? "Qualified" : "Below Cutoff"}
                     </Badge>
                   </div>
                 </div>
               ))
             )}
-          </GlassCard>
+          </div>
         </div>
 
       </div>
