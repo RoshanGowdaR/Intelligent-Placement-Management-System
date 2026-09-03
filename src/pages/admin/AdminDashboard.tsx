@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/3d/GlassCard";
@@ -221,9 +221,11 @@ export default function AdminDashboard() {
               <GlassCard className="p-8 text-center">
                 <ClipboardList className="mx-auto h-10 w-10 text-muted-foreground mb-2 opacity-50" />
                 <p className="text-sm font-semibold text-foreground">No active assessments scheduled</p>
-                <p className="text-xs text-muted-foreground mt-1">Create an assessment or invite a visiting company to launch a drive.</p>
-                <Button onClick={() => setInviteOpen(true)} size="sm" className="mt-4 rounded-xl bg-primary text-white">
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Invite Recruiter
+                <p className="text-xs text-muted-foreground mt-1">Create an assessment to launch a drive for your students.</p>
+                <Button asChild size="sm" className="mt-4 rounded-xl bg-primary text-white hover:bg-primary/90">
+                  <Link to="/admin/tests">
+                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Create Assessment
+                  </Link>
                 </Button>
               </GlassCard>
             ) : (
@@ -344,14 +346,16 @@ export default function AdminDashboard() {
             </h2>
             <p className="text-xs text-muted-foreground">Onboarded company hiring partners & active recruiters.</p>
           </div>
-          <Button
-            onClick={() => setInviteOpen(true)}
-            variant="ghost"
-            size="sm"
-            className="text-primary hover:text-primary hover:bg-primary/10 text-xs font-semibold gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" /> Invite Recruiter
-          </Button>
+          {activeCompanies.length > 0 && (
+            <Button
+              onClick={() => setInviteOpen(true)}
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary hover:bg-primary/10 text-xs font-semibold gap-1"
+            >
+              <Plus className="h-3.5 w-3.5" /> Invite Recruiter
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
