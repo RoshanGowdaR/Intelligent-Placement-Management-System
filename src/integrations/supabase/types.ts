@@ -457,6 +457,93 @@ export type Database = {
         }
         Relationships: []
       }
+      drive_rounds: {
+        Row: {
+          id: string
+          company_id: string
+          round_number: number
+          round_name: string
+          round_type: "test" | "interview" | "group_discussion" | "other"
+          test_id: string | null
+          passing_logic: "cutoff_score" | "top_n" | "top_percent" | "manual"
+          passing_value: number | null
+          registration_deadline: string | null
+          is_published: boolean
+          published_at: string | null
+          auto_progress: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          round_number: number
+          round_name: string
+          round_type: "test" | "interview" | "group_discussion" | "other"
+          test_id?: string | null
+          passing_logic: "cutoff_score" | "top_n" | "top_percent" | "manual"
+          passing_value?: number | null
+          registration_deadline?: string | null
+          is_published?: boolean
+          published_at?: string | null
+          auto_progress?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          round_number?: number
+          round_name?: string
+          round_type?: "test" | "interview" | "group_discussion" | "other"
+          test_id?: string | null
+          passing_logic?: "cutoff_score" | "top_n" | "top_percent" | "manual"
+          passing_value?: number | null
+          registration_deadline?: string | null
+          is_published?: boolean
+          published_at?: string | null
+          auto_progress?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      round_participants: {
+        Row: {
+          id: string
+          drive_round_id: string
+          student_id: string
+          status: "pending" | "qualified" | "not_qualified" | "absent"
+          score: number | null
+          recruiter_notes: string | null
+          evaluated_by: string | null
+          evaluated_at: string | null
+          notified_at: string | null
+        }
+        Insert: {
+          id?: string
+          drive_round_id: string
+          student_id: string
+          status?: "pending" | "qualified" | "not_qualified" | "absent"
+          score?: number | null
+          recruiter_notes?: string | null
+          evaluated_by?: string | null
+          evaluated_at?: string | null
+          notified_at?: string | null
+        }
+        Update: {
+          id?: string
+          drive_round_id?: string
+          student_id?: string
+          status?: "pending" | "qualified" | "not_qualified" | "absent"
+          score?: number | null
+          recruiter_notes?: string | null
+          evaluated_by?: string | null
+          evaluated_at?: string | null
+          notified_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

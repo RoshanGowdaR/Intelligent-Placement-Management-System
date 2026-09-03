@@ -11,6 +11,7 @@ import {
   ArrowLeft, Building2, GraduationCap, CalendarDays, MapPin,
   Briefcase, DollarSign, CheckCircle2, XCircle, Clock, Users, FileText, Link2
 } from "lucide-react";
+import { DriveProgressTimeline } from "@/components/student/DriveProgressTimeline";
 
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -91,6 +92,11 @@ export default function CompanyDetail() {
           {isEligible ? <><CheckCircle2 className="mr-1 h-4 w-4" /> Eligible</> : <><XCircle className="mr-1 h-4 w-4" /> Not Eligible</>}
         </Badge>
       </div>
+
+      {/* Multi-Round Recruitment Drive Progress */}
+      {id && user && (
+        <DriveProgressTimeline companyId={id} studentId={user.id} />
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Job Details */}

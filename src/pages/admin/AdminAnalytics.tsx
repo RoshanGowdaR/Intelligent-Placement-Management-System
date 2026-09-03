@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, AreaChart, Area } from "recharts";
-import { Trophy, TrendingUp, Users, ShieldCheck, Activity, Award, Sparkles, Building2 } from "lucide-react";
+import { Trophy, TrendingUp, Users, ShieldCheck, Activity, Award, Sparkles, Building2, GitBranch } from "lucide-react";
 import { motion } from "framer-motion";
 
 const PIE_COLORS = ["#6C5CE7", "#EF4444", "#38BDF8", "#FFB77D"];
@@ -17,6 +17,7 @@ export default function AdminAnalytics() {
   const [passFailData, setPassFailData] = useState<{ name: string; value: number }[]>([]);
   const [subjectData, setSubjectData] = useState<{ subject: string; avgScore: number }[]>([]);
   const [companyData, setCompanyData] = useState<{ name: string; passed: number; failed: number }[]>([]);
+  const [driveOversight, setDriveOversight] = useState<{ companyName: string; rounds: any[] }[]>([]);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [overallPassRate, setOverallPassRate] = useState(0);
   const [topStudents, setTopStudents] = useState<TopStudent[]>([]);
@@ -82,13 +83,21 @@ export default function AdminAnalytics() {
             branch: p.branch || "Computer Science",
           }))
         );
-      } else {
-        setTopStudents([
-          { rank: 1, name: "Aarav Sharma", score: 98, branch: "Computer Science" },
-          { rank: 2, name: "Sneha Patel", score: 95, branch: "Information Tech" },
-          { rank: 3, name: "Rohan Verma", score: 92, branch: "Electronics & Comm" },
-        ]);
       }
+
+      // Multi-Round Drive Oversight
+      const { data: driveRoundsData } = await supabase
+        .from("drive_rounds")
+        .select("id, round_number, round_name, round_type, is_published, company_id, companies(id, name), round_participants(id, status)");
+
+      const drivesByCompany: Record<string, { companyName: string; rounds: any[] }> = {};
+      (driveRoundsData ?? []).forEach((dr: any) => {
+        const cId = dr.company_id;
+        const cName = dr.companies?.name || "Visiting Recruiter";
+        if (!drivesByCompany[cId]) drivesByCompany[cId] = { companyName: cName, rounds: [] };
+        drivesByCompany[cId].rounds.push(dr);
+      });
+      setDriveOversight(Object.values(drivesByCompany));
     };
     fetchAnalytics();
   }, []);
@@ -235,6 +244,56 @@ export default function AdminAnalytics() {
           )}
         </div>
       </div>
+
+      {/* Multi-Round Recruitment Drive Funnels Oversight */}
+      {driveOversight.length > 0 && (
+        <div className="glass-panel rounded-3xl p-6 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <span className="label-caps text-xs text-primary font-bold tracking-widest flex items-center gap-1.5">
+                <GitBranch className="h-3.5 w-3.5" /> Pipeline Governance
+              </span>
+              <h3 className="font-display text-lg font-bold text-white">Multi-Round Recruitment Drive Funnels</h3>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {driveOversight.map((drive, idx) => {
+              const sortedRounds = [...drive.rounds].sort((a, b) => a.round_number - b.round_number);
+              return (
+                <div key={idx} className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-sm font-bold text-white">{drive.companyName}</span>
+                    <span className="text-[11px] font-mono text-muted-foreground">{sortedRounds.length} Rounds</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {sortedRounds.map((r: any) => {
+                      const participants = r.round_participants || [];
+                      const qualified = participants.filter((p: any) => p.status === "qualified").length;
+                      const total = participants.length;
+
+                      return (
+                        <div key={r.id} className="p-2 rounded-xl bg-white/[0.02] border border-white/5 text-xs flex items-center justify-between">
+                          <div>
+                            <span className="font-semibold text-slate-200">R{r.round_number}: {r.round_name}</span>
+                            <div className="text-[10px] text-muted-foreground capitalize">{r.round_type}</div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-mono font-bold text-emerald-400">{qualified}</span>
+                            <span className="text-muted-foreground font-mono"> / {total}</span>
+                            <div className="text-[10px] text-muted-foreground">{r.is_published ? "Published" : "Draft"}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Visual Analytics Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">

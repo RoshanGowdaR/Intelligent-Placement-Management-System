@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   LayoutDashboard, Building2, FileText, Users, BarChart3, ClipboardList,
-  GraduationCap, CalendarDays, Trophy, UserCircle, LogOut, Menu, Shield,
+  GraduationCap, CalendarDays, Trophy, UserCircle, LogOut, Menu, Shield, GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -37,6 +37,7 @@ const adminLinks = [
 
 const companyLinks = [
   { title: "Dashboard", url: "/company", icon: LayoutDashboard },
+  { title: "Drive Rounds", url: "/company/rounds", icon: GitBranch },
   { title: "Assessments", url: "/company/tests", icon: ClipboardList },
   { title: "Candidates", url: "/company/candidates", icon: Users },
   { title: "Drive Reports", url: "/company/reports", icon: FileText },

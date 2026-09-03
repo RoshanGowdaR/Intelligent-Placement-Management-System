@@ -34,6 +34,7 @@ import CompanyDetail from "./pages/student/CompanyDetail";
 
 import CompanyRegister from "./pages/company/CompanyRegister";
 import CompanyDashboard from "./pages/company/CompanyDashboard";
+import CompanyDriveRounds from "./pages/company/CompanyDriveRounds";
 import CompanyTests from "./pages/company/CompanyTests";
 import CompanyCandidates from "./pages/company/CompanyCandidates";
 import CompanyReports from "./pages/company/CompanyReports";
@@ -85,6 +86,7 @@ const App = () => (
               {/* Company Recruiter routes */}
               <Route path="/company" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/dashboard" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/company/rounds" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDriveRounds /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/tests" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyTests /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/candidates" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyCandidates /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/reports" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyReports /></DashboardLayout></ProtectedRoute>} />

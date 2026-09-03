@@ -412,6 +412,34 @@ export default function StudentTests() {
     const bank = isRetake && retakeBank.length > 0 ? retakeBank : mainBank;
     if (bank.length === 0) { toast.error("This test has no questions"); return; }
 
+    // Multi-Round Recruitment Drive Gating
+    if (user) {
+      const { data: driveRound } = await supabase
+        .from("drive_rounds")
+        .select("id, round_number, round_name")
+        .eq("test_id", test.id)
+        .maybeSingle();
+
+      if (driveRound) {
+        const { data: participant } = await supabase
+          .from("round_participants")
+          .select("status")
+          .eq("drive_round_id", driveRound.id)
+          .eq("student_id", user.id)
+          .maybeSingle();
+
+        if (!participant) {
+          toast.error(`Access Gated: You are not enrolled in Round ${driveRound.round_number} (${driveRound.round_name}).`);
+          return;
+        }
+
+        if (participant.status === "not_qualified" || participant.status === "absent") {
+          toast.error(`Access Gated: You cannot attempt Round ${driveRound.round_number}. Your status is ${participant.status.replace("_", " ")}.`);
+          return;
+        }
+      }
+    }
+
     // Request webcam permission BEFORE starting the test
     let webcamStream: MediaStream | null = null;
     try {
