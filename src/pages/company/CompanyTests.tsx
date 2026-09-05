@@ -208,15 +208,15 @@ export default function CompanyTests() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-extrabold text-white">Company Assessments</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="font-display text-3xl font-extrabold text-foreground">Company Assessments</h1>
+          <p className="text-sm text-muted-foreground">
             Create assessment rounds, configure cutoff benchmarks & set registration deadlines.
           </p>
         </div>
 
         <Button
           onClick={() => setCreateOpen(true)}
-          className="h-11 px-5 rounded-xl bg-primary text-white font-bold shadow-[0_0_20px_rgba(108,92,231,0.5)] gap-2"
+          className="h-11 px-5 rounded-xl bg-primary text-primary-foreground font-bold shadow-[0_0_20px_rgba(108,92,231,0.5)] gap-2"
         >
           <Plus className="h-4 w-4" /> Schedule Assessment
         </Button>
@@ -225,18 +225,18 @@ export default function CompanyTests() {
       {/* Tests Grid */}
       <div className="space-y-4">
         {loading ? (
-          <div className="p-12 text-center text-slate-400">
+          <div className="p-12 text-center text-muted-foreground">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-2" />
             Loading assessments…
           </div>
         ) : tests.length === 0 ? (
           <GlassCard className="p-12 text-center">
             <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground mb-3 opacity-40" />
-            <h3 className="font-display text-lg font-bold text-white">No assessments created</h3>
-            <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
+            <h3 className="font-display text-lg font-bold text-foreground">No assessments created</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
               Schedule your first hiring test to begin evaluating eligible campus candidates.
             </p>
-            <Button onClick={() => setCreateOpen(true)} className="mt-5 rounded-xl bg-primary text-white">
+            <Button onClick={() => setCreateOpen(true)} className="mt-5 rounded-xl bg-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" /> Create First Test
             </Button>
           </GlassCard>
@@ -244,23 +244,23 @@ export default function CompanyTests() {
           tests.map((test) => {
             const deadlinePast = test.registration_deadline ? isPast(new Date(test.registration_deadline)) : false;
             return (
-              <GlassCard key={test.id} className="p-6 border-white/10 hover:border-primary/40 transition-colors">
+              <GlassCard key={test.id} className="p-6 border-border hover:border-primary/40 transition-colors">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <h2 className="font-display text-xl font-bold text-white">{test.title}</h2>
+                      <h2 className="font-display text-xl font-bold text-foreground">{test.title}</h2>
                       {test.registration_deadline && (
                         deadlinePast ? (
                           <Badge variant="destructive" className="text-xs">Registration Closed</Badge>
                         ) : (
-                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs">
+                          <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs">
                             Registration Open
                           </Badge>
                         )
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="h-4 w-4 text-primary" />
                         Test Date: {new Date(test.scheduled_date).toLocaleString()}
@@ -303,94 +303,94 @@ export default function CompanyTests() {
 
       {/* Create Test Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl border border-white/15 bg-card/95 backdrop-blur-3xl p-6">
+        <DialogContent className="max-w-2xl rounded-3xl border border-border/80 bg-card/95 backdrop-blur-3xl p-6 text-foreground">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-bold text-white">
+            <DialogTitle className="font-display text-xl font-bold text-foreground">
               Create Placement Assessment Round
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-300">
+            <DialogDescription className="text-xs text-muted-foreground">
               Configure exam parameters, cutoff threshold & mandatory candidate registration deadline.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateTest} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label className="text-xs uppercase text-slate-400 font-semibold">Assessment Title *</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold">Assessment Title *</Label>
               <Input
                 required
                 placeholder="e.g. Technical Coding & Aptitude Round 1"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-slate-400 font-semibold">Scheduled Date & Time *</Label>
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Scheduled Date & Time *</Label>
                 <Input
                   required
                   type="datetime-local"
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-amber-400 font-semibold">Registration Deadline (Lockout)</Label>
+                <Label className="text-xs uppercase text-amber-500 dark:text-amber-400 font-semibold">Registration Deadline (Lockout)</Label>
                 <Input
                   type="datetime-local"
                   value={registrationDeadline}
                   onChange={(e) => setRegistrationDeadline(e.target.value)}
-                  className="h-11 rounded-xl border-amber-500/30 bg-amber-500/5 text-white"
+                  className="h-11 rounded-xl border-amber-500/30 bg-amber-500/10 text-foreground"
                 />
-                <p className="text-[11px] text-slate-400">Unregistered candidates will be strictly locked out once this closes.</p>
+                <p className="text-[11px] text-muted-foreground">Unregistered candidates will be strictly locked out once this closes.</p>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-slate-400 font-semibold">Duration (Mins)</Label>
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Duration (Mins)</Label>
                 <Input
                   type="number"
                   min={10}
                   max={300}
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-slate-400 font-semibold">Cutoff Pass (%)</Label>
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Cutoff Pass (%)</Label>
                 <Input
                   type="number"
                   min={10}
                   max={100}
                   value={passPercentage}
                   onChange={(e) => setPassPercentage(Number(e.target.value))}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-slate-400 font-semibold">Max Participants</Label>
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Max Participants</Label>
                 <Input
                   type="number"
                   min={10}
                   value={maxParticipants}
                   onChange={(e) => setMaxParticipants(Number(e.target.value))}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                 />
               </div>
             </div>
 
             <DialogFooter className="pt-4 flex gap-2 justify-between">
-              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)} className="rounded-xl text-muted-foreground">
+              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)} className="rounded-xl text-muted-foreground hover:text-foreground">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="h-11 px-6 rounded-xl bg-primary text-white font-bold">
+              <Button type="submit" disabled={isSubmitting} className="h-11 px-6 rounded-xl bg-primary text-primary-foreground font-bold shadow-md">
                 {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing…</> : "Publish Assessment"}
               </Button>
             </DialogFooter>

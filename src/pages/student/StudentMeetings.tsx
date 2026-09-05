@@ -57,17 +57,17 @@ export default function StudentMeetings() {
         </div>
       </div>
 
-      {/* Hero Card: No sessions scheduled matching Image 3 & 4 */}
-      <div className="rounded-3xl bg-[#141428] text-white p-8 md:p-12 text-center border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative overflow-hidden space-y-4">
-        <div className="absolute -right-16 -top-16 w-60 h-60 bg-[#5b51d8]/15 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero Card: No sessions scheduled */}
+      <div className="rounded-3xl bg-card border border-border/80 text-foreground p-8 md:p-12 text-center shadow-sm relative overflow-hidden space-y-4">
+        <div className="absolute -right-16 -top-16 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="h-14 w-14 rounded-2xl bg-[#1e1e38] border border-white/10 text-[#8e85ff] flex items-center justify-center mx-auto shadow-inner">
+        <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mx-auto shadow-inner">
           <Calendar className="h-7 w-7" />
         </div>
 
         <div className="max-w-md mx-auto space-y-1.5">
-          <h3 className="font-display text-xl font-bold text-white">No sessions scheduled</h3>
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <h3 className="font-display text-xl font-bold text-foreground">No sessions scheduled</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
             There are no live classes, technical mock interviews or drive workshops on the calendar right now.
             New sessions are usually posted a few days in advance — you'll be notified when one is added.
           </p>
@@ -82,7 +82,7 @@ export default function StudentMeetings() {
             className={`rounded-xl text-xs font-bold h-10 px-5 gap-2 transition-all ${
               notified
                 ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                : "bg-[#1f1f3a] hover:bg-[#28284c] border border-white/10 text-white shadow-md"
+                : "bg-card hover:bg-muted border border-border text-foreground shadow-sm"
             }`}
           >
             <Bell className="h-4 w-4" />

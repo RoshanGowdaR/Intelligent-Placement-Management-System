@@ -177,12 +177,12 @@ Instructions:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[680px] p-0 overflow-hidden flex flex-col rounded-3xl border border-white/15 bg-card/95 backdrop-blur-3xl shadow-[0_30px_90px_rgba(0,0,0,0.85)]">
+      <DialogContent className="max-w-3xl h-[680px] p-0 overflow-hidden flex flex-col rounded-3xl border border-border/80 bg-card text-foreground shadow-2xl">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-[0_0_20px_rgba(108,92,231,0.6)]">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_20px_rgba(108,92,231,0.6)]">
               <Bot className="h-5 w-5" />
               <span className="absolute -top-1 -right-1 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -190,10 +190,10 @@ Instructions:
               </span>
             </div>
             <div>
-              <DialogTitle className="text-base font-display font-bold text-white flex items-center gap-2">
+              <DialogTitle className="text-base font-display font-bold text-foreground flex items-center gap-2">
                 Placement Oracle AI <Sparkles className="h-4 w-4 text-primary" />
               </DialogTitle>
-              <DialogDescription className="text-xs text-slate-300">
+              <DialogDescription className="text-xs text-muted-foreground">
                 Voice & Database Assistant with Full Admin Schema Access
               </DialogDescription>
             </div>
@@ -218,27 +218,27 @@ Instructions:
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-xl text-muted-foreground hover:text-white"
+              className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground"
               onClick={() => {
                 stopSpeaking();
                 setMessages([
                   {
-                    id: "welcome-reset",
+                    id: "welcome",
                     sender: "assistant",
-                    text: "Conversation refreshed. How can I assist with your placement database today?",
+                    text: "Hello Admin! I am your Intelligent Placement Oracle & Database Assistant. Ask me anything about candidate rankings, company drives, proctoring violations, or student eligibility — via voice or text.",
                     timestamp: new Date(),
                   },
                 ]);
               }}
-              title="Reset Conversation"
+              title="Clear conversation"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Chat Messages Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Message Stream */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
@@ -247,31 +247,31 @@ Instructions:
               className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
             >
               {msg.sender === "assistant" && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/20 border border-primary/40 text-primary">
-                  <Bot className="h-4 w-4" />
+                <div className="h-8 w-8 rounded-xl bg-primary/15 border border-primary/30 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="h-4 w-4" />
                 </div>
               )}
 
               <div
-                className={`max-w-[82%] rounded-2xl p-4 text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
                   msg.sender === "user"
-                    ? "bg-primary text-white shadow-[0_4px_15px_rgba(108,92,231,0.3)]"
-                    : "bg-surface-container-high/70 border border-white/10 text-slate-100 backdrop-blur-xl shadow-md"
+                    ? "bg-primary text-primary-foreground shadow-[0_4px_15px_rgba(108,92,231,0.3)]"
+                    : "bg-muted/50 border border-border text-foreground"
                 }`}
               >
                 {msg.sender === "assistant" ? (
-                  <div className="prose prose-invert max-w-none text-xs leading-relaxed space-y-2">
+                  <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed space-y-2">
                     <ReactMarkdown
                       components={{
-                        p: ({ children }) => <p className="mb-2 leading-relaxed text-[13px] text-slate-200 last:mb-0">{children}</p>,
-                        strong: ({ children }) => <strong className="font-bold text-white bg-primary/25 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/30">{children}</strong>,
-                        h1: ({ children }) => <h1 className="font-display text-base font-bold text-white mb-2 mt-3 border-b border-white/10 pb-1">{children}</h1>,
+                        p: ({ children }) => <p className="mb-2 leading-relaxed text-[13px] text-foreground last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-bold text-foreground bg-primary/15 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/30">{children}</strong>,
+                        h1: ({ children }) => <h1 className="font-display text-base font-bold text-foreground mb-2 mt-3 border-b border-border pb-1">{children}</h1>,
                         h2: ({ children }) => <h2 className="font-display text-sm font-bold text-primary mb-1.5 mt-2.5">{children}</h2>,
-                        h3: ({ children }) => <h3 className="font-display text-xs font-bold text-purple-300 mb-1 mt-2">{children}</h3>,
+                        h3: ({ children }) => <h3 className="font-display text-xs font-bold text-purple-600 dark:text-purple-300 mb-1 mt-2">{children}</h3>,
                         ul: ({ children }) => <ul className="my-2 space-y-1.5 pl-4 list-disc marker:text-primary">{children}</ul>,
                         ol: ({ children }) => <ol className="my-2 space-y-1.5 pl-4 list-decimal marker:text-primary">{children}</ol>,
-                        li: ({ children }) => <li className="text-[12.5px] text-slate-300 leading-normal pl-0.5">{children}</li>,
-                        code: ({ children }) => <code className="bg-white/10 text-purple-300 px-1.5 py-0.5 rounded font-mono text-xs border border-white/10">{children}</code>,
+                        li: ({ children }) => <li className="text-[12.5px] text-muted-foreground leading-normal pl-0.5">{children}</li>,
+                        code: ({ children }) => <code className="bg-muted text-primary px-1.5 py-0.5 rounded font-mono text-xs border border-border">{children}</code>,
                       }}
                     >
                       {msg.text}
@@ -301,13 +301,13 @@ Instructions:
         </div>
 
         {/* Quick Suggestion Chips */}
-        <div className="px-6 py-2 border-t border-white/5 flex gap-2 overflow-x-auto no-scrollbar bg-black/20">
+        <div className="px-6 py-2 border-t border-border flex gap-2 overflow-x-auto no-scrollbar bg-muted/20">
           {quickPrompts.map((prompt) => (
             <button
               key={prompt}
               type="button"
               onClick={() => handleSend(prompt)}
-              className="text-[11px] whitespace-nowrap rounded-full bg-white/5 border border-white/10 px-3 py-1 text-slate-300 hover:bg-primary/20 hover:text-white hover:border-primary/40 transition-colors"
+              className="text-[11px] whitespace-nowrap rounded-full bg-card border border-border px-3 py-1 text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
             >
               {prompt}
             </button>
@@ -349,7 +349,7 @@ Instructions:
             e.preventDefault();
             handleSend();
           }}
-          className="p-4 border-t border-white/10 bg-surface-container-lowest/80 flex items-center gap-3"
+          className="p-4 border-t border-border bg-card flex items-center gap-3"
         >
           {/* Microphone STT Button */}
           {hasRecognitionSupport && (
@@ -359,8 +359,8 @@ Instructions:
               size="icon"
               className={`h-12 w-12 rounded-2xl shrink-0 transition-all ${
                 isListening
-                  ? "bg-destructive text-white border-destructive shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse"
-                  : "glass-button text-slate-300 hover:text-white hover:border-primary/50"
+                  ? "bg-destructive text-destructive-foreground border-destructive shadow-md animate-pulse"
+                  : "border border-border bg-card text-foreground hover:border-primary/50"
               }`}
               onClick={() => {
                 if (isListening) {
@@ -379,13 +379,13 @@ Instructions:
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about candidates, CGPA rankings, proctoring violations, companies…"
-            className="h-12 flex-1 rounded-2xl border-white/15 bg-white/5 text-white placeholder:text-slate-400 focus-visible:ring-primary"
+            className="h-12 flex-1 rounded-2xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
           />
 
           <Button
             type="submit"
             disabled={!input.trim() || isProcessing}
-            className="h-12 px-5 rounded-2xl bg-primary text-white font-semibold shadow-[0_0_25px_rgba(108,92,231,0.5)] hover:scale-105 active:scale-95 transition-all"
+            className="h-12 px-5 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-md hover:bg-primary/90 active:scale-95 transition-all"
           >
             <Send className="h-4 w-4" />
           </Button>

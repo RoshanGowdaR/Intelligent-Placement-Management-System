@@ -77,22 +77,22 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-8 pb-16 max-w-7xl mx-auto">
       
-      {/* 1. HERO BANNER matching Zidio Dark Navy Design */}
-      <div className="rounded-3xl bg-[#141428] text-white p-6 md:p-8 relative overflow-hidden border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+      {/* 1. HERO BANNER matching Theme Design */}
+      <div className="rounded-3xl bg-card border border-border/80 text-foreground p-6 md:p-8 relative overflow-hidden shadow-sm">
         
         {/* Subtle decorative background gradient circles */}
-        <div className="absolute -right-16 -top-16 w-80 h-80 bg-[#5b51d8]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -right-16 -top-16 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -left-16 -bottom-16 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10">
           
           {/* Top meta row */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              Welcome back, <span className="capitalize text-[#8e85ff]">{displayName}</span>
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              Welcome back, <span className="capitalize text-primary">{displayName}</span>
             </h2>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
-              <CalendarDays className="h-3.5 w-3.5 text-[#8e85ff]" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs text-muted-foreground font-medium">
+              <CalendarDays className="h-3.5 w-3.5 text-primary" />
               <span>{todayFormatted}</span>
             </div>
           </div>
@@ -103,29 +103,29 @@ export default function StudentDashboard() {
             {/* Left Column (8 cols) */}
             <div className="lg:col-span-8 space-y-4">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#5b51d8]/30 text-[#a59dff] border border-[#5b51d8]/40">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
                   STAGE 01 / 04 • In progress
                 </span>
               </div>
 
               <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight leading-tight">
                   Application &amp; Placement Drives
                 </h1>
-                <p className="text-sm text-slate-300 mt-1.5 max-w-xl leading-relaxed">
+                <p className="text-sm text-muted-foreground mt-1.5 max-w-xl leading-relaxed">
                   To start your placement journey, complete your profile, explore visiting recruiters, and attend scheduled assessments.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <span>Takes ~2 minutes • Keep your resume and marks ready.</span>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Button
                   asChild
-                  className="rounded-xl bg-[#5b51d8] hover:bg-[#4d43cc] text-white text-xs font-bold px-5 h-10 gap-2 shadow-[0_4px_16px_rgba(91,81,216,0.5)] transition-all"
+                  className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-5 h-10 gap-2 shadow-md transition-all"
                 >
                   <Link to="/dashboard/companies">
                     Go to Companies &amp; Apply <ArrowRight className="h-4 w-4" />
@@ -135,7 +135,7 @@ export default function StudentDashboard() {
                 <Button
                   asChild
                   variant="outline"
-                  className="rounded-xl bg-white/5 hover:bg-white/10 border-white/15 text-white text-xs font-bold px-4 h-10"
+                  className="rounded-xl bg-card hover:bg-muted border-border text-foreground text-xs font-bold px-4 h-10"
                 >
                   <Link to="/dashboard/profile">
                     Profile Studio
@@ -146,7 +146,7 @@ export default function StudentDashboard() {
 
             {/* Right Column (4 cols): Circular Gauge Card */}
             <div className="lg:col-span-4 flex justify-center lg:justify-end">
-              <div className="w-full max-w-[260px] p-5 rounded-2xl bg-[#1b1b36] border border-white/10 flex flex-col items-center text-center shadow-inner">
+              <div className="w-full max-w-[260px] p-5 rounded-2xl bg-muted/40 border border-border flex flex-col items-center text-center shadow-inner">
                 
                 {/* Circular SVG */}
                 <div className="relative w-28 h-28 flex items-center justify-center">
@@ -155,7 +155,7 @@ export default function StudentDashboard() {
                       cx="50"
                       cy="50"
                       r={radius}
-                      className="text-white/10 stroke-current"
+                      className="text-muted stroke-current"
                       strokeWidth="8"
                       fill="transparent"
                     />
@@ -163,7 +163,7 @@ export default function StudentDashboard() {
                       cx="50"
                       cy="50"
                       r={radius}
-                      className="text-[#6456f5] stroke-current transition-all duration-1000 ease-out"
+                      className="text-primary stroke-current transition-all duration-1000 ease-out"
                       strokeWidth="8"
                       strokeDasharray={circumference}
                       strokeDashoffset={strokeDashoffset}
@@ -172,22 +172,22 @@ export default function StudentDashboard() {
                     />
                   </svg>
                   <div className="absolute flex flex-col items-center">
-                    <span className="font-display text-2xl font-black text-white">{progressPercent}%</span>
-                    <span className="text-[10px] text-slate-400 font-medium">{clearedMilestones} of 4 done</span>
+                    <span className="font-display text-2xl font-black text-foreground">{progressPercent}%</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">{clearedMilestones} of 4 done</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-300 mt-3 leading-relaxed">
-                  Complete your onboarding journey to <span className="text-white font-semibold">unlock all platform features</span>.
+                <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
+                  Complete your onboarding journey to <span className="text-foreground font-semibold">unlock all platform features</span>.
                 </p>
               </div>
             </div>
 
           </div>
 
-          {/* Bottom Milestone Stepper Track matching Zidio */}
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-3 font-mono">
+          {/* Bottom Milestone Stepper Track matching theme */}
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 font-mono">
               <span className="uppercase tracking-wider text-[10px]">Placement Pipeline</span>
               <span>{clearedMilestones} / 4 milestones cleared</span>
             </div>
@@ -200,17 +200,17 @@ export default function StudentDashboard() {
                     <div
                       className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 transition-all ${
                         m.done
-                          ? "bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                          ? "bg-emerald-500 text-white shadow-sm"
                           : isCurrent
-                          ? "bg-[#5b51d8] text-white ring-4 ring-[#5b51d8]/30"
-                          : "bg-white/10 text-slate-400 border border-white/10"
+                          ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                          : "bg-muted text-muted-foreground border border-border"
                       }`}
                     >
                       {m.done ? <Check className="h-4 w-4" /> : m.id}
                     </div>
                     <span
-                      className={`text-xs font-semibold truncate ${
-                        m.done || isCurrent ? "text-white" : "text-slate-400"
+                      className={`text-xs truncate ${
+                        m.done || isCurrent ? "text-foreground font-bold" : "text-muted-foreground"
                       }`}
                     >
                       {m.label}

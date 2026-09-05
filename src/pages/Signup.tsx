@@ -94,7 +94,7 @@ export default function Signup() {
         <GlassCard>
           <Link
             to="/"
-            className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-white transition-colors"
+            className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Home
           </Link>

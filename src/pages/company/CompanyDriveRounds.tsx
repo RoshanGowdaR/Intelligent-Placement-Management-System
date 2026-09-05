@@ -483,7 +483,7 @@ export default function CompanyDriveRounds() {
                   placeholder="Filter candidate..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9 text-xs rounded-xl bg-white/5 border-border"
+                  className="pl-9 h-9 text-xs rounded-xl bg-muted/40 border-border"
                 />
               </div>
             </div>
@@ -576,7 +576,7 @@ export default function CompanyDriveRounds() {
 
       {/* MODAL 1: Round Builder Dialog */}
       <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
-        <DialogContent className="max-w-md border-border bg-[#0d0d14] text-foreground">
+        <DialogContent className="max-w-md border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg font-bold">
               <GitBranch className="h-5 w-5 text-primary" />
@@ -595,7 +595,7 @@ export default function CompanyDriveRounds() {
                 placeholder="e.g. Technical Coding Round"
                 value={roundName}
                 onChange={(e) => setRoundName(e.target.value)}
-                className="h-10 rounded-xl bg-white/5 border-border"
+                className="h-10 rounded-xl bg-muted/40 border-border"
               />
             </div>
 
@@ -603,7 +603,7 @@ export default function CompanyDriveRounds() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase">Round Type *</Label>
                 <Select value={roundType} onValueChange={(v: RoundType) => setRoundType(v)}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white/5 border-border">
+                  <SelectTrigger className="h-10 rounded-xl bg-muted/40 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -618,7 +618,7 @@ export default function CompanyDriveRounds() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase">Passing Logic *</Label>
                 <Select value={passingLogic} onValueChange={(v: PassingLogic) => setPassingLogic(v)}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white/5 border-border">
+                  <SelectTrigger className="h-10 rounded-xl bg-muted/40 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -635,7 +635,7 @@ export default function CompanyDriveRounds() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase">Attach Assessment Test</Label>
                 <Select value={testId} onValueChange={setTestId}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white/5 border-border">
+                  <SelectTrigger className="h-10 rounded-xl bg-muted/40 border-border">
                     <SelectValue placeholder="Select existing test..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -663,7 +663,7 @@ export default function CompanyDriveRounds() {
                   min={1}
                   value={passingValue}
                   onChange={(e) => setPassingValue(e.target.value)}
-                  className="h-10 rounded-xl bg-white/5 border-border"
+                  className="h-10 rounded-xl bg-muted/40 border-border"
                 />
               </div>
             )}
@@ -674,7 +674,7 @@ export default function CompanyDriveRounds() {
                 type="datetime-local"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="h-10 rounded-xl bg-white/5 border-border text-foreground"
+                className="h-10 rounded-xl bg-muted/40 border-border text-foreground"
               />
             </div>
 
@@ -682,7 +682,7 @@ export default function CompanyDriveRounds() {
               <Button
                 type="submit"
                 disabled={savingRound}
-                className="w-full h-10 rounded-xl bg-primary text-white font-semibold text-xs"
+                className="w-full h-10 rounded-xl bg-primary text-primary-foreground font-semibold text-xs"
               >
                 {savingRound ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save & Add Round to Drive"}
               </Button>
@@ -693,7 +693,7 @@ export default function CompanyDriveRounds() {
 
       {/* MODAL 2: Manual Candidate Evaluation Dialog */}
       <Dialog open={evalOpen} onOpenChange={setEvalOpen}>
-        <DialogContent className="max-w-md border-border bg-[#0d0d14] text-foreground">
+        <DialogContent className="max-w-md border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle className="text-base font-bold">
               Evaluate Candidate: {evalParticipant?.profiles?.name || "Student"}
@@ -712,14 +712,14 @@ export default function CompanyDriveRounds() {
                   placeholder="e.g. 85"
                   value={evalScore}
                   onChange={(e) => setEvalScore(e.target.value)}
-                  className="h-10 rounded-xl bg-white/5 border-border"
+                  className="h-10 rounded-xl bg-muted/40 border-border"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase">Qualification *</Label>
                 <Select value={evalStatus} onValueChange={(v: any) => setEvalStatus(v)}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white/5 border-border">
+                  <SelectTrigger className="h-10 rounded-xl bg-muted/40 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -736,7 +736,7 @@ export default function CompanyDriveRounds() {
                 placeholder="Strong communication, sound knowledge of data structures, recommended for next round..."
                 value={evalNotes}
                 onChange={(e) => setEvalNotes(e.target.value)}
-                className="rounded-xl bg-white/5 border-border min-h-[90px] text-xs"
+                className="rounded-xl bg-muted/40 border-border min-h-[90px] text-xs"
               />
             </div>
 
@@ -744,7 +744,7 @@ export default function CompanyDriveRounds() {
               <Button
                 type="submit"
                 disabled={submittingEval}
-                className="w-full h-10 rounded-xl bg-primary text-white font-semibold text-xs"
+                className="w-full h-10 rounded-xl bg-primary text-primary-foreground font-semibold text-xs"
               >
                 {submittingEval ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Evaluation"}
               </Button>
@@ -755,10 +755,10 @@ export default function CompanyDriveRounds() {
 
       {/* MODAL 3: Batch Publish Confirmation Dialog */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
-        <DialogContent className="max-w-md border-border bg-[#0d0d14] text-foreground">
+        <DialogContent className="max-w-md border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
               Publish Round {activeRound?.round_number} Results?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground pt-1 space-y-2">
@@ -771,7 +771,7 @@ export default function CompanyDriveRounds() {
                 <li>{rejectedCount} Not Qualified</li>
                 <li>{absentCount} Absent</li>
               </ul>
-              <p className="text-amber-300 font-semibold pt-1">
+              <p className="text-amber-600 dark:text-amber-300 font-semibold pt-1">
                 🔒 Once published, results are locked and immutable. Every student will immediately receive a simultaneous in-app notification.
               </p>
             </DialogDescription>

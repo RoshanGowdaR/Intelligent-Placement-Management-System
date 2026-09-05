@@ -282,11 +282,11 @@ export default function CompanyRegister() {
       <AnimatedBackground />
 
       <div className="relative z-10 w-full max-w-3xl">
-        <GlassCard className="p-8 border-white/15 backdrop-blur-3xl shadow-[0_30px_90px_rgba(0,0,0,0.85)]">
+        <GlassCard className="p-8 border-border backdrop-blur-3xl shadow-[0_30px_90px_rgba(0,0,0,0.25)]">
           
           <Link
             to="/login"
-            className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-white transition-colors"
+            className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Login
           </Link>
@@ -298,31 +298,31 @@ export default function CompanyRegister() {
             >
               <Building2 className="h-8 w-8" />
             </motion.div>
-            <h1 className="font-display text-2xl md:text-3xl font-extrabold text-white">
+            <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
               Visiting Recruiter Onboarding
             </h1>
-            <p className="mt-2 text-sm text-slate-300">
+            <p className="mt-2 text-sm text-muted-foreground">
               Register your organization to conduct campus drives, launch assessments & recruit top talent.
             </p>
           </div>
 
           {/* Quick Sign In with Google */}
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center">
-            <p className="text-xs text-slate-400 mb-3">
+          <div className="mb-8 rounded-2xl border border-border/80 bg-muted/20 p-5 text-center">
+            <p className="text-xs text-muted-foreground mb-3">
               Invited via Google Workspace? Activate your company portal with 1-click:
             </p>
             <Button
               type="button"
               onClick={handleGoogleSignUp}
               disabled={isGoogleLoading}
-              className="w-full sm:w-auto h-11 px-8 rounded-xl bg-white text-slate-900 font-bold hover:bg-white/90 shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center justify-center gap-3 mx-auto transition-all"
+              className="w-full sm:w-auto h-11 px-8 rounded-xl bg-card text-foreground border border-border font-bold hover:bg-muted shadow-sm flex items-center justify-center gap-3 mx-auto transition-all"
             >
-              {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin text-slate-900" /> : <GoogleIcon />}
+              {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
               <span>Continue with Google</span>
             </Button>
             <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
-              <span className="relative bg-[#0e0e17] px-3 text-[11px] uppercase text-slate-400 font-semibold tracking-wider">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+              <span className="relative bg-card px-3 text-[11px] uppercase text-muted-foreground font-semibold tracking-wider">
                 Or configure with Email & Password below
               </span>
             </div>
@@ -331,93 +331,93 @@ export default function CompanyRegister() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Section 1: Company Profile */}
             <div className="space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-white/10 pb-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-border pb-2">
                 <Building2 className="h-4 w-4" /> 1. Company Information
               </h2>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Company Name *</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Company Name *</Label>
                   <Input
                     required
                     placeholder="e.g. Google India"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Official Website</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Official Website</Label>
                   <Input
                     type="url"
                     placeholder="https://company.com"
                     value={website}
                     onChange={(e) => setWebsite(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Industry / Sector</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Industry / Sector</Label>
                   <Input
                     placeholder="e.g. Fintech, Cloud, AI, Core Engineering"
                     value={industry}
                     onChange={(e) => setIndustry(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Primary Job Role Offered</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Primary Job Role Offered</Label>
                   <Input
                     placeholder="e.g. Software Engineer / Data Scientist"
                     value={jobRole}
                     onChange={(e) => setJobRole(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-slate-400 font-semibold">Company Overview</Label>
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Company Overview</Label>
                 <Textarea
                   placeholder="Brief summary of company culture, mission and recruitment vision…"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="rounded-xl border-white/10 bg-white/5 text-white min-h-[70px]"
+                  className="rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground min-h-[70px]"
                 />
               </div>
             </div>
 
             {/* Section 2: Recruitment Benchmarks */}
             <div className="space-y-4 pt-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-white/10 pb-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-border pb-2">
                 <Sparkles className="h-4 w-4" /> 2. Hiring Package & Cutoff
               </h2>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Offered Package (CTC)</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Offered Package (CTC)</Label>
                   <Input
                     placeholder="e.g. 14 - 20 LPA"
                     value={salaryPackage}
                     onChange={(e) => setSalaryPackage(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Maximum Allowed Backlogs</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Maximum Allowed Backlogs</Label>
                   <Input
                     type="number"
                     min={0}
                     max={10}
                     value={maxBacklogs}
                     onChange={(e) => setMaxBacklogs(Number(e.target.value))}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                   />
                 </div>
               </div>
@@ -425,67 +425,67 @@ export default function CompanyRegister() {
 
             {/* Section 3: HR Recruiter Credentials */}
             <div className="space-y-4 pt-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-white/10 pb-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-border pb-2">
                 <ShieldCheck className="h-4 w-4" /> 3. Recruiter Authentication Credentials
               </h2>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">HR / Lead Recruiter Name *</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">HR / Lead Recruiter Name *</Label>
                   <Input
                     required
                     placeholder="e.g. Jane Doe"
                     value={hrName}
                     onChange={(e) => setHrName(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Contact Phone</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Contact Phone</Label>
                   <Input
                     placeholder="+91 9876543210"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-slate-400 font-semibold">Official Work Email *</Label>
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Official Work Email *</Label>
                 <Input
                   required
                   type="email"
                   placeholder="recruiter@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Create Password *</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Create Password *</Label>
                   <Input
                     required
                     type="password"
                     placeholder="Minimum 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase text-slate-400 font-semibold">Confirm Password *</Label>
+                  <Label className="text-xs uppercase text-muted-foreground font-semibold">Confirm Password *</Label>
                   <Input
                     required
                     type="password"
                     placeholder="Repeat password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                    className="h-11 rounded-xl border-border bg-muted/40 text-foreground"
                   />
                 </div>
               </div>
@@ -494,7 +494,7 @@ export default function CompanyRegister() {
             <Button
               type="submit"
               disabled={isLoading || validatingToken}
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-primary via-indigo-600 to-purple-600 text-white font-bold text-sm shadow-[0_0_30px_rgba(108,92,231,0.5)] hover:scale-[1.01] active:scale-[0.99] transition-all"
+              className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:bg-primary/90 transition-all"
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -279,39 +279,39 @@ Instructions:
               width: isMaximized ? "min(94vw, 840px)" : `${dimensions.width}px`,
               height: isMaximized ? "min(88vh, 780px)" : `${dimensions.height}px`,
             }}
-            className="relative mb-4 flex flex-col overflow-hidden rounded-3xl border border-emerald-500/30 bg-[#0e0e17]/95 shadow-[0_25px_90px_rgba(0,0,0,0.9)] backdrop-blur-3xl transition-all duration-150"
+            className="relative mb-4 flex flex-col overflow-hidden rounded-3xl border border-emerald-500/30 bg-card/95 text-foreground shadow-[0_25px_90px_rgba(0,0,0,0.35)] backdrop-blur-3xl transition-all duration-150"
           >
             {/* Draggable Corner Resize Handle (Top-Left) */}
             {!isMaximized && (
               <div
                 onMouseDown={handleResizeStart}
-                className="group absolute top-0 left-0 z-30 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-br-xl bg-white/5 hover:bg-emerald-500/20 border-r border-b border-white/10 transition-colors"
+                className="group absolute top-0 left-0 z-30 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-br-xl bg-muted/40 hover:bg-emerald-500/20 border-r border-b border-border transition-colors"
                 title="Drag to resize mentor window"
               >
-                <MoveDiagonal2 className="h-3 w-3 text-slate-400 group-hover:text-emerald-400 transition-colors rotate-90" />
+                <MoveDiagonal2 className="h-3 w-3 text-muted-foreground group-hover:text-emerald-400 transition-colors rotate-90" />
               </div>
             )}
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-emerald-500/20 via-primary/20 to-transparent px-5 py-4 pl-8">
+            <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-emerald-500/20 via-primary/20 to-transparent px-5 py-4 pl-8">
               <div className="flex items-center gap-3">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-primary text-white shadow-[0_0_20px_rgba(16,185,129,0.5)]">
                   <GraduationCap className="h-5 w-5" />
                   <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 border-2 border-[#0e0e17]" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
                   </span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-display text-sm font-bold text-white tracking-wide">
+                    <h3 className="font-display text-sm font-bold text-foreground tracking-wide">
                       Student Career AI Mentor
                     </h3>
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 font-mono">
+                    <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 font-mono">
                       Personalized
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400">Scoped to your tests & qualifications</p>
+                  <p className="text-[11px] text-muted-foreground">Scoped to your tests & qualifications</p>
                 </div>
               </div>
 
@@ -322,7 +322,7 @@ Instructions:
                   size="icon"
                   variant="ghost"
                   onClick={() => setIsMaximized(!isMaximized)}
-                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                   title={isMaximized ? "Restore standard size" : "Expand screen"}
                 >
                   {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -336,12 +336,12 @@ Instructions:
                     if (ttsEnabled) stopSpeaking();
                     setTtsEnabled(!ttsEnabled);
                   }}
-                  className={`h-8 w-8 rounded-lg text-slate-400 hover:text-white ${
-                    ttsEnabled ? "text-emerald-400 bg-emerald-500/10" : ""
+                  className={`h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground ${
+                    ttsEnabled ? "text-emerald-500 bg-emerald-500/10" : ""
                   }`}
                   title={ttsEnabled ? "Disable voice read-out" : "Enable voice read-out"}
                 >
-                  {ttsEnabled ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4" />}
+                  {ttsEnabled ? <Volume2 className="h-4 w-4 text-emerald-500" /> : <VolumeX className="h-4 w-4" />}
                 </Button>
 
                 {/* Clear Chat */}
@@ -349,7 +349,7 @@ Instructions:
                   size="icon"
                   variant="ghost"
                   onClick={handleClear}
-                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                   title="Clear conversation"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
@@ -360,7 +360,7 @@ Instructions:
                   size="icon"
                   variant="ghost"
                   onClick={() => setIsOpen(false)}
-                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                   title="Close mentor"
                 >
                   <ChevronDown className="h-4 w-4" />
@@ -385,62 +385,62 @@ Instructions:
                     className={`max-w-[88%] rounded-2xl p-4 leading-relaxed ${
                       msg.sender === "user"
                         ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-none shadow-[0_4px_15px_rgba(16,185,129,0.3)] text-xs"
-                        : "bg-white/[0.04] border border-white/10 text-slate-100 rounded-tl-none backdrop-blur-md shadow-md"
+                        : "bg-muted/40 border border-border text-foreground rounded-tl-none shadow-sm"
                     }`}
                   >
                     {msg.sender === "assistant" ? (
-                      <div className="prose prose-invert max-w-none text-xs leading-relaxed space-y-2">
+                      <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed space-y-2">
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => (
-                              <p className="mb-2 leading-relaxed text-[13px] text-slate-200 last:mb-0">
+                              <p className="mb-2 leading-relaxed text-[13px] text-foreground/90 last:mb-0">
                                 {children}
                               </p>
                             ),
                             strong: ({ children }) => (
-                              <strong className="font-bold text-white bg-emerald-500/25 px-1.5 py-0.5 rounded text-[12.5px] border border-emerald-500/30">
+                              <strong className="font-bold text-foreground bg-emerald-500/20 px-1.5 py-0.5 rounded text-[12.5px] border border-emerald-500/30">
                                 {children}
                               </strong>
                             ),
                             h1: ({ children }) => (
-                              <h1 className="font-display text-base font-bold text-white mb-2 mt-3 flex items-center gap-1.5 border-b border-white/10 pb-1">
+                              <h1 className="font-display text-base font-bold text-foreground mb-2 mt-3 flex items-center gap-1.5 border-b border-border pb-1">
                                 {children}
                               </h1>
                             ),
                             h2: ({ children }) => (
-                              <h2 className="font-display text-sm font-bold text-emerald-400 mb-1.5 mt-2.5 flex items-center gap-1">
+                              <h2 className="font-display text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 mt-2.5 flex items-center gap-1">
                                 {children}
                               </h2>
                             ),
                             h3: ({ children }) => (
-                              <h3 className="font-display text-xs font-bold text-teal-300 mb-1 mt-2">
+                              <h3 className="font-display text-xs font-bold text-foreground mb-1 mt-2">
                                 {children}
                               </h3>
                             ),
                             ul: ({ children }) => (
-                              <ul className="my-2 space-y-1.5 pl-4 list-disc marker:text-emerald-400">
+                              <ul className="my-2 space-y-1.5 pl-4 list-disc marker:text-emerald-500">
                                 {children}
                               </ul>
                             ),
                             ol: ({ children }) => (
-                              <ol className="my-2 space-y-1.5 pl-4 list-decimal marker:text-emerald-400">
+                              <ol className="my-2 space-y-1.5 pl-4 list-decimal marker:text-emerald-500">
                                 {children}
                               </ol>
                             ),
                             li: ({ children }) => (
-                              <li className="text-[12.5px] text-slate-300 leading-normal pl-0.5">
+                              <li className="text-[12.5px] text-foreground/90 leading-normal pl-0.5">
                                 {children}
                               </li>
                             ),
                             code: ({ children }) => (
-                              <code className="bg-white/10 text-emerald-300 px-1.5 py-0.5 rounded font-mono text-xs border border-white/10">
+                              <code className="bg-muted text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-mono text-xs border border-border">
                                 {children}
                               </code>
                             ),
                             a: ({ href, children }) => (
                               <Link
                                 to={href || "#"}
-                                className="inline-flex items-center gap-1 font-bold text-emerald-400 hover:text-white underline underline-offset-4 bg-emerald-500/10 px-2 py-0.5 rounded-md hover:bg-emerald-500/25 transition-all text-xs"
+                                className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-4 bg-emerald-500/10 px-2 py-0.5 rounded-md hover:bg-emerald-500/20 transition-all text-xs"
                               >
                                 {children} <ArrowUpRight className="h-3 w-3" />
                               </Link>
@@ -456,7 +456,7 @@ Instructions:
 
                     <div
                       className={`mt-2 text-[9px] ${
-                        msg.sender === "user" ? "text-white/70 text-right" : "text-slate-400"
+                        msg.sender === "user" ? "text-white/70 text-right" : "text-muted-foreground"
                       }`}
                     >
                       {msg.timestamp}
@@ -464,7 +464,7 @@ Instructions:
                   </div>
 
                   {msg.sender === "user" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mt-0.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 mt-0.5">
                       <User className="h-3.5 w-3.5" />
                     </div>
                   )}
@@ -477,7 +477,7 @@ Instructions:
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                     <Sparkles className="h-3.5 w-3.5 animate-spin" />
                   </div>
-                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-white/5 px-4 py-2.5 text-slate-300 shadow-sm">
+                  <div className="rounded-2xl rounded-tl-none border border-border bg-muted/40 px-4 py-2.5 text-muted-foreground shadow-sm">
                     <span className="flex items-center gap-1 text-[11px]">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-bounce" />
                       <span
@@ -488,7 +488,7 @@ Instructions:
                         className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-bounce"
                         style={{ animationDelay: "0.4s" }}
                       />
-                      <span className="ml-1.5 text-[11px] text-slate-400">Analyzing your assessment telemetry...</span>
+                      <span className="ml-1.5 text-[11px] text-muted-foreground">Analyzing your assessment telemetry...</span>
                     </span>
                   </div>
                 </div>
@@ -498,7 +498,7 @@ Instructions:
             </div>
 
             {/* Quick Suggestion Chips */}
-            <div className="border-t border-white/10 bg-white/[0.02] px-4 py-2 overflow-x-auto no-scrollbar">
+            <div className="border-t border-border bg-muted/20 px-4 py-2 overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-1.5 whitespace-nowrap">
                 {quickPrompts.map((q) => (
                   <button
@@ -506,7 +506,7 @@ Instructions:
                     type="button"
                     onClick={() => handleSend(q)}
                     disabled={isLoading}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-slate-300 hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                    className="rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all active:scale-95 disabled:opacity-50"
                   >
                     {q}
                   </button>
@@ -515,7 +515,7 @@ Instructions:
             </div>
 
             {/* Input Bar */}
-            <div className="border-t border-white/10 bg-[#0e0e17] p-3">
+            <div className="border-t border-border bg-card p-3">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -531,8 +531,8 @@ Instructions:
                   onClick={isListening ? stopListening : startListening}
                   className={`h-10 w-10 shrink-0 rounded-xl transition-all ${
                     isListening
-                      ? "bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse"
-                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                      ? "bg-destructive text-destructive-foreground animate-pulse"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
                   title={isListening ? "Listening... click to stop" : "Speak to AI"}
                 >
@@ -545,14 +545,14 @@ Instructions:
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about your scores, eligibility, or tests..."
                   disabled={isLoading}
-                  className="flex-1 rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="flex-1 rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
 
                 <Button
                   type="submit"
                   size="icon"
                   disabled={!input.trim() || isLoading}
-                  className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 transition-all"
+                  className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 transition-all"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -606,8 +606,8 @@ Instructions:
 
         {/* Floating Tooltip hint when closed */}
         {!isOpen && (
-          <span className="pointer-events-none absolute right-16 top-2 hidden whitespace-nowrap rounded-xl border border-white/10 bg-[#0e0e17]/95 px-3 py-1.5 text-xs font-semibold text-white shadow-xl backdrop-blur-xl md:flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-400" /> AI Career Mentor
+          <span className="pointer-events-none absolute right-16 top-2 hidden whitespace-nowrap rounded-xl border border-border bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xl backdrop-blur-xl md:flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-500" /> AI Career Mentor
           </span>
         )}
       </motion.button>

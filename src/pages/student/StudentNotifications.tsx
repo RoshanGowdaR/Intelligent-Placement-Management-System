@@ -119,18 +119,18 @@ export default function StudentNotifications() {
       </Link>
 
       {/* Hero Header Card matching Zidio Template */}
-      <div className="rounded-3xl bg-[#141428] text-white p-6 md:p-8 border border-white/10 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="rounded-3xl bg-card border border-border/80 text-foreground p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-[#8e85ff]">
+          <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-primary">
             <Bell className="h-3.5 w-3.5" />
             <span>Activity Feed • Notification History</span>
           </div>
 
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
             Placement Notifications
           </h1>
 
-          <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+          <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
             Keep track of incoming visiting company announcements, test releases, round progression results, and placement cell directives.
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function StudentNotifications() {
             onClick={markAllAsRead}
             disabled={unreadCount === 0}
             variant="outline"
-            className="rounded-xl border-white/20 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold h-9 px-4 gap-1.5"
+            className="rounded-xl border-border bg-card hover:bg-muted text-foreground text-xs font-semibold h-9 px-4 gap-1.5"
           >
             <CheckCheck className="h-3.5 w-3.5" />
             <span>Mark All Read ({unreadCount})</span>

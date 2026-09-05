@@ -260,8 +260,8 @@ export default function StudentProfile() {
       {/* Top Studio Action Ribbon matching Image 1 */}
       <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2 border-b border-border/60">
         <div className="flex items-center gap-2">
-          <Button size="sm" className="rounded-xl bg-[#0f0f1c] text-white text-xs font-bold gap-1.5 h-9 px-4 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5 fill-white" /> Studio
+          <Button size="sm" className="rounded-xl bg-foreground text-background text-xs font-bold gap-1.5 h-9 px-4 shadow-sm hover:bg-foreground/90">
+            <Sparkles className="h-3.5 w-3.5 fill-current" /> Studio
           </Button>
           <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground text-xs font-semibold gap-1.5 h-9 px-3 hover:text-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-blue-500" /> Verified Evidence
@@ -313,11 +313,11 @@ export default function StudentProfile() {
                     onClick={() => scrollToSection(sec.id)}
                     className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
                       isActive
-                        ? "bg-[#0f0f1c] text-white font-bold shadow-sm"
+                        ? "bg-foreground text-background font-bold shadow-sm"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
-                    <span className={`font-mono text-[11px] ${isActive ? "text-[#8e85ff]" : "text-muted-foreground"}`}>
+                    <span className={`font-mono text-[11px] ${isActive ? "text-primary dark:text-primary" : "text-muted-foreground"}`}>
                       {sec.id}
                     </span>
                     <span>{sec.label}</span>
@@ -371,42 +371,42 @@ export default function StudentProfile() {
           className="lg:col-span-8 lg:h-[calc(100vh-160px)] lg:overflow-y-auto pr-1 space-y-6 scroll-smooth"
         >
           
-          {/* Blue Check Verification Banner matching Image 1 */}
-          <div className="p-6 rounded-3xl bg-[#0e172a] text-white border border-blue-900/40 shadow-sm relative overflow-hidden">
+          {/* Blue Check Verification Banner */}
+          <div className="p-6 rounded-3xl bg-blue-500/10 dark:bg-blue-950/30 text-foreground border border-blue-500/20 shadow-sm relative overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
-                <div className="h-10 w-10 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-10 w-10 rounded-2xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
                   <ShieldCheck className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Verified Candidate</div>
-                  <h3 className="font-display text-lg font-bold text-white mt-0.5">Earn your blue check</h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
+                  <div className="text-[10px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">Verified Candidate</div>
+                  <h3 className="font-display text-lg font-bold text-foreground mt-0.5">Earn your blue check</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Verified profiles rank higher in company placement shortlists and recruiters trust them more.
                   </p>
                 </div>
               </div>
 
-              <Button size="sm" className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shrink-0 gap-1.5 h-9 px-4">
+              <Button size="sm" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 gap-1.5 h-9 px-4">
                 View evidence <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>
 
             {/* Check Chips */}
-            <div className="flex flex-wrap items-center gap-2 pt-5 border-t border-white/10 mt-5">
-              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px] gap-1 py-1 px-2.5">
+            <div className="flex flex-wrap items-center gap-2 pt-5 border-t border-border/80 mt-5">
+              <Badge className="bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30 text-[10px] gap-1 py-1 px-2.5">
                 <Check className="h-3 w-3" /> Identity
               </Badge>
-              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px] gap-1 py-1 px-2.5">
+              <Badge className="bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30 text-[10px] gap-1 py-1 px-2.5">
                 <Check className="h-3 w-3" /> Email verified
               </Badge>
-              <Badge variant="outline" className="text-slate-400 border-white/10 text-[10px] py-1 px-2.5">
+              <Badge variant="outline" className="text-muted-foreground border-border text-[10px] py-1 px-2.5">
                 Skills verified
               </Badge>
-              <Badge variant="outline" className="text-slate-400 border-white/10 text-[10px] py-1 px-2.5">
+              <Badge variant="outline" className="text-muted-foreground border-border text-[10px] py-1 px-2.5">
                 Project reviewed
               </Badge>
-              <Badge variant="outline" className="text-slate-400 border-white/10 text-[10px] py-1 px-2.5">
+              <Badge variant="outline" className="text-muted-foreground border-border text-[10px] py-1 px-2.5">
                 Assessment passed
               </Badge>
             </div>

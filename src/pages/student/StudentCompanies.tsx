@@ -132,35 +132,35 @@ export default function StudentCompanies() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
       
-      {/* 1. Dark Navy Hero Banner matching modern Zidio template */}
-      <div className="rounded-3xl bg-[#141428] text-white p-6 md:p-8 border border-white/10 shadow-sm relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-[#5b51d8]/15 rounded-full blur-3xl pointer-events-none" />
+      {/* 1. Hero Banner matching modern template */}
+      <div className="rounded-3xl bg-card border border-border/80 text-foreground p-6 md:p-8 shadow-sm relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-[#8e85ff]">
+            <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-primary">
               <Building2 className="h-3.5 w-3.5" />
               <span>Campus Recruitment Drives • Batch of 2026</span>
             </div>
 
-            <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
               Visiting Companies &amp; Opportunities
             </h1>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Explore visiting enterprise recruiters, review package offerings and job descriptions, verify your real-time criteria eligibility, and register for scheduled hiring drives.
             </p>
           </div>
 
           <div className="flex items-center gap-4 shrink-0 font-mono">
-            <div className="p-3.5 rounded-2xl bg-[#1e1e38] border border-white/10 text-center min-w-[90px]">
-              <div className="font-display text-2xl font-black text-white">{companies.length}</div>
-              <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Total Drives</div>
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border text-center min-w-[90px] shadow-sm">
+              <div className="font-display text-2xl font-black text-foreground">{companies.length}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Total Drives</div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-[#1e1e38] border border-white/10 text-center min-w-[90px]">
-              <div className="font-display text-2xl font-black text-emerald-400">{eligibleCount}</div>
-              <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Eligible for You</div>
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border text-center min-w-[90px] shadow-sm">
+              <div className="font-display text-2xl font-black text-emerald-600 dark:text-emerald-400">{eligibleCount}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Eligible for You</div>
             </div>
           </div>
         </div>

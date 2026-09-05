@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -266,39 +266,39 @@ export function LandingChatbot() {
               width: isMaximized ? "min(94vw, 840px)" : `${dimensions.width}px`,
               height: isMaximized ? "min(88vh, 780px)" : `${dimensions.height}px`,
             }}
-            className="relative mb-4 flex flex-col overflow-hidden rounded-3xl border border-white/20 bg-[#0e0e17]/95 shadow-[0_25px_90px_rgba(0,0,0,0.9)] backdrop-blur-3xl transition-all duration-150"
+            className="relative mb-4 flex flex-col overflow-hidden rounded-3xl border border-border/80 bg-card/95 shadow-[0_25px_90px_rgba(0,0,0,0.35)] backdrop-blur-3xl transition-all duration-150"
           >
             {/* Draggable Corner Resize Handle (Top-Left) */}
             {!isMaximized && (
               <div
                 onMouseDown={handleResizeStart}
-                className="group absolute top-0 left-0 z-30 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-br-xl bg-white/5 hover:bg-primary/20 border-r border-b border-white/10 transition-colors"
+                className="group absolute top-0 left-0 z-30 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-br-xl bg-muted/40 hover:bg-primary/20 border-r border-b border-border transition-colors"
                 title="Drag to resize chatbot"
               >
-                <MoveDiagonal2 className="h-3 w-3 text-slate-400 group-hover:text-primary transition-colors rotate-90" />
+                <MoveDiagonal2 className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors rotate-90" />
               </div>
             )}
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-primary/20 via-purple-600/15 to-transparent px-5 py-4 pl-8">
+            <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/10 via-purple-600/10 to-transparent px-5 py-4 pl-8">
               <div className="flex items-center gap-3">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-purple-500 text-white shadow-[0_0_20px_rgba(108,92,231,0.6)]">
                   <Bot className="h-5 w-5" />
                   <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 border-2 border-[#0e0e17]" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 border-2 border-card" />
                   </span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-display text-sm font-bold text-white tracking-wide">
+                    <h3 className="font-display text-sm font-bold text-foreground tracking-wide">
                       IPMS Placement AI
                     </h3>
                     <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] px-1.5 py-0 font-mono">
                       Gemini 2.5
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400">Ask about features, drives & portals</p>
+                  <p className="text-[11px] text-muted-foreground">Ask about features, drives & portals</p>
                 </div>
               </div>
 
@@ -309,7 +309,7 @@ export function LandingChatbot() {
                   size="icon"
                   variant="ghost"
                   onClick={() => setIsMaximized(!isMaximized)}
-                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
                   title={isMaximized ? "Restore standard size" : "Expand screen"}
                 >
                   {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -326,7 +326,7 @@ export function LandingChatbot() {
                     }
                     setSpeechEnabled(!speechEnabled);
                   }}
-                  className={`h-8 w-8 rounded-lg text-slate-400 hover:text-white ${
+                  className={`h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted ${
                     speechEnabled ? "text-primary bg-primary/10" : ""
                   }`}
                   title={speechEnabled ? "Mute audio read-out" : "Enable voice read-out"}
@@ -339,7 +339,7 @@ export function LandingChatbot() {
                   size="icon"
                   variant="ghost"
                   onClick={handleClear}
-                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
                   title="Clear conversation"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
@@ -350,7 +350,7 @@ export function LandingChatbot() {
                   size="icon"
                   variant="ghost"
                   onClick={() => setIsOpen(false)}
-                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-white"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
                   title="Close chat"
                 >
                   <ChevronDown className="h-4 w-4" />
@@ -375,25 +375,25 @@ export function LandingChatbot() {
                     className={`max-w-[88%] rounded-2xl p-4 leading-relaxed ${
                       msg.role === "user"
                         ? "bg-gradient-to-r from-primary to-indigo-600 text-white rounded-tr-none shadow-[0_4px_15px_rgba(108,92,231,0.3)] text-xs"
-                        : "bg-white/[0.04] border border-white/10 text-slate-100 rounded-tl-none backdrop-blur-md shadow-md"
+                        : "bg-muted/40 border border-border text-foreground rounded-tl-none shadow-sm"
                     }`}
                   >
                     {msg.role === "assistant" ? (
-                      <div className="prose prose-invert max-w-none text-xs leading-relaxed space-y-2">
+                      <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed space-y-2">
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => (
-                              <p className="mb-2 leading-relaxed text-[13px] text-slate-200 last:mb-0">
+                              <p className="mb-2 leading-relaxed text-[13px] text-foreground/90 last:mb-0">
                                 {children}
                               </p>
                             ),
                             strong: ({ children }) => (
-                              <strong className="font-bold text-white bg-primary/25 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/30">
+                              <strong className="font-bold text-foreground bg-primary/15 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/25">
                                 {children}
                               </strong>
                             ),
                             h1: ({ children }) => (
-                              <h1 className="font-display text-base font-bold text-white mb-2 mt-3 flex items-center gap-1.5 border-b border-white/10 pb-1">
+                              <h1 className="font-display text-base font-bold text-foreground mb-2 mt-3 flex items-center gap-1.5 border-b border-border pb-1">
                                 {children}
                               </h1>
                             ),
@@ -403,7 +403,7 @@ export function LandingChatbot() {
                               </h2>
                             ),
                             h3: ({ children }) => (
-                              <h3 className="font-display text-xs font-bold text-purple-300 mb-1 mt-2">
+                              <h3 className="font-display text-xs font-bold text-foreground mb-1 mt-2">
                                 {children}
                               </h3>
                             ),
@@ -418,19 +418,19 @@ export function LandingChatbot() {
                               </ol>
                             ),
                             li: ({ children }) => (
-                              <li className="text-[12.5px] text-slate-300 leading-normal pl-0.5">
+                              <li className="text-[12.5px] text-foreground/90 leading-normal pl-0.5">
                                 {children}
                               </li>
                             ),
                             code: ({ children }) => (
-                              <code className="bg-white/10 text-purple-300 px-1.5 py-0.5 rounded font-mono text-xs border border-white/10">
+                              <code className="bg-muted text-primary px-1.5 py-0.5 rounded font-mono text-xs border border-border">
                                 {children}
                               </code>
                             ),
                             a: ({ href, children }) => (
                               <Link
                                 to={href || "#"}
-                                className="inline-flex items-center gap-1 font-bold text-primary hover:text-white underline underline-offset-4 bg-primary/10 px-2 py-0.5 rounded-md hover:bg-primary/25 transition-all text-xs"
+                                className="inline-flex items-center gap-1 font-bold text-primary hover:text-primary/80 underline underline-offset-4 bg-primary/10 px-2 py-0.5 rounded-md hover:bg-primary/20 transition-all text-xs"
                               >
                                 {children} <ArrowUpRight className="h-3 w-3" />
                               </Link>
@@ -446,7 +446,7 @@ export function LandingChatbot() {
 
                     <div
                       className={`mt-2 text-[9px] ${
-                        msg.role === "user" ? "text-white/70 text-right" : "text-slate-400"
+                        msg.role === "user" ? "text-white/70 text-right" : "text-muted-foreground"
                       }`}
                     >
                       {msg.timestamp}
@@ -454,7 +454,7 @@ export function LandingChatbot() {
                   </div>
 
                   {msg.role === "user" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mt-0.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 mt-0.5">
                       <User className="h-3.5 w-3.5" />
                     </div>
                   )}
@@ -467,7 +467,7 @@ export function LandingChatbot() {
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary border border-primary/30">
                     <Sparkles className="h-3.5 w-3.5 animate-spin" />
                   </div>
-                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-white/5 px-4 py-2.5 text-slate-300 shadow-sm">
+                  <div className="rounded-2xl rounded-tl-none border border-border bg-muted/40 px-4 py-2.5 text-muted-foreground shadow-sm">
                     <span className="flex items-center gap-1 text-[11px]">
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
                       <span
@@ -478,7 +478,7 @@ export function LandingChatbot() {
                         className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce"
                         style={{ animationDelay: "0.4s" }}
                       />
-                      <span className="ml-1.5 text-[11px] text-slate-400">Thinking...</span>
+                      <span className="ml-1.5 text-[11px] text-muted-foreground">Thinking...</span>
                     </span>
                   </div>
                 </div>
@@ -488,7 +488,7 @@ export function LandingChatbot() {
             </div>
 
             {/* Quick Suggestion Chips */}
-            <div className="border-t border-white/10 bg-white/[0.02] px-4 py-2 overflow-x-auto no-scrollbar">
+            <div className="border-t border-border bg-muted/20 px-4 py-2 overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-1.5 whitespace-nowrap">
                 {SUGGESTED_QUESTIONS.map((q) => (
                   <button
@@ -496,7 +496,7 @@ export function LandingChatbot() {
                     type="button"
                     onClick={() => handleSend(q)}
                     disabled={isLoading}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-slate-300 hover:border-primary/50 hover:bg-primary/10 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                    className="rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium text-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-all active:scale-95 disabled:opacity-50"
                   >
                     {q}
                   </button>
@@ -505,7 +505,7 @@ export function LandingChatbot() {
             </div>
 
             {/* Input Bar */}
-            <div className="border-t border-white/10 bg-[#0e0e17] p-3">
+            <div className="border-t border-border bg-card p-3">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -522,7 +522,7 @@ export function LandingChatbot() {
                   className={`h-10 w-10 shrink-0 rounded-xl transition-all ${
                     isListening
                       ? "bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse"
-                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
                   title={isListening ? "Listening... click to stop" : "Voice input"}
                 >
@@ -535,7 +535,7 @@ export function LandingChatbot() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask a question about IPMS..."
                   disabled={isLoading}
-                  className="flex-1 rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="flex-1 rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
 
                 <Button
@@ -596,7 +596,7 @@ export function LandingChatbot() {
 
         {/* Floating Tooltip hint when closed */}
         {!isOpen && (
-          <span className="pointer-events-none absolute right-16 top-2 hidden whitespace-nowrap rounded-xl border border-white/10 bg-[#0e0e17]/95 px-3 py-1.5 text-xs font-semibold text-white shadow-xl backdrop-blur-xl md:flex items-center gap-1.5">
+          <span className="pointer-events-none absolute right-16 top-2 hidden whitespace-nowrap rounded-xl border border-border bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xl backdrop-blur-xl md:flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5 text-primary" /> Ask IPMS AI
           </span>
         )}

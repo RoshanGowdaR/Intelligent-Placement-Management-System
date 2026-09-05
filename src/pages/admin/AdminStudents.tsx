@@ -160,42 +160,42 @@ export default function AdminStudents() {
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       
       {/* Header Banner */}
-      <div className="rounded-3xl bg-[#141428] text-white p-6 md:p-8 border border-white/10 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="rounded-3xl bg-card border border-border/80 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 md:p-8">
         <div className="space-y-2 max-w-2xl">
-          <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-[#8e85ff]">
+          <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-primary">
             <Users className="h-3.5 w-3.5" />
             <span>Identity Directory &amp; Role Management</span>
           </div>
 
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
             User Accounts &amp; Candidates
           </h1>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Filter, inspect, and manage verified students, placement cell administrators, and visiting enterprise recruiter profiles.
           </p>
         </div>
 
         {/* Counter Pills */}
         <div className="flex items-center gap-3 shrink-0 font-mono">
-          <div className="p-3 rounded-2xl bg-[#1e1e38] border border-white/10 text-center min-w-[80px]">
-            <div className="font-display text-xl font-bold text-white">{usersList.length}</div>
-            <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Total</div>
+          <div className="p-3 rounded-2xl bg-card border border-border text-center min-w-[80px] shadow-sm">
+            <div className="font-display text-xl font-bold text-foreground">{usersList.length}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Total</div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-[#1e1e38] border border-white/10 text-center min-w-[80px]">
-            <div className="font-display text-xl font-bold text-emerald-400">{studentCount}</div>
-            <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Students</div>
+          <div className="p-3 rounded-2xl bg-card border border-border text-center min-w-[80px] shadow-sm">
+            <div className="font-display text-xl font-bold text-emerald-600 dark:text-emerald-400">{studentCount}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Students</div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-[#1e1e38] border border-white/10 text-center min-w-[80px]">
-            <div className="font-display text-xl font-bold text-purple-400">{adminCount}</div>
-            <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Admins</div>
+          <div className="p-3 rounded-2xl bg-card border border-border text-center min-w-[80px] shadow-sm">
+            <div className="font-display text-xl font-bold text-purple-600 dark:text-purple-400">{adminCount}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Admins</div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-[#1e1e38] border border-white/10 text-center min-w-[80px]">
-            <div className="font-display text-xl font-bold text-blue-400">{companyCount}</div>
-            <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Companies</div>
+          <div className="p-3 rounded-2xl bg-card border border-border text-center min-w-[80px] shadow-sm">
+            <div className="font-display text-xl font-bold text-blue-600 dark:text-blue-400">{companyCount}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Companies</div>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard } from "@/components/3d/GlassCard";
@@ -87,47 +87,47 @@ export default function CompanyReports() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-extrabold text-white">Recruitment Reports</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="font-display text-3xl font-extrabold text-foreground">Recruitment Reports</h1>
+          <p className="text-sm text-muted-foreground">
             Export evaluation metrics, candidate qualification logs & audit records for your assessments.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button onClick={exportCSV} className="h-11 px-5 rounded-xl bg-primary text-white font-bold gap-2">
+          <Button onClick={exportCSV} className="h-11 px-5 rounded-xl bg-primary text-primary-foreground font-bold gap-2">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
 
-          <Button onClick={() => window.print()} variant="outline" className="h-11 px-4 rounded-xl glass-button text-slate-200 border-white/15 gap-2">
+          <Button onClick={() => window.print()} variant="outline" className="h-11 px-4 rounded-xl text-foreground border-border gap-2 hover:bg-muted">
             <Printer className="h-4 w-4" /> Print Report
           </Button>
         </div>
       </div>
 
       {/* Report Table View */}
-      <GlassCard className="p-6 border-white/10">
+      <GlassCard className="p-6 border-border">
         <div className="mb-4 flex items-center justify-between">
-          <div className="text-sm font-semibold text-white">
+          <div className="text-sm font-semibold text-foreground">
             Assessment Attempts Roster ({reportData.length} records)
           </div>
-          <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
+          <Badge className="bg-purple-500/20 text-purple-400 dark:text-purple-300 border-purple-500/30 text-xs">
             {company?.name || "Company Portal"}
           </Badge>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-slate-400">
+          <div className="p-12 text-center text-muted-foreground">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-2" />
             Generating report…
           </div>
         ) : reportData.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-sm">
+          <div className="p-12 text-center text-muted-foreground text-sm">
             No test submissions found for your company assessments yet.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-white/5 uppercase text-slate-400 font-semibold border-b border-white/10">
+            <table className="w-full text-left text-xs text-muted-foreground">
+              <thead className="bg-muted/50 uppercase text-muted-foreground font-semibold border-b border-border">
                 <tr>
                   <th className="p-3">Candidate</th>
                   <th className="p-3">Branch & CGPA</th>
@@ -138,21 +138,21 @@ export default function CompanyReports() {
                   <th className="p-3">Submitted At</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10 font-medium">
+              <tbody className="divide-y divide-border font-medium">
                 {reportData.map((row) => (
-                  <tr key={row.id} className="hover:bg-white/5 transition-colors">
+                  <tr key={row.id} className="hover:bg-muted/40 transition-colors">
                     <td className="p-3">
-                      <div className="font-bold text-white">{row.profiles?.name || row.profiles?.email}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{row.profiles?.usn || row.profiles?.email}</div>
+                      <div className="font-bold text-foreground">{row.profiles?.name || row.profiles?.email}</div>
+                      <div className="text-[11px] text-muted-foreground font-mono">{row.profiles?.usn || row.profiles?.email}</div>
                     </td>
                     <td className="p-3">
-                      <div>{row.profiles?.branch || "B.Tech"}</div>
+                      <div className="text-foreground">{row.profiles?.branch || "B.Tech"}</div>
                       <div className="text-[11px] text-primary font-bold">CGPA: {row.profiles?.cgpa || "N/A"}</div>
                     </td>
-                    <td className="p-3 text-white">{row.tests?.title || "Test"}</td>
-                    <td className="p-3 font-mono font-bold text-white">{row.total_score}%</td>
+                    <td className="p-3 text-foreground">{row.tests?.title || "Test"}</td>
+                    <td className="p-3 font-mono font-bold text-foreground">{row.total_score}%</td>
                     <td className="p-3">
-                      <Badge className={row.passed ? "bg-emerald-500/20 text-emerald-300 text-[10px]" : "bg-destructive/20 text-destructive text-[10px]"}>
+                      <Badge className={row.passed ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px]" : "bg-destructive/20 text-destructive text-[10px]"}>
                         {row.passed ? "QUALIFIED" : "BELOW CUTOFF"}
                       </Badge>
                     </td>
@@ -163,7 +163,7 @@ export default function CompanyReports() {
                         <span className="text-emerald-400 font-bold">Clean</span>
                       )}
                     </td>
-                    <td className="p-3 text-slate-400">
+                    <td className="p-3 text-muted-foreground">
                       {row.completed_at ? new Date(row.completed_at).toLocaleDateString() : "-"}
                     </td>
                   </tr>

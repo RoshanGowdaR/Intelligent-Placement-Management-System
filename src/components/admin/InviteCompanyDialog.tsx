@@ -135,15 +135,15 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
 
   return (
     <Dialog open={open} onOpenChange={(val) => { if (!val) handleReset(); else onOpenChange(true); }}>
-      <DialogContent className="max-w-lg rounded-3xl border border-white/15 bg-card/95 backdrop-blur-3xl shadow-[0_30px_90px_rgba(0,0,0,0.85)] p-6">
+      <DialogContent className="max-w-lg rounded-3xl border border-border/80 bg-card/95 backdrop-blur-3xl shadow-2xl p-6 text-foreground">
         <DialogHeader>
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-white shadow-[0_0_25px_rgba(108,92,231,0.6)]">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_25px_rgba(108,92,231,0.6)]">
             <Building2 className="h-7 w-7" />
           </div>
-          <DialogTitle className="text-xl font-display font-bold text-center text-white">
+          <DialogTitle className="text-xl font-display font-bold text-center text-foreground">
             Invite Visiting Company / Recruiter
           </DialogTitle>
-          <DialogDescription className="text-center text-slate-300 text-xs">
+          <DialogDescription className="text-center text-muted-foreground text-xs">
             Send an official email invitation to the company's HR recruiter to register and launch their placement drives.
           </DialogDescription>
         </DialogHeader>
@@ -158,7 +158,7 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
                 placeholder="e.g. Microsoft, Google, Infosys"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                 required
               />
             </div>
@@ -172,19 +172,19 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
                 placeholder="recruiter@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
                 required
               />
             </div>
 
             <DialogFooter className="mt-6 flex gap-2 sm:justify-between">
-              <Button type="button" variant="ghost" onClick={handleReset} className="rounded-xl text-muted-foreground">
+              <Button type="button" variant="ghost" onClick={handleReset} className="rounded-xl text-muted-foreground hover:text-foreground">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting || !email}
-                className="h-11 px-6 rounded-xl bg-primary text-white font-bold shadow-[0_0_20px_rgba(108,92,231,0.5)]"
+                className="h-11 px-6 rounded-xl bg-primary text-primary-foreground font-bold shadow-[0_0_20px_rgba(108,92,231,0.5)]"
               >
                 {isSubmitting ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Email…</>
@@ -197,10 +197,10 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
         ) : (
           <div className="space-y-5 mt-4">
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
-              <Sparkles className="mx-auto h-6 w-6 text-emerald-400 mb-1" />
-              <p className="font-semibold text-emerald-300 text-sm">Invitation Sent & Generated Successfully!</p>
-              <p className="text-xs text-slate-300 mt-1">
-                Dispatched to <strong>{email}</strong>. Valid for 7 days:
+              <Sparkles className="mx-auto h-6 w-6 text-emerald-500 dark:text-emerald-400 mb-1" />
+              <p className="font-semibold text-emerald-600 dark:text-emerald-300 text-sm">Invitation Sent & Generated Successfully!</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Dispatched to <strong className="text-foreground">{email}</strong>. Valid for 7 days:
               </p>
             </div>
 
@@ -210,12 +210,12 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
                 <Input
                   readOnly
                   value={generatedLink}
-                  className="h-11 rounded-xl border-white/15 bg-black/40 text-xs font-mono text-primary select-all"
+                  className="h-11 rounded-xl border-border bg-muted/50 text-xs font-mono text-primary select-all"
                 />
                 <Button
                   type="button"
                   onClick={handleCopyLink}
-                  className="h-11 px-4 rounded-xl bg-primary text-white font-semibold shrink-0"
+                  className="h-11 px-4 rounded-xl bg-primary text-primary-foreground font-semibold shrink-0"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
@@ -227,7 +227,7 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
                 type="button"
                 variant="outline"
                 onClick={handleMailto}
-                className="flex-1 rounded-xl glass-button text-xs gap-1.5 text-slate-200"
+                className="flex-1 rounded-xl border-border bg-card text-foreground hover:bg-muted text-xs gap-1.5"
               >
                 <Mail className="h-3.5 w-3.5 text-primary" /> Open in Email App
               </Button>
@@ -235,7 +235,7 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 rounded-xl glass-button text-xs gap-1.5 text-slate-200"
+                className="flex-1 rounded-xl border-border bg-card text-foreground hover:bg-muted text-xs gap-1.5"
                 onClick={() => window.open(generatedLink, "_blank")}
               >
                 <ExternalLink className="h-3.5 w-3.5" /> Preview Form
@@ -246,7 +246,7 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
               <Button
                 type="button"
                 onClick={handleReset}
-                className="w-full rounded-xl bg-primary text-white font-bold"
+                className="w-full rounded-xl bg-primary text-primary-foreground font-bold"
               >
                 Done
               </Button>

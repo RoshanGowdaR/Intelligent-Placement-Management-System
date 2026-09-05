@@ -110,13 +110,13 @@ function AppSidebar({ role }: { role: "admin" | "company" | "student" | null }) 
           </SidebarGroup>
         </div>
 
-        {/* Bottom Area: Dark rounded pill container housing Logout */}
+        {/* Bottom Area: Logout button */}
         <div className="mt-auto px-1 pt-4 pb-2">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#0f0f1c] hover:bg-[#19192f] text-white text-xs font-bold transition-all shadow-md group"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-foreground border border-border/80 text-xs font-bold transition-all shadow-sm group"
           >
-            <LogOut className="h-4 w-4 text-rose-400 group-hover:-translate-x-0.5 transition-transform" />
+            <LogOut className="h-4 w-4 text-rose-500 group-hover:-translate-x-0.5 transition-transform" />
             <span>Log out</span>
           </button>
         </div>
