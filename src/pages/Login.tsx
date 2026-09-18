@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { GraduationCap, Shield, Loader2, ArrowLeft } from "lucide-react";
+import { GraduationCap, Shield, Loader2, ArrowLeft, Building2 } from "lucide-react";
 import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 import { GlassCard } from "@/components/3d/GlassCard";
 import { motion } from "framer-motion";
@@ -51,11 +51,35 @@ export default function Login() {
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const { signIn, user, role, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const companyInviteToken = searchParams.get("company_invite") || searchParams.get("token");
+  const requestedRole = searchParams.get("role");
+  const [invitedCompanyName, setInvitedCompanyName] = useState<string | null>(null);
 
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [verifyingMfa, setVerifyingMfa] = useState(false);
+
+  // Store invite info when user lands via invite link
+  useEffect(() => {
+    if (companyInviteToken || requestedRole === "company") {
+      if (companyInviteToken) {
+        localStorage.setItem("pending_company_invite", companyInviteToken);
+        supabase
+          .from("company_invites" as any)
+          .select("company_name, email")
+          .eq("token", companyInviteToken)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data?.company_name) setInvitedCompanyName(data.company_name);
+            if (data?.email && !email) setEmail(data.email);
+          });
+      }
+      localStorage.setItem("pending_company_role", "company");
+    }
+  }, [companyInviteToken, requestedRole]);
 
   const navigateByRole = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -68,12 +92,28 @@ export default function Login() {
       
     const roles = (rolesData ?? []).map((r) => r.role);
     const isAdmin = roles.includes("admin") || userData.user.email === "gowdaroshan49@gmail.com";
-    const isCompany = roles.includes("company");
+    const isCompany = roles.includes("company") || localStorage.getItem("pending_company_role") === "company";
 
     if (isAdmin) {
       navigate("/admin", { replace: true });
     } else if (isCompany) {
-      navigate("/company", { replace: true });
+      // Check if recruiter has completed onboarding
+      const { data: comp } = await supabase
+        .from("companies")
+        .select("id, job_role, salary_package, contact_info")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+
+      const contact = (comp?.contact_info as any) || {};
+      const isComplete = Boolean(
+        comp && (contact.onboarding_completed === true || (comp.job_role && comp.salary_package))
+      );
+
+      if (!isComplete) {
+        navigate("/company/onboarding", { replace: true });
+      } else {
+        navigate("/company", { replace: true });
+      }
     } else {
       navigate("/dashboard", { replace: true });
     }
@@ -106,7 +146,22 @@ export default function Login() {
       if (role === "admin") {
         checkMfaAndNavigate();
       } else if (role === "company") {
-        navigate("/company", { replace: true });
+        supabase
+          .from("companies")
+          .select("id, job_role, salary_package, contact_info")
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data: comp }) => {
+            const contact = (comp?.contact_info as any) || {};
+            const isComplete = Boolean(
+              comp && (contact.onboarding_completed === true || (comp.job_role && comp.salary_package))
+            );
+            if (!isComplete) {
+              navigate("/company/onboarding", { replace: true });
+            } else {
+              navigate("/company", { replace: true });
+            }
+          });
       } else {
         navigate("/dashboard", { replace: true });
       }
@@ -117,6 +172,14 @@ export default function Login() {
     if (provider === "google") setIsGoogleLoading(true);
     if (provider === "apple") setIsAppleLoading(true);
     try {
+      // Preserve pending company invite token across OAuth redirect
+      if (companyInviteToken) {
+        localStorage.setItem("pending_company_invite", companyInviteToken);
+      }
+      if (requestedRole === "company" || companyInviteToken) {
+        localStorage.setItem("pending_company_role", "company");
+      }
+
       const redirectTo = `${window.location.origin}/login`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -339,6 +402,18 @@ export default function Login() {
             </motion.div>
             <h2 className="font-display text-2xl font-bold text-foreground">Welcome back</h2>
             <p className="mt-2 text-sm text-muted-foreground">Sign in to your placement platform</p>
+
+            {(companyInviteToken || requestedRole === "company" || invitedCompanyName) && (
+              <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 text-center text-xs">
+                <span className="font-bold text-primary flex items-center justify-center gap-1.5">
+                  <Building2 className="h-4 w-4" />
+                  Verified Recruiter Invitation{invitedCompanyName ? `: ${invitedCompanyName}` : ""}
+                </span>
+                <p className="mt-1 text-muted-foreground text-[11px]">
+                  Sign in with Google or your email to complete your company profile and launch campus recruitment drives.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* OAuth Sign In */}

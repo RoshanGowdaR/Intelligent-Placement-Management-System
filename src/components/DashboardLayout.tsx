@@ -40,6 +40,7 @@ const adminLinks = [
 const companyLinks = [
   { title: "Overview", url: "/company", icon: LayoutDashboard },
   { title: "Placement AI", url: "/company/ai", icon: Bot },
+  { title: "Company Profile", url: "/company/onboarding?mode=edit", icon: Building2 },
   { title: "Drive Rounds", url: "/company/rounds", icon: GitBranch },
   { title: "Assessments", url: "/company/tests", icon: ClipboardList },
   { title: "Candidates", url: "/company/candidates", icon: Users },

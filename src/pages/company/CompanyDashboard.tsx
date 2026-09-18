@@ -177,10 +177,16 @@ export default function CompanyDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button asChild className="h-11 px-5 rounded-xl bg-primary text-white font-bold shadow-md gap-2">
             <Link to="/company/tests">
               <Plus className="h-4 w-4" /> Create Assessment
+            </Link>
+          </Button>
+
+          <Button asChild variant="outline" className="h-11 px-4 rounded-xl border-border/80 text-foreground hover:bg-muted/80 gap-2">
+            <Link to="/company/onboarding?mode=edit">
+              <Building2 className="h-4 w-4 text-primary" /> Edit Drive Profile
             </Link>
           </Button>
 
