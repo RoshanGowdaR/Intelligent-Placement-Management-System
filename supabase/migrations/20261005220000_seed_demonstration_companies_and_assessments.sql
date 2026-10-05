@@ -1,6 +1,80 @@
--- Demonstration Data: Companies, Tests, and Multi-Round Recruitment Drives
--- Target: Google, Microsoft, Amazon, and TCS
+-- ==============================================================================
+-- IPMS Elite: Self-Contained Schema Verification & Demonstration Data Seed
+-- Creates required tables/columns if missing and populates Google, Microsoft, Amazon, TCS
+-- ==============================================================================
 
+-- 1. Ensure required columns exist on public.companies
+ALTER TABLE public.companies
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS website TEXT,
+  ADD COLUMN IF NOT EXISTS hr_name TEXT,
+  ADD COLUMN IF NOT EXISTS hr_phone TEXT,
+  ADD COLUMN IF NOT EXISTS industry TEXT,
+  ADD COLUMN IF NOT EXISTS logo_url TEXT,
+  ADD COLUMN IF NOT EXISTS job_role TEXT,
+  ADD COLUMN IF NOT EXISTS salary_package TEXT,
+  ADD COLUMN IF NOT EXISTS job_location TEXT,
+  ADD COLUMN IF NOT EXISTS job_type TEXT DEFAULT 'Full-time',
+  ADD COLUMN IF NOT EXISTS description TEXT,
+  ADD COLUMN IF NOT EXISTS requirements TEXT[],
+  ADD COLUMN IF NOT EXISTS max_backlogs INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS allowed_branches TEXT[],
+  ADD COLUMN IF NOT EXISTS bond_details TEXT,
+  ADD COLUMN IF NOT EXISTS selection_process TEXT[];
+
+-- 2. Ensure required columns exist on public.tests
+ALTER TABLE public.tests
+  ADD COLUMN IF NOT EXISTS registration_start TIMESTAMPTZ DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS registration_deadline TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS created_by_role TEXT DEFAULT 'admin';
+
+-- 3. Ensure drive_rounds table exists
+CREATE TABLE IF NOT EXISTS public.drive_rounds (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
+  round_number int NOT NULL,
+  round_name text NOT NULL,
+  round_type text NOT NULL CHECK (round_type IN ('test', 'interview', 'group_discussion', 'other')),
+  test_id uuid REFERENCES public.tests(id) ON DELETE SET NULL,
+  passing_logic text NOT NULL CHECK (passing_logic IN ('cutoff_score', 'top_n', 'top_percent', 'manual')),
+  passing_value numeric,
+  registration_deadline timestamptz,
+  is_published boolean NOT NULL DEFAULT false,
+  published_at timestamptz,
+  auto_progress boolean NOT NULL DEFAULT false,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now(),
+  CONSTRAINT uq_company_round UNIQUE (company_id, round_number)
+);
+
+-- 4. Ensure round_participants table exists
+CREATE TABLE IF NOT EXISTS public.round_participants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  drive_round_id uuid REFERENCES public.drive_rounds(id) ON DELETE CASCADE NOT NULL,
+  student_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'qualified', 'not_qualified', 'absent')),
+  score numeric,
+  recruiter_notes text,
+  evaluated_by uuid REFERENCES auth.users(id),
+  evaluated_at timestamptz,
+  notified_at timestamptz,
+  CONSTRAINT uq_round_student UNIQUE (drive_round_id, student_id)
+);
+
+-- 5. Enable RLS
+ALTER TABLE public.drive_rounds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.round_participants ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'drive_rounds' AND policyname = 'Students can view drive_rounds'
+  ) THEN
+    CREATE POLICY "Students can view drive_rounds" ON public.drive_rounds FOR SELECT TO authenticated USING (true);
+  END IF;
+END $$;
+
+-- 6. Seed Companies, Assessments, and Rounds
 DO $$
 DECLARE
   v_google_id UUID;
@@ -11,7 +85,7 @@ DECLARE
   v_test_msft UUID;
   v_test_amzn UUID;
 BEGIN
-  -- 1. Insert Companies
+  -- A. Insert Companies
   -- Google
   SELECT id INTO v_google_id FROM public.companies WHERE LOWER(name) = 'google' LIMIT 1;
   IF v_google_id IS NULL THEN
@@ -116,7 +190,7 @@ BEGIN
     ) RETURNING id INTO v_tcs_id;
   END IF;
 
-  -- 2. Insert Standardized Campus Tests
+  -- B. Insert Standardized Campus Tests
   -- Google Test
   SELECT id INTO v_test_google FROM public.tests WHERE title = 'Google Campus OA: Data Structures & Algorithms' LIMIT 1;
   IF v_test_google IS NULL THEN
@@ -225,7 +299,7 @@ BEGIN
     ) RETURNING id INTO v_test_amzn;
   END IF;
 
-  -- 3. Configure Multi-Round Recruitment Drives
+  -- C. Configure Multi-Round Recruitment Drives
   -- Google Rounds
   IF v_google_id IS NOT NULL THEN
     INSERT INTO public.drive_rounds (company_id, round_number, round_name, round_type, test_id, passing_logic, passing_value, is_published, auto_progress)
