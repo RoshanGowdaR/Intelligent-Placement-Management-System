@@ -34,7 +34,7 @@ BEGIN
       'Google Campus Engineering hiring drive for 2026 graduates. Roles across Search, Cloud, Ads, and Core Systems infrastructure.',
       '["Data Structures", "Algorithms", "System Design", "C++", "Java", "Python", "Distributed Systems"]'::jsonb,
       '{"min_cgpa": 7.5, "year_of_passing": 2026}'::jsonb,
-      '["Computer Science", "Information Science", "Electronics & Communication"]'::jsonb
+      ARRAY['Computer Science', 'Information Science', 'Electronics & Communication']::text[]
     ) RETURNING id INTO v_google_id;
   END IF;
 
@@ -60,7 +60,7 @@ BEGIN
       'Microsoft IDC hiring drive for engineering talent. Focus on Azure cloud infrastructure, AI platforms, and developer tooling.',
       '["C#", "C++", "Python", "Data Structures", "Cloud Architecture", "Object Oriented Design"]'::jsonb,
       '{"min_cgpa": 7.0, "year_of_passing": 2026}'::jsonb,
-      '["Computer Science", "Information Science", "Electronics & Communication", "Electrical Engineering"]'::jsonb
+      ARRAY['Computer Science', 'Information Science', 'Electronics & Communication', 'Electrical Engineering']::text[]
     ) RETURNING id INTO v_msft_id;
   END IF;
 
@@ -86,7 +86,7 @@ BEGIN
       'Amazon India campus hiring program. Build high-scale distributed systems and customer-facing web services with AWS.',
       '["Java", "Distributed Systems", "AWS", "SQL / NoSQL", "Problem Solving", "Operating Systems"]'::jsonb,
       '{"min_cgpa": 7.0, "year_of_passing": 2026}'::jsonb,
-      '["Computer Science", "Information Science", "Electronics & Communication"]'::jsonb
+      ARRAY['Computer Science', 'Information Science', 'Electronics & Communication']::text[]
     ) RETURNING id INTO v_amzn_id;
   END IF;
 
@@ -112,7 +112,7 @@ BEGIN
       'Tata Consultancy Services campus hiring drive for Engineering 2026 batch candidates across Digital and Prime delivery tracks.',
       '["Java", "Python", "Data Structures", "Algorithms", "SQL", "React"]'::jsonb,
       '{"min_cgpa": 6.5, "year_of_passing": 2026}'::jsonb,
-      '["Computer Science", "Information Science", "Electronics & Communication"]'::jsonb
+      ARRAY['Computer Science', 'Information Science', 'Electronics & Communication']::text[]
     ) RETURNING id INTO v_tcs_id;
   END IF;
 
