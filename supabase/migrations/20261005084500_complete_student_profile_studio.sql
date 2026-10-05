@@ -1,9 +1,16 @@
-﻿-- Migration: 20261005084500_complete_student_profile_studio.sql
+-- Migration: 20261005084500_complete_student_profile_studio.sql
 -- Description: Adds all columns required by the 10 sections of Student Profile Studio
 --              and sets up the 'avatars' storage bucket with public access and secure RLS.
 
--- 1. Add missing Profile Studio columns to public.profiles
+-- 1. Add all student profile and studio columns to public.profiles
 ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS usn TEXT,
+ADD COLUMN IF NOT EXISTS branch TEXT,
+ADD COLUMN IF NOT EXISTS skills TEXT[] DEFAULT '{}'::text[],
+ADD COLUMN IF NOT EXISTS is_lateral_entry BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS current_semester INTEGER DEFAULT null,
+ADD COLUMN IF NOT EXISTS marks_cards JSONB DEFAULT '[]'::jsonb,
+ADD COLUMN IF NOT EXISTS sgpas JSONB DEFAULT '{}'::jsonb,
 ADD COLUMN IF NOT EXISTS avatar_url TEXT,
 ADD COLUMN IF NOT EXISTS headline TEXT,
 ADD COLUMN IF NOT EXISTS bio TEXT,
@@ -82,3 +89,6 @@ BEGIN
     );
   END IF;
 END $$;
+
+-- 4. Force PostgREST schema cache reload immediately
+NOTIFY pgrst, 'reload schema';

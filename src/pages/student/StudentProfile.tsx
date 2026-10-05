@@ -229,7 +229,7 @@ export default function StudentProfile() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("profiles").update({
+      const payload: Record<string, any> = {
         name: form.name,
         headline: form.title,
         bio: form.summary,
@@ -254,10 +254,50 @@ export default function StudentProfile() {
         profile_completion_percentage: readinessPercentage,
         avatar_url: avatarUrl,
         job_preferences: form.jobPreferences,
-      } as Record<string, any>).eq("id", user.id);
+      };
 
-      if (error) throw error;
-      toast.success("Profile saved successfully");
+      // Resilient save: If Supabase schema cache is missing any column,
+      // dynamically remove the missing column and retry so user data isn't lost
+      let currentPayload = { ...payload };
+      let savedSuccessfully = false;
+      const removedColumns: string[] = [];
+
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const { error } = await supabase
+          .from("profiles")
+          .update(currentPayload)
+          .eq("id", user.id);
+
+        if (!error) {
+          savedSuccessfully = true;
+          break;
+        }
+
+        // Check if error is "Could not find the '<col>' column of 'profiles' in the schema cache"
+        const missingColMatch = error.message?.match(/Could not find the '([^']+)' column of 'profiles'/i);
+        if (missingColMatch && missingColMatch[1]) {
+          const col = missingColMatch[1];
+          delete currentPayload[col];
+          removedColumns.push(col);
+          continue;
+        }
+
+        // If it's another error, stop and throw
+        throw error;
+      }
+
+      if (savedSuccessfully) {
+        if (removedColumns.length > 0) {
+          toast.warning(
+            `Profile saved! Note: Database is missing column(s): ${removedColumns.join(", ")}. Please run the complete SQL migration.`,
+            { duration: 7000 }
+          );
+        } else {
+          toast.success("Profile saved successfully");
+        }
+      } else {
+        throw new Error("Failed to save profile after retrying.");
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to save profile");
     } finally {
