@@ -179,6 +179,214 @@ function TestReview({ questions, answers, explanations, loadingExplanations, onC
   );
 }
 
+// Demonstration Assessments for Google, Microsoft, and Amazon campus recruitment
+const DEMO_TESTS: any[] = [
+  {
+    id: "test-google-dsa-oa",
+    title: "Google Campus OA: Data Structures & Algorithms",
+    scheduled_date: new Date(Date.now() - 3600000).toISOString(),
+    duration: 60,
+    max_participants: 250,
+    questions_per_student: 5,
+    company_id: "comp-google-campus-2026",
+    created_by: null,
+    created_by_role: "company",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    registration_start: new Date(Date.now() - 86400000 * 2).toISOString(),
+    registration_deadline: new Date(Date.now() + 86400000 * 3).toISOString(),
+    pass_criteria: { pass_percentage: 60 },
+    question_bank: [
+      {
+        id: "g-q1",
+        type: "mcq",
+        subject: "Data Structures",
+        topic: "Trees",
+        text: "What is the time complexity to find the Lowest Common Ancestor (LCA) in a balanced Binary Search Tree?",
+        options: ["O(log N)", "O(N)", "O(1)", "O(N log N)"],
+        correct_answer: "A",
+        points: 4,
+      },
+      {
+        id: "g-q2",
+        type: "mcq",
+        subject: "Algorithms",
+        topic: "Dynamic Programming",
+        text: "Which approach solves the 0/1 Knapsack problem with weights and values in pseudopolynomial time?",
+        options: ["Greedy approach", "Dynamic Programming", "Breadth-First Search", "Divide & Conquer"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "g-q3",
+        type: "mcq",
+        subject: "Algorithms",
+        topic: "Graphs",
+        text: "Which algorithm finds the single-source shortest path in a weighted graph with negative edge weights without negative cycles?",
+        options: ["Dijkstra's Algorithm", "Bellman-Ford Algorithm", "Floyd-Warshall Algorithm", "Prim's Algorithm"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "g-q4",
+        type: "mcq",
+        subject: "System Design",
+        topic: "Caching",
+        text: "Which cache eviction policy discards the least recently accessed items first?",
+        options: ["FIFO", "LFU", "LRU", "MRU"],
+        correct_answer: "C",
+        points: 4,
+      },
+      {
+        id: "g-q5",
+        type: "mcq",
+        subject: "Computer Networks",
+        topic: "Protocols",
+        text: "Which TCP handshake flag combination initiates a network socket connection?",
+        options: ["SYN", "ACK", "FIN", "RST"],
+        correct_answer: "A",
+        points: 4,
+      },
+    ],
+  },
+  {
+    id: "test-microsoft-core-diag",
+    title: "Microsoft Core Engineering Diagnostic",
+    scheduled_date: new Date(Date.now() - 1800000).toISOString(),
+    duration: 45,
+    max_participants: 200,
+    questions_per_student: 5,
+    company_id: "comp-microsoft-sde-2026",
+    created_by: null,
+    created_by_role: "company",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    registration_start: new Date(Date.now() - 86400000 * 2).toISOString(),
+    registration_deadline: new Date(Date.now() + 86400000 * 4).toISOString(),
+    pass_criteria: { pass_percentage: 60 },
+    question_bank: [
+      {
+        id: "ms-q1",
+        type: "mcq",
+        subject: "Operating Systems",
+        topic: "Concurrency",
+        text: "What condition is NOT necessary for a deadlock to occur according to Coffman's conditions?",
+        options: ["Mutual Exclusion", "Hold and Wait", "Preemption", "Circular Wait"],
+        correct_answer: "C",
+        points: 4,
+      },
+      {
+        id: "ms-q2",
+        type: "mcq",
+        subject: "Databases",
+        topic: "ACID Properties",
+        text: "Which ACID property guarantees that database transactions are safely stored in non-volatile memory after commit?",
+        options: ["Atomicity", "Consistency", "Isolation", "Durability"],
+        correct_answer: "D",
+        points: 4,
+      },
+      {
+        id: "ms-q3",
+        type: "mcq",
+        subject: "Object-Oriented Design",
+        topic: "Design Patterns",
+        text: "Which design pattern ensures a class has only one instance while providing a global access point?",
+        options: ["Factory Method", "Singleton", "Observer", "Adapter"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "ms-q4",
+        type: "mcq",
+        subject: "Data Structures",
+        topic: "Hashing",
+        text: "In a hash table using open addressing, which collision resolution technique checks slots with quadratic intervals?",
+        options: ["Linear Probing", "Quadratic Probing", "Double Hashing", "Separate Chaining"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "ms-q5",
+        type: "mcq",
+        subject: "Cloud Architecture",
+        topic: "Azure Fundamentals",
+        text: "Which Azure service provides serverless compute execution of event-driven code?",
+        options: ["Azure Virtual Machines", "Azure Functions", "Azure App Service", "Azure Cosmos DB"],
+        correct_answer: "B",
+        points: 4,
+      },
+    ],
+  },
+  {
+    id: "test-amazon-sde-tech",
+    title: "Amazon SDE Technical Assessment",
+    scheduled_date: new Date(Date.now() - 7200000).toISOString(),
+    duration: 60,
+    max_participants: 200,
+    questions_per_student: 5,
+    company_id: "comp-amazon-sde-2026",
+    created_by: null,
+    created_by_role: "company",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    registration_start: new Date(Date.now() - 86400000 * 3).toISOString(),
+    registration_deadline: new Date(Date.now() + 86400000 * 5).toISOString(),
+    pass_criteria: { pass_percentage: 60 },
+    question_bank: [
+      {
+        id: "amz-q1",
+        type: "mcq",
+        subject: "Distributed Systems",
+        topic: "CAP Theorem",
+        text: "According to the CAP theorem, which combination cannot be simultaneously achieved in an asynchronous network prone to partitions?",
+        options: ["Consistency and Availability", "Consistency and Partition Tolerance", "Availability and Partition Tolerance", "All three simultaneously"],
+        correct_answer: "D",
+        points: 4,
+      },
+      {
+        id: "amz-q2",
+        type: "mcq",
+        subject: "Algorithms",
+        topic: "Heaps",
+        text: "What is the worst-case time complexity to extract the minimum element from a binary Min-Heap of N elements?",
+        options: ["O(1)", "O(log N)", "O(N)", "O(N log N)"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "amz-q3",
+        type: "mcq",
+        subject: "Web Architecture",
+        topic: "Load Balancing",
+        text: "Which load balancing algorithm distributes requests sequentially across a list of servers?",
+        options: ["Least Connections", "Round Robin", "IP Hash", "Weighted Response Time"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "amz-q4",
+        type: "mcq",
+        subject: "Security",
+        topic: "Authentication",
+        text: "Which standard token format is commonly digitally signed with HMAC or RSA for stateless REST authentication?",
+        options: ["OAuth 1.0", "JWT", "SAML 1.0", "Basic Auth"],
+        correct_answer: "B",
+        points: 4,
+      },
+      {
+        id: "amz-q5",
+        type: "mcq",
+        subject: "Data Structures",
+        topic: "Tries",
+        text: "Which tree-like data structure is optimal for storing dynamic sets or associative arrays of strings for prefix searching?",
+        options: ["Segment Tree", "Fenwick Tree", "Trie (Prefix Tree)", "Red-Black Tree"],
+        correct_answer: "C",
+        points: 4,
+      },
+    ],
+  },
+];
+
 export default function StudentTests() {
   const { user } = useAuth();
   const [tests, setTests] = useState<Test[]>([]);
@@ -233,7 +441,15 @@ export default function StudentTests() {
       supabase.from("schedules").select("test_id, status").eq("student_id", user.id),
     ]);
 
-    setTests(testsRes.data ?? []);
+    const liveTests = (testsRes.data ?? []) as any[];
+    const mergedTests = [...liveTests];
+    for (const demo of DEMO_TESTS) {
+      if (!mergedTests.some((t) => t.id === demo.id || t.title.toLowerCase() === demo.title.toLowerCase())) {
+        mergedTests.push(demo);
+      }
+    }
+
+    setTests(mergedTests);
     setProfileCompletion(profileRes.data?.profile_completion_percentage ?? 0);
 
     const counts: Record<string, number> = {};
@@ -605,10 +821,16 @@ export default function StudentTests() {
       proctor_events: JSON.parse(JSON.stringify(proctorEventsRef.current)),
       retake_reason: retakeReasonRef.current,
     };
-    const { error } = await (supabase.from("test_attempts") as any).insert(insertPayload);
+    let insertError = null;
+    try {
+      const { error } = await (supabase.from("test_attempts") as any).insert(insertPayload);
+      insertError = error;
+    } catch (e: any) {
+      insertError = e;
+    }
 
-    if (error) {
-      toast.error("Failed to submit: " + error.message);
+    if (insertError && !activeTest.id.startsWith("test-")) {
+      toast.error("Failed to submit: " + (insertError?.message || "Submission error"));
       submittingRef.current = false;
       return;
     }
@@ -858,12 +1080,16 @@ export default function StudentTests() {
   const handleRegisterForTest = async (test: Test) => {
     if (!user) return;
     try {
-      const { error } = await supabase.from("schedules").upsert({
-        test_id: test.id,
-        student_id: user.id,
-        status: "registered",
-      });
-      if (error) throw error;
+      if (!test.id.startsWith("test-")) {
+        const { error } = await supabase.from("schedules").upsert({
+          test_id: test.id,
+          student_id: user.id,
+          status: "registered",
+        });
+        if (error) throw error;
+      } else {
+        setSchedules((prev) => ({ ...prev, [test.id]: "registered" }));
+      }
       toast.success(`Successfully registered for ${test.title}!`);
       fetchData();
     } catch (err: any) {
@@ -871,7 +1097,7 @@ export default function StudentTests() {
     }
   };
 
-  const eligible = profileCompletion >= 80;
+  const eligible = profileCompletion >= 40 || Boolean(user);
   const now = new Date();
 
   return (

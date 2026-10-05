@@ -137,8 +137,35 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   useAdminSessionTimeout();
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch profile avatar and name
+    supabase
+      .from("profiles")
+      .select("avatar_url, name")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          if (data.avatar_url) setAvatarUrl(data.avatar_url);
+          if (data.name) setProfileName(data.name);
+        }
+      });
+
+    // Listen for custom profile update event from Profile Studio
+    const handleProfileUpdate = (e: any) => {
+      if (e.detail?.avatar_url) setAvatarUrl(e.detail.avatar_url);
+      if (e.detail?.name) setProfileName(e.detail.name);
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
+  }, [user]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -177,8 +204,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     ? pathParts[1].charAt(0).toUpperCase() + pathParts[1].slice(1).replace("-", " ")
     : "Overview";
 
-  const userInitial = user?.email?.charAt(0).toUpperCase() || "A";
-  const displayName = user?.user_metadata?.full_name || (user?.email ? user.email.split("@")[0] : "Candidate");
+  const displayName = profileName || user?.user_metadata?.full_name || (user?.email ? user.email.split("@")[0] : "Candidate");
+  const userInitial = displayName ? displayName.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || "A");
 
   return (
     <SidebarProvider>
@@ -250,8 +277,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 to={role === "admin" ? "/admin/settings" : role === "company" ? "/company" : "/dashboard/profile"}
                 className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full bg-muted/40 hover:bg-muted/70 border border-border/60 transition-all cursor-pointer group"
               >
-                <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white font-extrabold flex items-center justify-center text-xs shadow-sm">
-                  {userInitial}
+                <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white font-extrabold flex items-center justify-center text-xs shadow-sm overflow-hidden border border-border/50">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                  ) : (
+                    userInitial
+                  )}
                 </div>
                 <div className="hidden xl:flex flex-col text-left leading-tight">
                   <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors capitalize truncate max-w-[120px]">

@@ -444,3 +444,41 @@ This section provides a permanent, detailed record of all requirements, feedback
     - Adds company to Admin company listings.
   - **Edit Mode (`/company/onboarding?mode=edit`):** Accessible via the Recruiter Dashboard ("Edit Drive Profile") and the navigation sidebar ("Company Profile"), allowing recruiters to modify and update parameters at any time.
 
+### 9.10. Student Profile Studio, Resume Hub, Recruiter Interview Scheduling & Demonstration Ecosystem
+- **Issue / Request:** 
+  1. No option to add/manage the student resume in Profile Studio Section 01.
+  2. Uploaded profile images in Profile Studio did not reflect in the top-right navbar pill.
+  3. The Placement Pipeline and Student Dashboard metrics showed 0/4 cleared, 0 upcoming assessments, 0 completed, 0% pass rate, and blank Scorecard.
+  4. Recruiters and Admins lacked a "View Profile" option in candidate lists to inspect student portfolios, verified badges, GitHub/LinkedIn links, and download/preview resumes.
+  5. Companies needed the ability to schedule live interviews directly with desired students.
+  6. Demonstration mock data needed for at least 3 major companies (Google, Microsoft, Amazon) with multi-round assessments and live interview tracks.
+- **Solution:**
+  - **Resume / CV Hub in Profile Studio (`StudentProfile.tsx`):**
+    - Section 01 Basics now features a full-width **"Resume / CV Document"** card.
+    - Students can upload PDF resumes up to 10MB to the Supabase `resumes` bucket with progress feedback.
+    - Provides instant preview, "View Fullscreen", "Download PDF", and "Replace Résumé" actions.
+  - **Real-Time Top-Right Navbar Avatar Sync (`DashboardLayout.tsx`):**
+    - Listens for `"profile-updated"` CustomEvents dispatched on avatar upload and profile save.
+    - Automatically updates the top-right navbar pill with the student's photo or fallback initial with zero page reloads.
+  - **Comprehensive Student Profile Dialog (`StudentProfileDialog.tsx`):**
+    - Integrated into Admin Accounts (`AdminStudents.tsx`) and Recruiter Talent Pool (`CompanyCandidates.tsx`).
+    - Displays full avatar, name, USN, branch, CGPA, graduation year, headline, and bio.
+    - Shows verified evidence badges (Verified Student, Resume Attached, Assessment Qualified).
+    - Renders clickable external links (LinkedIn, GitHub, Portfolio, LeetCode, HackerRank).
+    - Includes skills pills, education milestones, project/internship experience timeline, and job preferences.
+    - Includes an integrated resume preview and one-click PDF download card.
+    - Recruiter version includes a direct **"Schedule Interview"** action button.
+  - **Recruiter Candidate Interview Scheduler (`CompanyCandidates.tsx`):**
+    - Recruiters can select candidate, interview round (Round 1, Round 2, HR/Executive), title, date, time, Google Meet link, and preparation notes.
+    - Automatically notifies the candidate and syncs interview schedules.
+  - **Student Meetings & Live Sessions Flow (`StudentMeetings.tsx`):**
+    - Dynamically merges student interview notifications and confirmed campus recruiter sessions (Google Campus Round 2 Technical Interview and Microsoft SDE-1 Architecture Viva).
+    - One-click "Join Interview" launches the Google Meet room.
+  - **High-Fidelity Demonstration Data & Placement Pipeline (`StudentDashboard.tsx`, `StudentCompanies.tsx`, `StudentTests.tsx`, `StudentScoreCard.tsx`):**
+    - **Student Dashboard:** Dynamically presents 3/4 milestones cleared (75% completed), 2 upcoming assessments, 3 completed tests, 88% pass rate, and 4 visiting companies.
+    - **Scorecard:** Renders Grade A, 88% overall aggregate, component breakdown (36/40 technical, 26/30 academic, 18/20 viva, 9/10 verified signals), score trend chart, and 3 completed assessment records.
+    - **Visiting Companies:** Includes Google (₹24-32 LPA), Microsoft (₹18-24 LPA), Amazon (₹16-22 LPA), and TCS (₹9-14 LPA).
+    - **Campus Assessments:** Multi-round assessments with complete question banks for DSA, Core Engineering, and Cloud Systems.
+    - **Supabase Migration:** `supabase/migrations/20261005220000_seed_demonstration_companies_and_assessments.sql` created for automated database seeding.
+
+

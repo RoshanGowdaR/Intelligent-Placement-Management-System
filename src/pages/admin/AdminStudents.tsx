@@ -7,9 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Search, Users, ShieldCheck, Building2, GraduationCap,
-  Filter, CheckCircle2, UserCheck, Shield, ChevronDown
+  Filter, CheckCircle2, UserCheck, Shield, ChevronDown, Eye
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { StudentProfileDialog } from "@/components/profile/StudentProfileDialog";
 
 type Profile = Tables<"profiles">;
 
@@ -24,6 +25,9 @@ interface AccountUser {
   profile_completion_percentage: number;
   usn?: string | null;
   created_at?: string;
+  resume_url?: string | null;
+  avatar_url?: string | null;
+  skills?: string[] | null;
 }
 
 export default function AdminStudents() {
@@ -32,6 +36,8 @@ export default function AdminStudents() {
   const [roleFilter, setRoleFilter] = useState<"all" | "student" | "admin" | "company">("all");
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -92,6 +98,9 @@ export default function AdminStudents() {
             profile_completion_percentage: p.profile_completion_percentage ?? 0,
             usn: p.usn,
             created_at: p.created_at,
+            resume_url: p.resume_url,
+            avatar_url: p.avatar_url,
+            skills: p.skills,
           });
         });
 
@@ -291,7 +300,8 @@ export default function AdminStudents() {
                 <TableHead className="text-xs font-bold uppercase tracking-wider py-4">Branch / Department</TableHead>
                 <TableHead className="text-xs font-bold uppercase tracking-wider py-4">CGPA</TableHead>
                 <TableHead className="text-xs font-bold uppercase tracking-wider py-4">Year</TableHead>
-                <TableHead className="text-xs font-bold uppercase tracking-wider py-4 pr-6 text-right">Status</TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider py-4">Status</TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider py-4 pr-6 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -307,7 +317,7 @@ export default function AdminStudents() {
                     <TableCell className="py-4 pl-6">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                          className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden ${
                             isAdmin
                               ? "bg-purple-600/15 text-purple-600 border border-purple-600/30"
                               : isCompany
@@ -315,7 +325,11 @@ export default function AdminStudents() {
                               : "bg-[#5b51d8]/15 text-[#5b51d8] border border-[#5b51d8]/30"
                           }`}
                         >
-                          {isAdmin ? "AD" : isCompany ? "CO" : u.name ? u.name.charAt(0).toUpperCase() : "S"}
+                          {u.avatar_url ? (
+                            <img src={u.avatar_url} alt={u.name} className="h-full w-full object-cover" />
+                          ) : (
+                            isAdmin ? "AD" : isCompany ? "CO" : u.name ? u.name.charAt(0).toUpperCase() : "S"
+                          )}
                         </div>
                         <div>
                           <div className="font-bold text-xs text-foreground flex items-center gap-1.5">
@@ -392,7 +406,7 @@ export default function AdminStudents() {
                     </TableCell>
 
                     {/* Profile Completion / Status */}
-                    <TableCell className="py-4 pr-6 text-right">
+                    <TableCell className="py-4">
                       {isStudent ? (
                         <Badge
                           variant={u.profile_completion_percentage >= 80 ? "default" : "secondary"}
@@ -411,13 +425,32 @@ export default function AdminStudents() {
                       )}
                     </TableCell>
 
+                    {/* Actions: View Profile */}
+                    <TableCell className="py-4 pr-6 text-right">
+                      {isStudent ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedStudent(u);
+                            setProfileDialogOpen(true);
+                          }}
+                          className="h-8 px-3 rounded-xl border-border text-xs font-bold hover:bg-[#5b51d8] hover:text-white transition-all shadow-sm"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1 text-[#5b51d8]" /> View Profile
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-[10px]">—</span>
+                      )}
+                    </TableCell>
+
                   </TableRow>
                 );
               })}
 
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">
+                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
                     No accounts matching your search and filter criteria.
                   </TableCell>
                 </TableRow>
@@ -426,6 +459,13 @@ export default function AdminStudents() {
           </Table>
         </CardContent>
       </Card>
+
+      <StudentProfileDialog
+        studentId={selectedStudent?.id}
+        initialData={selectedStudent}
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+      />
 
     </div>
   );

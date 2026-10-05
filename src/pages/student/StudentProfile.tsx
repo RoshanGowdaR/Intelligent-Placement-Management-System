@@ -207,6 +207,9 @@ export default function StudentProfile() {
 
       setAvatarUrl(publicUrl);
 
+      // Dispatch event to navbar avatar pill
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatar_url: publicUrl, name: form.name } }));
+
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ avatar_url: publicUrl } as Record<string, any>)
@@ -577,6 +580,86 @@ export default function StudentProfile() {
                     </span>
                   </Button>
                 </label>
+              </div>
+            </div>
+
+            {/* Resume / CV Document Area */}
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border/70 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-foreground">Official Résumé / Curriculum Vitae</h4>
+                      {resumeUrl ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] py-0 px-2 font-bold">
+                          Attached &amp; Active
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-[10px] py-0 px-2">
+                          Not Uploaded Yet
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {resumeUrl
+                        ? "Recruiters and admins can preview and download this PDF when reviewing your candidate profile."
+                        : "Upload your latest 1-page PDF resume (under 5MB). Accepted formats: .pdf"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <label className="cursor-pointer inline-block">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={handleResumeUpload}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={resumeUrl ? "outline" : "default"}
+                      asChild
+                      className={`h-8 text-xs rounded-xl ${!resumeUrl ? "bg-[#5b51d8] hover:bg-[#4d43cc] text-white" : "border-border"}`}
+                      disabled={uploading}
+                    >
+                      <span>
+                        {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
+                        {uploading ? "Uploading PDF..." : resumeUrl ? "Replace Résumé" : "Upload Résumé (PDF)"}
+                      </span>
+                    </Button>
+                  </label>
+
+                  {resumeUrl && (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => window.open(resumeUrl, "_blank")}
+                        className="h-8 text-xs rounded-xl gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        asChild
+                        className="h-8 text-xs rounded-xl gap-1.5"
+                      >
+                        <a href={resumeUrl} download={`${form.name || "Student"}_Resume.pdf`} target="_blank" rel="noreferrer">
+                          <Download className="h-3.5 w-3.5" /> Download
+                        </a>
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 

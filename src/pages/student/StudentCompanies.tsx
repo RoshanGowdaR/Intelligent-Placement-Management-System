@@ -80,22 +80,67 @@ export default function StudentCompanies() {
           }
         }
 
-        // If still empty, supply default active recruiter TCS
-        if (compList.length === 0) {
-          const defaultTCS = {
-            id: "tcs-recruitment-drive",
+        // Demonstration companies guaranteeing at least Google, Microsoft, Amazon, and TCS are present
+        const demoCompanies = [
+          {
+            id: "comp-google-campus-2026",
+            name: "GOOGLE",
+            job_role: "Software Development Engineer (Campus 2026)",
+            salary_package: "24 - 32 LPA",
+            job_location: "Bengaluru / Hyderabad, India",
+            industry: "Internet & Cloud Technology",
+            description: "Google Campus Engineering hiring drive for 2026 graduates. Roles across Search, Cloud, Ads, and Core Systems infrastructure.",
+            skills_priority: ["Data Structures", "Algorithms", "System Design", "C++ / Java / Python", "Distributed Systems"],
+            eligibility_criteria: { min_cgpa: 7.5, year_of_passing: 2026 },
+            allowed_branches: ["Computer Science", "Information Science", "Electronics & Communication"],
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "comp-microsoft-sde-2026",
+            name: "MICROSOFT",
+            job_role: "Software Engineer - Core Platform & Azure",
+            salary_package: "18 - 24 LPA",
+            job_location: "Bengaluru / Hyderabad, Hybrid",
+            industry: "Enterprise Cloud & Software",
+            description: "Microsoft IDC hiring drive for engineering talent. Focus on Azure cloud infrastructure, AI platforms, and developer tooling.",
+            skills_priority: ["C#", "C++", "Python", "Data Structures", "Cloud Architecture", "Object Oriented Design"],
+            eligibility_criteria: { min_cgpa: 7.0, year_of_passing: 2026 },
+            allowed_branches: ["Computer Science", "Information Science", "Electronics & Communication", "Electrical Engineering"],
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "comp-amazon-sde-2026",
+            name: "AMAZON",
+            job_role: "Graduate SDE - AWS Cloud & Systems",
+            salary_package: "16 - 22 LPA",
+            job_location: "Bengaluru / Chennai, India",
+            industry: "E-Commerce & AWS Cloud",
+            description: "Amazon India campus hiring program. Build high-scale distributed systems and customer-facing web services with AWS.",
+            skills_priority: ["Java", "Distributed Systems", "AWS", "SQL / NoSQL", "Problem Solving", "Operating Systems"],
+            eligibility_criteria: { min_cgpa: 7.0, year_of_passing: 2026 },
+            allowed_branches: ["Computer Science", "Information Science", "Electronics & Communication"],
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "comp-tcs-digital-2026",
             name: "TCS",
             job_role: "Software Development Engineer (Digital / Prime)",
-            salary_package: "12 - 18 LPA",
+            salary_package: "9 - 14 LPA",
             job_location: "Bengaluru, Pan-India",
             industry: "Technology & Global IT Services",
-            description: "Tata Consultancy Services campus hiring drive for Engineering 2026 batch candidates.",
-            skills_priority: ["Java", "Python", "Data Structures", "Algorithms", "SQL"],
+            description: "Tata Consultancy Services campus hiring drive for Engineering 2026 batch candidates across Digital and Prime delivery tracks.",
+            skills_priority: ["Java", "Python", "Data Structures", "Algorithms", "SQL", "React"],
             eligibility_criteria: { min_cgpa: 6.5, year_of_passing: 2026 },
             allowed_branches: ["Computer Science", "Information Science", "Electronics & Communication"],
             created_at: new Date().toISOString(),
-          };
-          compList = [defaultTCS];
+          },
+        ];
+
+        // Merge demonstration companies if not already present in the list
+        for (const demo of demoCompanies) {
+          if (!compList.some(c => c.name.toLowerCase() === demo.name.toLowerCase())) {
+            compList.push(demo);
+          }
         }
 
         setCompanies(compList);
