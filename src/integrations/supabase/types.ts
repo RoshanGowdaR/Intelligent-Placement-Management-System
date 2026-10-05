@@ -205,57 +205,120 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_backlogs: number | null
+          achievements: Json | null
+          avatar_url: string | null
+          backlogs: number | null
+          bio: string | null
           branch: string | null
+          certifications: Json | null
           cgpa: number | null
           created_at: string
           current_semester: number | null
+          education: Json | null
           email: string | null
+          experience: Json | null
+          github_url: string | null
+          hackerrank_url: string | null
+          headline: string | null
           id: string
           is_lateral_entry: boolean | null
+          job_preferences: Json | null
+          languages: Json | null
+          leetcode_url: string | null
+          linkedin_url: string | null
+          location: string | null
           marks_cards: Json | null
           name: string | null
+          phone: string | null
+          portfolio_url: string | null
           profile_completion_percentage: number | null
+          projects: Json | null
           resume_url: string | null
           sgpas: Json | null
           skills: string[] | null
+          twitter_url: string | null
           updated_at: string
           usn: string | null
+          verified_evidence: Json | null
           year_of_passing: number | null
         }
         Insert: {
+          active_backlogs?: number | null
+          achievements?: Json | null
+          avatar_url?: string | null
+          backlogs?: number | null
+          bio?: string | null
           branch?: string | null
+          certifications?: Json | null
           cgpa?: number | null
           created_at?: string
           current_semester?: number | null
+          education?: Json | null
           email?: string | null
+          experience?: Json | null
+          github_url?: string | null
+          hackerrank_url?: string | null
+          headline?: string | null
           id: string
           is_lateral_entry?: boolean | null
+          job_preferences?: Json | null
+          languages?: Json | null
+          leetcode_url?: string | null
+          linkedin_url?: string | null
+          location?: string | null
           marks_cards?: Json | null
           name?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
           profile_completion_percentage?: number | null
+          projects?: Json | null
           resume_url?: string | null
           sgpas?: Json | null
           skills?: string[] | null
+          twitter_url?: string | null
           updated_at?: string
           usn?: string | null
+          verified_evidence?: Json | null
           year_of_passing?: number | null
         }
         Update: {
+          active_backlogs?: number | null
+          achievements?: Json | null
+          avatar_url?: string | null
+          backlogs?: number | null
+          bio?: string | null
           branch?: string | null
+          certifications?: Json | null
           cgpa?: number | null
           created_at?: string
           current_semester?: number | null
+          education?: Json | null
           email?: string | null
+          experience?: Json | null
+          github_url?: string | null
+          hackerrank_url?: string | null
+          headline?: string | null
           id?: string
           is_lateral_entry?: boolean | null
+          job_preferences?: Json | null
+          languages?: Json | null
+          leetcode_url?: string | null
+          linkedin_url?: string | null
+          location?: string | null
           marks_cards?: Json | null
           name?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
           profile_completion_percentage?: number | null
+          projects?: Json | null
           resume_url?: string | null
           sgpas?: Json | null
           skills?: string[] | null
+          twitter_url?: string | null
           updated_at?: string
           usn?: string | null
+          verified_evidence?: Json | null
           year_of_passing?: number | null
         }
         Relationships: []

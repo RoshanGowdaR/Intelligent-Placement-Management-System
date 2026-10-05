@@ -55,8 +55,18 @@ export default function StudentProfile() {
     usn: "",
     branch: "",
     yearOfPassing: "",
+    jobPreferences: {
+      roles: "Full-Stack Developer, Backend Engineer, SDE-1",
+      workMode: "hybrid",
+      employmentType: "full_time",
+      locations: "Bengaluru, Remote",
+      noticePeriod: "immediate",
+      expectedCtc: "₹8–12 LPA",
+    },
   });
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [isLateralEntry, setIsLateralEntry] = useState<boolean | null>(null);
   const [currentSemester, setCurrentSemester] = useState<number | null>(null);
@@ -94,8 +104,17 @@ export default function StudentProfile() {
           usn: d.usn ?? "",
           branch: d.branch ?? "",
           yearOfPassing: d.year_of_passing ? String(d.year_of_passing) : "",
+          jobPreferences: d.job_preferences ? {
+            roles: d.job_preferences.roles ?? prev.jobPreferences.roles,
+            workMode: d.job_preferences.workMode ?? prev.jobPreferences.workMode,
+            employmentType: d.job_preferences.employmentType ?? prev.jobPreferences.employmentType,
+            locations: d.job_preferences.locations ?? prev.jobPreferences.locations,
+            noticePeriod: d.job_preferences.noticePeriod ?? prev.jobPreferences.noticePeriod,
+            expectedCtc: d.job_preferences.expectedCtc ?? prev.jobPreferences.expectedCtc,
+          } : prev.jobPreferences,
         }));
 
+        setAvatarUrl(d.avatar_url ?? null);
         setResumeUrl(d.resume_url ?? null);
         setIsLateralEntry(d.is_lateral_entry ?? null);
         setCurrentSemester(d.current_semester ?? null);
@@ -157,6 +176,55 @@ export default function StudentProfile() {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Avatar image must be under 2MB");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file (PNG, JPG, WEBP)");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const fileName = `${user.id}/avatar_${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+
+      setAvatarUrl(publicUrl);
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl } as Record<string, any>)
+        .eq("id", user.id);
+
+      if (updateError) {
+        console.warn("Could not immediately update profiles table:", updateError.message);
+      }
+
+      toast.success("Profile photo uploaded successfully!");
+    } catch (err: any) {
+      console.error("Avatar upload failed:", err);
+      toast.error(err.message || "Failed to upload profile photo");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -184,6 +252,8 @@ export default function StudentProfile() {
         branch: form.branch,
         year_of_passing: parseInt(form.yearOfPassing) || null,
         profile_completion_percentage: readinessPercentage,
+        avatar_url: avatarUrl,
+        job_preferences: form.jobPreferences,
       } as Record<string, any>).eq("id", user.id);
 
       if (error) throw error;
@@ -425,16 +495,46 @@ export default function StudentProfile() {
 
             {/* Photo Area */}
             <div className="flex items-center gap-4 pt-2">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white font-display font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0">
-                {userInitial}
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white font-display font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 overflow-hidden relative border border-border/40">
+                {uploadingAvatar ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                ) : avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={form.name || "Student profile photo"}
+                    className="h-full w-full object-cover rounded-2xl"
+                  />
+                ) : (
+                  <span>{userInitial}</span>
+                )}
               </div>
               <div>
                 <h4 className="text-xs font-bold text-foreground">Profile photo</h4>
                 <p className="text-[11px] text-muted-foreground">A clear headshot. Used on your public profile.</p>
                 <label className="cursor-pointer inline-block mt-2">
-                  <input type="file" accept="image/*" className="hidden" />
-                  <Button type="button" size="sm" variant="outline" asChild className="h-7 text-[11px] rounded-lg border-border">
-                    <span><Upload className="h-3 w-3 mr-1" /> Upload photo</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/jpg"
+                    className="hidden"
+                    disabled={uploadingAvatar}
+                    onChange={handleAvatarUpload}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    asChild
+                    className="h-7 text-[11px] rounded-lg border-border"
+                    disabled={uploadingAvatar}
+                  >
+                    <span>
+                      {uploadingAvatar ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Upload className="h-3 w-3 mr-1" />
+                      )}
+                      {uploadingAvatar ? "Uploading..." : avatarUrl ? "Change photo" : "Upload photo"}
+                    </span>
                   </Button>
                 </label>
               </div>
@@ -936,7 +1036,13 @@ export default function StudentProfile() {
                 <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Open to Roles</Label>
                 <Input
                   placeholder="Full-Stack Developer, Backend Engineer..."
-                  defaultValue="Full-Stack Developer, Backend Engineer, SDE-1"
+                  value={form.jobPreferences.roles}
+                  onChange={(e) =>
+                    setForm(prev => ({
+                      ...prev,
+                      jobPreferences: { ...prev.jobPreferences, roles: e.target.value },
+                    }))
+                  }
                   className="h-10 rounded-xl bg-muted/30 border-border"
                 />
               </div>
@@ -945,7 +1051,15 @@ export default function StudentProfile() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Work Mode</Label>
-                  <Select defaultValue="hybrid">
+                  <Select
+                    value={form.jobPreferences.workMode}
+                    onValueChange={(val) =>
+                      setForm(prev => ({
+                        ...prev,
+                        jobPreferences: { ...prev.jobPreferences, workMode: val },
+                      }))
+                    }
+                  >
                     <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
@@ -959,7 +1073,15 @@ export default function StudentProfile() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Employment Type</Label>
-                  <Select defaultValue="full_time">
+                  <Select
+                    value={form.jobPreferences.employmentType}
+                    onValueChange={(val) =>
+                      setForm(prev => ({
+                        ...prev,
+                        jobPreferences: { ...prev.jobPreferences, employmentType: val },
+                      }))
+                    }
+                  >
                     <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
@@ -978,14 +1100,28 @@ export default function StudentProfile() {
                   <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Preferred Locations</Label>
                   <Input
                     placeholder="Bengaluru, Remote"
-                    defaultValue="Bengaluru, Remote"
+                    value={form.jobPreferences.locations}
+                    onChange={(e) =>
+                      setForm(prev => ({
+                        ...prev,
+                        jobPreferences: { ...prev.jobPreferences, locations: e.target.value },
+                      }))
+                    }
                     className="h-10 rounded-xl bg-muted/30 border-border"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Notice Period</Label>
-                  <Select defaultValue="immediate">
+                  <Select
+                    value={form.jobPreferences.noticePeriod}
+                    onValueChange={(val) =>
+                      setForm(prev => ({
+                        ...prev,
+                        jobPreferences: { ...prev.jobPreferences, noticePeriod: val },
+                      }))
+                    }
+                  >
                     <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border text-xs">
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
@@ -1003,7 +1139,13 @@ export default function StudentProfile() {
                 <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Expected CTC</Label>
                 <Input
                   placeholder="e.g. ₹6–8 LPA"
-                  defaultValue="₹8–12 LPA"
+                  value={form.jobPreferences.expectedCtc}
+                  onChange={(e) =>
+                    setForm(prev => ({
+                      ...prev,
+                      jobPreferences: { ...prev.jobPreferences, expectedCtc: e.target.value },
+                    }))
+                  }
                   className="h-10 rounded-xl bg-muted/30 border-border"
                 />
               </div>
