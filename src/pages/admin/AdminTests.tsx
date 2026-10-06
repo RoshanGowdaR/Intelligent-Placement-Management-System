@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -330,28 +330,98 @@ export default function AdminTests() {
       proctor_config: JSON.parse(JSON.stringify(proctorConfig)),
     } as Record<string, unknown>;
 
+    const parseMissingColumnName = (err: any): string | null => {
+      if (!err) return null;
+      const str = `${err.message || ""} ${err.details || ""} ${err.hint || ""}`;
+      const m1 = str.match(/Could not find the '([^']+)' column of '(?:public\.)?tests'/i);
+      if (m1) return m1[1];
+      const m2 = str.match(/column "?([^"\s.]+)"? of relation "tests" does not exist/i);
+      if (m2) return m2[1];
+      const m3 = str.match(/column tests\.([a-zA-Z0-9_]+) does not exist/i);
+      if (m3) return m3[1];
+      return null;
+    };
+
+    let currentPayload = { ...payload };
+    let savedTest: any = null;
+    const removedColumns: string[] = [];
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if (editing) {
+        const { data, error } = await (supabase.from("tests") as any)
+          .update(currentPayload)
+          .eq("id", editing.id)
+          .select()
+          .maybeSingle();
+
+        if (!error) {
+          savedTest = data || { id: editing.id };
+          break;
+        }
+
+        const missingCol = parseMissingColumnName(error);
+        if (missingCol && missingCol in currentPayload) {
+          delete currentPayload[missingCol];
+          removedColumns.push(missingCol);
+          continue;
+        }
+
+        toast.error(error.message);
+        return;
+      } else {
+        const { data, error } = await (supabase.from("tests") as any)
+          .insert(currentPayload)
+          .select()
+          .single();
+
+        if (!error) {
+          savedTest = data;
+          break;
+        }
+
+        const missingCol = parseMissingColumnName(error);
+        if (missingCol && missingCol in currentPayload) {
+          delete currentPayload[missingCol];
+          removedColumns.push(missingCol);
+          continue;
+        }
+
+        toast.error(error.message);
+        return;
+      }
+    }
+
+    if (!savedTest) {
+      toast.error("Failed to save assessment. Please check database permissions.");
+      return;
+    }
+
     if (editing) {
-      const { error } = await (supabase.from("tests") as any).update(payload).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Test updated");
+      toast.success("Assessment updated successfully");
       auditLog("test_updated", "tests", editing.id, { title: form.title });
     } else {
-      const { data: newTest, error } = await (supabase.from("tests") as any).insert(payload).select().single();
-      if (error) { toast.error(error.message); return; }
-      toast.success("Test created");
-      auditLog("test_created", "tests", newTest.id, { title: form.title });
+      toast.success("Assessment created successfully");
+      auditLog("test_created", "tests", savedTest.id, { title: form.title });
 
       // Send email notifications
       try {
         const displayDate = formatToIST12hr(scheduledISO);
         await supabase.functions.invoke("send-test-notification", {
-          body: { testId: newTest.id, testTitle: form.title, scheduledDate: displayDate },
+          body: { testId: savedTest.id, testTitle: form.title, scheduledDate: displayDate },
         });
         toast.success("Email notifications sent to students");
       } catch {
         toast.info("Test created but notifications could not be sent");
       }
     }
+
+    if (removedColumns.length > 0) {
+      toast.warning(
+        `Assessment saved! Note: Database 'tests' table is missing column(s): ${removedColumns.join(", ")}. Please run the SQL migration in Supabase SQL editor to enable all proctoring configurations.`,
+        { duration: 8000 }
+      );
+    }
+
     setOpen(false);
     resetForm();
     fetchTests();
@@ -412,6 +482,9 @@ export default function AdminTests() {
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Test" : "Create Test"}</DialogTitle>
+              <DialogDescription>
+                Configure placement assessment parameters, question bank, and proctoring settings.
+              </DialogDescription>
             </DialogHeader>
             <Tabs defaultValue="details" className="mt-2">
               <TabsList className="w-full">
@@ -811,6 +884,9 @@ export default function AdminTests() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Results — {viewingTest?.title}</DialogTitle>
+            <DialogDescription>
+              Review student assessment performance and completion results.
+            </DialogDescription>
           </DialogHeader>
           <Table>
             <TableHeader>

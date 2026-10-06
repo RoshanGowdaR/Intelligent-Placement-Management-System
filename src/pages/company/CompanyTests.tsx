@@ -129,26 +129,51 @@ export default function CompanyTests() {
         },
       ];
 
-      const { data: insertedTest, error } = await supabase
-        .from("tests")
-        .insert({
-          title: title.trim(),
-          scheduled_date: new Date(scheduledDate).toISOString(),
-          duration: Number(duration) || 60,
-          max_participants: Number(maxParticipants) || 100,
-          pass_criteria: { pass_percentage: Number(passPercentage) || 50 },
-          registration_start: new Date().toISOString(),
-          registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
-          created_by: user?.id,
-          created_by_role: "company" as any,
-          company_id: comp?.id || null,
-          question_bank: sampleQuestionBank,
-          questions_per_student: sampleQuestionBank.length,
-        })
-        .select()
-        .single();
+      let payload: Record<string, any> = {
+        title: title.trim(),
+        scheduled_date: new Date(scheduledDate).toISOString(),
+        duration: Number(duration) || 60,
+        max_participants: Number(maxParticipants) || 100,
+        pass_criteria: { pass_percentage: Number(passPercentage) || 50 },
+        registration_start: new Date().toISOString(),
+        registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
+        created_by: user?.id,
+        created_by_role: "company" as any,
+        company_id: comp?.id || null,
+        question_bank: sampleQuestionBank,
+        questions_per_student: sampleQuestionBank.length,
+      };
 
-      if (error) throw error;
+      let insertedTest: any = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data, error: insertError } = await supabase
+          .from("tests")
+          .insert(payload)
+          .select()
+          .single();
+
+        if (!insertError) {
+          insertedTest = data;
+          break;
+        }
+
+        const errText = `${insertError.message || ""} ${(insertError as any).details || ""} ${(insertError as any).hint || ""}`;
+        const missingColMatch =
+          errText.match(/Could not find the '([^']+)' column of '(?:public\.)?tests'/i) ||
+          errText.match(/column "?([^"\s.]+)"? of relation "tests" does not exist/i) ||
+          errText.match(/column tests\.([a-zA-Z0-9_]+) does not exist/i);
+
+        if (missingColMatch && missingColMatch[1] && missingColMatch[1] in payload) {
+          delete payload[missingColMatch[1]];
+          continue;
+        }
+
+        throw insertError;
+      }
+
+      if (!insertedTest) {
+        throw new Error("Failed creating assessment after retrying with compatible columns.");
+      }
 
       // Broadcast notification to students
       try {
