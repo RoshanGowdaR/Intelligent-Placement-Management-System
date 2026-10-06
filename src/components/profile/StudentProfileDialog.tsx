@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Mail, Phone, MapPin, Globe, Github, Linkedin, ExternalLink,
   Download, Eye, ShieldCheck, GraduationCap, Briefcase, Award,
-  Languages, FileText, CalendarDays
+  Languages, FileText, CalendarDays, Code, CheckCircle2
 } from "lucide-react";
+import { formatExternalUrl } from "@/lib/utils";
 
 interface StudentProfileDialogProps {
   studentId: string | null;
@@ -51,14 +52,15 @@ export function StudentProfileDialog({
   const userInitial = displayName.charAt(0).toUpperCase();
   const headline = profile.headline || "Engineering Candidate";
   const bio = profile.bio || "Candidate pursuing engineering placements with proven academic and technical background.";
-  const skills: string[] = Array.isArray(profile.skills) ? profile.skills : ["React", "TypeScript", "Node.js", "Python", "SQL"];
+  const skills: string[] = Array.isArray(profile.skills) ? profile.skills : [];
   const experiences: any[] = Array.isArray(profile.experience) ? profile.experience : [];
   const projects: any[] = Array.isArray(profile.projects) ? profile.projects : [];
   const education: any[] = Array.isArray(profile.education) && profile.education.length > 0
     ? profile.education
-    : [{ degree: `B.Tech in ${profile.branch || "Computer Science"}`, institution: "Engineering College", year: profile.year_of_passing ? String(profile.year_of_passing) : "2026", score: profile.cgpa ? `${profile.cgpa} CGPA` : "8.5 CGPA" }];
+    : [{ degree: `B.Tech in ${profile.branch || "Computer Science"}`, institution: "Engineering College", year: profile.year_of_passing ? String(profile.year_of_passing) : "2026", score: profile.cgpa ? `${profile.cgpa} CGPA` : "" }];
+  const certifications: any[] = Array.isArray(profile.certifications) ? profile.certifications : [];
   const achievements: string[] = Array.isArray(profile.achievements) ? profile.achievements : [];
-  const languages: string[] = Array.isArray(profile.languages) ? profile.languages : ["English", "Kannada", "Hindi"];
+  const languages: string[] = Array.isArray(profile.languages) ? profile.languages : [];
   const jobPrefs = profile.job_preferences || {
     roles: "Full-Stack Developer, SDE-1",
     workMode: "Hybrid / Remote",
@@ -66,6 +68,8 @@ export function StudentProfileDialog({
     expectedCtc: "₹8–14 LPA",
     noticePeriod: "Immediate",
   };
+
+  const resumeFormattedUrl = formatExternalUrl(profile.resume_url);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,14 +128,14 @@ export function StudentProfileDialog({
                   <CalendarDays className="h-3.5 w-3.5" /> Schedule Interview
                 </Button>
               )}
-              {profile.resume_url && (
+              {resumeFormattedUrl && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => window.open(profile.resume_url, "_blank")}
+                  onClick={() => window.open(resumeFormattedUrl, "_blank")}
                   className="rounded-xl bg-black/20 border-white/40 text-white hover:bg-black/30 font-bold text-xs gap-1.5"
                 >
-                  <Download className="h-3.5 w-3.5" /> Download Résumé
+                  <Download className="h-3.5 w-3.5" /> View / Download Résumé
                 </Button>
               )}
             </div>
@@ -158,10 +162,10 @@ export function StudentProfileDialog({
                 <MapPin className="h-3.5 w-3.5 text-primary" /> {profile.location}
               </span>
             )}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
               {profile.linkedin_url && (
                 <a
-                  href={profile.linkedin_url}
+                  href={formatExternalUrl(profile.linkedin_url)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 font-bold text-[11px]"
@@ -171,7 +175,7 @@ export function StudentProfileDialog({
               )}
               {profile.github_url && (
                 <a
-                  href={profile.github_url}
+                  href={formatExternalUrl(profile.github_url)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground/20 font-bold text-[11px]"
@@ -181,7 +185,7 @@ export function StudentProfileDialog({
               )}
               {profile.portfolio_url && (
                 <a
-                  href={profile.portfolio_url}
+                  href={formatExternalUrl(profile.portfolio_url)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 font-bold text-[11px]"
@@ -191,7 +195,7 @@ export function StudentProfileDialog({
               )}
               {profile.leetcode_url && (
                 <a
-                  href={profile.leetcode_url}
+                  href={formatExternalUrl(profile.leetcode_url)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 font-bold text-[11px]"
@@ -209,16 +213,18 @@ export function StudentProfileDialog({
           </div>
 
           {/* Technical Skills */}
-          <div className="space-y-2">
-            <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground">Technical Skills &amp; Stack</h4>
-            <div className="flex flex-wrap gap-1.5">
-              {skills.map((skill) => (
-                <Badge key={skill} variant="secondary" className="text-xs font-semibold px-2.5 py-1 rounded-lg">
-                  {skill}
-                </Badge>
-              ))}
+          {skills.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground">Technical Skills &amp; Stack</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {skills.map((skill) => (
+                  <Badge key={skill} variant="secondary" className="text-xs font-semibold px-2.5 py-1 rounded-lg">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Official Resume View / Download Card */}
           <div className="p-4 rounded-2xl bg-[#5b51d8]/5 border border-[#5b51d8]/20 space-y-3">
@@ -230,27 +236,27 @@ export function StudentProfileDialog({
                 <div>
                   <h4 className="text-xs font-bold text-foreground">Candidate Official Résumé (PDF)</h4>
                   <p className="text-[11px] text-muted-foreground">
-                    {profile.resume_url ? "Full candidate resume attached and verified by college placement office." : "No resume uploaded by candidate."}
+                    {resumeFormattedUrl ? "Candidate resume attached. Click view fullscreen or download below." : "No resume uploaded by candidate."}
                   </p>
                 </div>
               </div>
 
-              {profile.resume_url ? (
+              {resumeFormattedUrl ? (
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => window.open(profile.resume_url, "_blank")}
+                    onClick={() => window.open(resumeFormattedUrl, "_blank")}
                     className="h-8 text-xs rounded-xl gap-1.5 border-border"
                   >
-                    <Eye className="h-3.5 w-3.5" /> View Fullscreen
+                    <Eye className="h-3.5 w-3.5" /> View Document
                   </Button>
                   <Button
                     size="sm"
                     asChild
                     className="h-8 text-xs rounded-xl gap-1.5 bg-[#5b51d8] hover:bg-[#4d43cc] text-white"
                   >
-                    <a href={profile.resume_url} download={`${displayName}_Resume.pdf`} target="_blank" rel="noreferrer">
+                    <a href={resumeFormattedUrl} download={`${displayName}_Resume.pdf`} target="_blank" rel="noreferrer">
                       <Download className="h-3.5 w-3.5" /> Download PDF
                     </a>
                   </Button>
@@ -263,10 +269,84 @@ export function StudentProfileDialog({
             </div>
           </div>
 
-          {/* Education & Experience Grid */}
+          {/* 1. DEDICATED FEATURED PROJECTS SECTION */}
+          <div className="space-y-3 p-5 rounded-2xl bg-card border border-border/70 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Code className="h-4 w-4 text-[#5b51d8]" /> Featured Projects ({projects.length})
+              </h4>
+            </div>
+
+            {projects.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {projects.map((proj: any, i: number) => {
+                  const repoUrl = formatExternalUrl(proj.repo_url || proj.link);
+                  const liveUrl = formatExternalUrl(proj.live_url);
+
+                  return (
+                    <div key={i} className="p-4 rounded-xl bg-muted/20 border border-border/60 flex flex-col justify-between space-y-3">
+                      <div className="space-y-1.5">
+                        <h5 className="font-bold text-sm text-foreground flex items-center justify-between gap-2">
+                          <span>{proj.title}</span>
+                        </h5>
+                        {proj.description && (
+                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                            {proj.description}
+                          </p>
+                        )}
+                        {proj.stack && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {proj.stack.split(",").map((s: string, sIdx: number) => (
+                              <span key={sIdx} className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+                                {s.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Project Action Links: GitHub Repo (Must) & Live Demo (Optional) */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                        {repoUrl && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="h-7 text-[11px] rounded-lg gap-1.5 font-bold border-border"
+                          >
+                            <a href={repoUrl} target="_blank" rel="noreferrer">
+                              <Github className="h-3 w-3" /> Repository
+                            </a>
+                          </Button>
+                        )}
+                        {liveUrl && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            asChild
+                            className="h-7 text-[11px] rounded-lg gap-1.5 font-bold bg-[#5b51d8]/10 text-[#5b51d8] hover:bg-[#5b51d8]/20"
+                          >
+                            <a href={liveUrl} target="_blank" rel="noreferrer">
+                              <ExternalLink className="h-3 w-3" /> Live App
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-6 text-center text-xs text-muted-foreground rounded-xl border border-dashed border-border/60">
+                No individual projects listed yet.
+              </div>
+            )}
+          </div>
+
+          {/* 2. DEDICATED EXPERIENCE & EDUCATION GRID */}
           <div className="grid md:grid-cols-2 gap-6">
             
-            {/* Education */}
+            {/* Education History */}
             <div className="space-y-3 p-4 rounded-2xl bg-muted/20 border border-border/60">
               <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <GraduationCap className="h-4 w-4 text-[#5b51d8]" /> Education History
@@ -275,51 +355,87 @@ export function StudentProfileDialog({
                 {education.map((edu: any, i: number) => (
                   <div key={i} className="text-xs border-l-2 border-[#5b51d8] pl-3 py-0.5 space-y-0.5">
                     <div className="font-bold text-foreground">{edu.degree}</div>
-                    <div className="text-muted-foreground">{edu.institution} • {edu.year}</div>
-                    <div className="text-[#5b51d8] font-bold">{edu.score}</div>
+                    <div className="text-muted-foreground">{edu.institution} {edu.year ? `• ${edu.year}` : ""}</div>
+                    {edu.score && <div className="text-[#5b51d8] font-bold">{edu.score}</div>}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Experience / Projects */}
+            {/* Experience History */}
             <div className="space-y-3 p-4 rounded-2xl bg-muted/20 border border-border/60">
               <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Briefcase className="h-4 w-4 text-[#5b51d8]" /> Experience &amp; Projects
+                <Briefcase className="h-4 w-4 text-[#5b51d8]" /> Work Experience &amp; Internships
               </h4>
               <div className="space-y-3">
                 {experiences.length > 0 ? (
                   experiences.map((exp: any, i: number) => (
                     <div key={i} className="text-xs border-l-2 border-emerald-500 pl-3 py-0.5 space-y-0.5">
-                      <div className="font-bold text-foreground">{exp.role} @ {exp.company}</div>
-                      <div className="text-muted-foreground">{exp.duration}</div>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2">{exp.description}</p>
-                    </div>
-                  ))
-                ) : projects.length > 0 ? (
-                  projects.map((proj: any, i: number) => (
-                    <div key={i} className="text-xs border-l-2 border-purple-500 pl-3 py-0.5 space-y-0.5">
-                      <div className="font-bold text-foreground flex items-center gap-1">
-                        <span>{proj.title}</span>
-                        {proj.link && (
-                          <a href={proj.link} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">{proj.stack}</div>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2">{proj.description}</p>
+                      <div className="font-bold text-foreground">{exp.role} {exp.company ? `@ ${exp.company}` : ""}</div>
+                      {exp.duration && <div className="text-muted-foreground">{exp.duration}</div>}
+                      {exp.description && <p className="text-[11px] text-muted-foreground line-clamp-3">{exp.description}</p>}
                     </div>
                   ))
                 ) : (
                   <div className="text-xs text-muted-foreground py-2">
-                    Verified coursework projects in full-stack architecture, database design, and algorithmic problem solving.
+                    No corporate internships or employment history listed yet.
                   </div>
                 )}
               </div>
             </div>
 
           </div>
+
+          {/* 3. CERTIFICATIONS & ACHIEVEMENTS */}
+          {(certifications.length > 0 || achievements.length > 0) && (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Certifications */}
+              {certifications.length > 0 && (
+                <div className="space-y-3 p-4 rounded-2xl bg-muted/20 border border-border/60">
+                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Award className="h-4 w-4 text-[#5b51d8]" /> Certifications &amp; Badges
+                  </h4>
+                  <div className="space-y-2.5">
+                    {certifications.map((cert: any, i: number) => (
+                      <div key={i} className="text-xs flex items-center justify-between gap-2 border-b border-border/40 pb-2 last:border-b-0">
+                        <div>
+                          <div className="font-bold text-foreground">{cert.name}</div>
+                          <div className="text-muted-foreground text-[11px]">{cert.issuer} {cert.issue_date ? `• ${cert.issue_date}` : ""}</div>
+                        </div>
+                        {cert.link && (
+                          <a
+                            href={formatExternalUrl(cert.link)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#5b51d8] hover:underline text-[11px] font-bold flex items-center gap-1 shrink-0"
+                          >
+                            Verify <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Achievements */}
+              {achievements.length > 0 && (
+                <div className="space-y-3 p-4 rounded-2xl bg-muted/20 border border-border/60">
+                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Award className="h-4 w-4 text-amber-500" /> Honors &amp; Recognitions
+                  </h4>
+                  <div className="space-y-2">
+                    {achievements.map((ach: any, i: number) => (
+                      <div key={i} className="text-xs flex items-start gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                        <span className="text-foreground">{typeof ach === "string" ? ach : ach.title || JSON.stringify(ach)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Job Preferences & Languages */}
           <div className="grid sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/20 border border-border/60 text-xs">
@@ -335,11 +451,15 @@ export function StudentProfileDialog({
                 Languages Known
               </span>
               <div className="flex flex-wrap gap-1">
-                {languages.map((l) => (
-                  <span key={l} className="px-2 py-0.5 rounded-md bg-muted text-foreground text-[11px] font-medium">
-                    {l}
-                  </span>
-                ))}
+                {languages.length > 0 ? (
+                  languages.map((l) => (
+                    <span key={l} className="px-2 py-0.5 rounded-md bg-muted text-foreground text-[11px] font-medium">
+                      {l}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">English</span>
+                )}
               </div>
             </div>
           </div>
