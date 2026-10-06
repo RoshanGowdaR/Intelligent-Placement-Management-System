@@ -41,6 +41,7 @@ import CompanyDriveRounds from "./pages/company/CompanyDriveRounds";
 import CompanyTests from "./pages/company/CompanyTests";
 import CompanyCandidates from "./pages/company/CompanyCandidates";
 import CompanyReports from "./pages/company/CompanyReports";
+import CompanyOnboarding from "./pages/company/CompanyOnboarding";
 import PlacementAIChat from "./pages/ai/PlacementAIChat";
 
 const queryClient = new QueryClient({
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminSettings /></DashboardLayout></ProtectedRoute>} />
 
               {/* Company Recruiter routes */}
+              <Route path="/company/onboarding" element={<ProtectedRoute requiredRole="company"><CompanyOnboarding /></ProtectedRoute>} />
               <Route path="/company" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/ai" element={<ProtectedRoute requiredRole="company"><DashboardLayout><PlacementAIChat forcedRole="company" /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/dashboard" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyDashboard /></DashboardLayout></ProtectedRoute>} />

@@ -85,6 +85,11 @@ export default function CompanyRegister() {
   const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
     try {
+      if (token) {
+        localStorage.setItem("pending_company_invite", token);
+      }
+      localStorage.setItem("pending_company_role", "company");
+
       sessionStorage.setItem(
         "pending_company_details",
         JSON.stringify({

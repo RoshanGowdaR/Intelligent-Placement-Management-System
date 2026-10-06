@@ -51,7 +51,7 @@ export function InviteCompanyDialog({ open, onOpenChange, onInvited }: {
         console.warn("DB record insert notice:", dbErr);
       }
 
-      const inviteLink = `${window.location.origin}/company/register?token=${token}`;
+      const inviteLink = `${window.location.origin}/login?company_invite=${token}&role=company&email=${encodeURIComponent(email.trim())}`;
       setGeneratedLink(inviteLink);
 
       // Dispatch real email delivery to company recruiter via API

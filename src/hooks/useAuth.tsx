@@ -38,6 +38,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "admin";
       }
 
+      // 1b. Check if user came via verified company invite link stored in localStorage
+      const pendingInviteToken = localStorage.getItem("pending_company_invite");
+      const pendingCompanyRole = localStorage.getItem("pending_company_role");
+
+      if (pendingInviteToken || pendingCompanyRole === "company") {
+        let compName = "Visiting Company";
+        if (pendingInviteToken) {
+          const { data: inv } = await supabase
+            .from("company_invites" as any)
+            .select("company_name, id")
+            .eq("token", pendingInviteToken)
+            .maybeSingle();
+
+          if (inv?.company_name) compName = inv.company_name;
+          if (inv) {
+            await supabase
+              .from("company_invites" as any)
+              .update({ accepted_at: new Date().toISOString() })
+              .eq("id", inv.id);
+          }
+          localStorage.removeItem("pending_company_invite");
+        }
+        localStorage.removeItem("pending_company_role");
+
+        await supabase.from("user_roles").upsert(
+          { user_id: userId, role: "company" as AppRole, email: normalizedEmail },
+          { onConflict: "user_id,role" }
+        );
+
+        const { data: existingComp } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!existingComp) {
+          await supabase.from("companies").insert({
+            user_id: userId,
+            email: normalizedEmail,
+            name: compName,
+          });
+        }
+
+        setRole("company");
+        return "company";
+      }
+
       // 2. Check existing assigned roles in user_roles
       const { data: roleRecords } = await supabase
         .from("user_roles")

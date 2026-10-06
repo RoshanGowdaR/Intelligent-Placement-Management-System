@@ -11,7 +11,7 @@ import {
   Bot, Mic, MicOff, Volume2, VolumeX, Send, Sparkles, Loader2,
   PanelLeftClose, PanelLeftOpen, Plus, MessageSquare, Trash2,
   Copy, Check, User, ArrowUp, Lightbulb, BarChart3, Building2,
-  GraduationCap, ClipboardList, ShieldCheck, ChevronRight, CornerDownLeft
+  GraduationCap, ClipboardList, ShieldCheck, ChevronRight, CornerDownLeft, RotateCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -383,6 +383,53 @@ Act as an expert placement tutor and interview coach. Help this student master t
     }
   };
 
+  const handleRegenerate = async (targetMsg?: ChatMessage) => {
+    if (isProcessing || !currentSession || currentSession.messages.length === 0) return;
+    const lastUserIdx = [...currentSession.messages].reverse().findIndex((m) => m.sender === "user");
+    if (lastUserIdx === -1) return;
+    const actualIdx = currentSession.messages.length - 1 - lastUserIdx;
+    const lastUserMsg = currentSession.messages[actualIdx];
+
+    const trimmedMessages = currentSession.messages.slice(0, actualIdx + 1);
+    const updatedSessions = sessions.map((s) => {
+      if (s.id === currentSession.id) {
+        return { ...s, messages: trimmedMessages };
+      }
+      return s;
+    });
+    saveSessions(updatedSessions);
+    setIsProcessing(true);
+
+    try {
+      const systemContext = await gatherRoleDatabaseContext();
+      const thinkingPrefix = isDeepThinking
+        ? "Perform step-by-step deep architectural reasoning before presenting your final structured answer.\n"
+        : "";
+      const aiResponseText = await askGemini(
+        `${thinkingPrefix}${lastUserMsg.text}`,
+        systemContext
+      );
+      const assistantMsg: ChatMessage = {
+        id: "msg_" + Date.now(),
+        sender: "assistant",
+        text: aiResponseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        isDeepThought: isDeepThinking,
+      };
+      const finalSessions = updatedSessions.map((s) => {
+        if (s.id === currentSession.id) {
+          return { ...s, messages: [...trimmedMessages, assistantMsg] };
+        }
+        return s;
+      });
+      saveSessions(finalSessions);
+    } catch (err: any) {
+      toast.error("Failed to regenerate response");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // User display name for ChatGPT greeting: "Good to see you, [Name]."
   const userName =
     user?.user_metadata?.name ||
@@ -620,19 +667,16 @@ Act as an expert placement tutor and interview coach. Help this student master t
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => setIsDeepThinking(!isDeepThinking)}
-              className={`h-7 px-2.5 rounded-full text-[11px] gap-1.5 font-semibold transition-all ${
-                isDeepThinking
-                  ? "bg-primary text-white border-primary shadow-sm"
-                  : "bg-muted/40 text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={handleNewChat}
+              className="h-8 px-2.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground text-xs gap-1.5 font-medium"
+              title="New chat"
             >
-              <Sparkles className="h-3 w-3" />
-              <span>Think</span>
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New chat</span>
             </Button>
           </div>
         </div>
@@ -695,109 +739,152 @@ Act as an expert placement tutor and interview coach. Help this student master t
 
             </div>
           ) : (
-            /* CONVERSATION MESSAGE LIST */
-            <div className="max-w-3xl mx-auto space-y-6 pb-6">
+            <div className="max-w-3xl mx-auto space-y-8 pb-8">
               {currentSession.messages.map((msg) => {
                 const isUser = msg.sender === "user";
 
+                if (isUser) {
+                  return (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-end"
+                    >
+                      <div className="rounded-[22px] bg-[#2f2f2f] text-white px-5 py-3 text-[14.5px] leading-relaxed max-w-[85%] md:max-w-[75%] shadow-sm whitespace-pre-wrap selection:bg-primary/30">
+                        {msg.text}
+                      </div>
+                    </motion.div>
+                  );
+                }
+
+                // Assistant message: direct clean typography on canvas with NO card box
                 return (
                   <motion.div
                     key={msg.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"}`}
+                    className="flex flex-col items-start w-full group"
                   >
-                    {!isUser && (
-                      <div className="h-8 w-8 rounded-xl bg-[#5b51d8] text-white flex items-center justify-center shadow-sm shrink-0 mt-0.5">
-                        <Bot className="h-4 w-4" />
-                      </div>
-                    )}
-
-                    <div className={`space-y-1.5 max-w-[85%] md:max-w-[80%]`}>
-                      <div
-                        className={`p-4 rounded-2xl text-sm leading-relaxed ${
-                          isUser
-                            ? "bg-[#5b51d8] text-white rounded-br-sm shadow-md font-medium"
-                            : "bg-card border border-border/70 text-foreground rounded-bl-sm shadow-sm"
-                        }`}
+                    <div className="prose dark:prose-invert max-w-none w-full text-[15px] leading-7 break-words text-foreground font-normal selection:bg-primary/30">
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-xl font-bold text-foreground mt-5 mb-2.5 tracking-tight">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-lg font-bold text-foreground mt-4 mb-2 tracking-tight">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-base font-bold text-foreground mt-3 mb-1.5">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="mb-3 leading-7 text-foreground/90 font-normal">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="my-2.5 space-y-1.5 pl-5 list-disc marker:text-primary">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="my-2.5 space-y-1.5 pl-5 list-decimal marker:text-primary">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="leading-relaxed pl-1">
+                              {children}
+                            </li>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-foreground">
+                              {children}
+                            </strong>
+                          ),
+                          table: ({ node, ...props }) => (
+                            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-sm">
+                              <table className="min-w-full divide-y divide-border text-xs" {...props} />
+                            </div>
+                          ),
+                          th: ({ node, ...props }) => (
+                            <th className="bg-muted/60 px-4 py-2.5 text-left font-bold text-foreground text-xs uppercase" {...props} />
+                          ),
+                          td: ({ node, ...props }) => (
+                            <td className="px-4 py-2.5 border-t border-border text-foreground/90 text-xs" {...props} />
+                          ),
+                          code: ({ node, inline, className, children, ...props }: any) => {
+                            if (inline) {
+                              return (
+                                <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-primary font-semibold" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                            return (
+                              <div className="relative my-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-md">
+                                <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 text-[11px] text-zinc-400 font-mono">
+                                  <span>Code</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(String(children));
+                                      toast.success("Code copied to clipboard!");
+                                    }}
+                                    className="flex items-center gap-1.5 hover:text-white transition-colors"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                    <span>Copy code</span>
+                                  </button>
+                                </div>
+                                <pre className="p-4 overflow-x-auto text-xs leading-relaxed font-mono" {...props}>
+                                  {children}
+                                </pre>
+                              </div>
+                            );
+                          },
+                        }}
                       >
-                        {isUser ? (
-                          <div className="whitespace-pre-wrap">{msg.text}</div>
-                        ) : (
-                          <div className="prose dark:prose-invert max-w-none text-sm leading-relaxed break-words">
-                            <ReactMarkdown
-                              components={{
-                                table: ({ node, ...props }) => (
-                                  <div className="overflow-x-auto my-3 rounded-xl border border-border/70">
-                                    <table className="min-w-full divide-y divide-border text-xs" {...props} />
-                                  </div>
-                                ),
-                                th: ({ node, ...props }) => (
-                                  <th className="bg-muted/50 px-3 py-2 text-left font-bold text-foreground" {...props} />
-                                ),
-                                td: ({ node, ...props }) => (
-                                  <td className="px-3 py-2 border-t border-border/40 text-muted-foreground" {...props} />
-                                ),
-                                code: ({ node, className, children, ...props }: any) => (
-                                  <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-primary font-semibold" {...props}>
-                                    {children}
-                                  </code>
-                                ),
-                                pre: ({ node, children, ...props }: any) => (
-                                  <div className="relative my-3 rounded-xl bg-slate-950 p-4 border border-border/60 text-slate-100 overflow-x-auto">
-                                    <pre {...props}>{children}</pre>
-                                  </div>
-                                ),
-                              }}
-                            >
-                              {msg.text}
-                            </ReactMarkdown>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Message Footer: Actions & Timestamp */}
-                      <div className={`flex items-center gap-2 text-[10px] text-muted-foreground px-1 ${isUser ? "justify-end" : "justify-start"}`}>
-                        <span>{msg.timestamp}</span>
-                        {!isUser && (
-                          <>
-                            <span>•</span>
-                            <button
-                              onClick={() => copyText(msg.id, msg.text)}
-                              className="hover:text-foreground flex items-center gap-1 transition-colors"
-                              title="Copy response"
-                            >
-                              {copiedId === msg.id ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                              <span>{copiedId === msg.id ? "Copied" : "Copy"}</span>
-                            </button>
-                            <span>•</span>
-                            <button
-                              onClick={() => toggleSpeech(msg.id, msg.text)}
-                              className="hover:text-foreground flex items-center gap-1 transition-colors"
-                              title="Listen aloud"
-                            >
-                              {ttsActiveId === msg.id && isSpeaking ? (
-                                <>
-                                  <VolumeX className="h-3 w-3 text-primary animate-pulse" />
-                                  <span>Stop</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Volume2 className="h-3 w-3" />
-                                  <span>Listen</span>
-                                </>
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
+                        {msg.text}
+                      </ReactMarkdown>
                     </div>
 
-                    {isUser && (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#5b51d8] to-[#8075ff] text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0 mt-0.5">
-                        {userName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    {/* ChatGPT minimal toolbar beneath assistant message */}
+                    <div className="flex items-center gap-1 mt-2 -ml-1 text-muted-foreground opacity-90 transition-opacity">
+                      <button
+                        onClick={() => copyText(msg.id, msg.text)}
+                        className="p-1.5 rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+                        title="Copy"
+                      >
+                        {copiedId === msg.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                      </button>
+
+                      <button
+                        onClick={() => toggleSpeech(msg.id, msg.text)}
+                        className="p-1.5 rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+                        title="Read aloud"
+                      >
+                        {ttsActiveId === msg.id && isSpeaking ? (
+                          <VolumeX className="h-4 w-4 text-primary animate-pulse" />
+                        ) : (
+                          <Volume2 className="h-4 w-4" />
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => handleRegenerate(msg)}
+                        className="p-1.5 rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+                        title="Regenerate response"
+                      >
+                        <RotateCw className="h-4 w-4" />
+                      </button>
+                    </div>
                   </motion.div>
                 );
               })}
@@ -807,17 +894,15 @@ Act as an expert placement tutor and interview coach. Help this student master t
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-3"
+                  className="flex items-center gap-2.5 py-4 text-muted-foreground"
                 >
-                  <div className="h-8 w-8 rounded-xl bg-[#5b51d8] text-white flex items-center justify-center shadow-sm shrink-0">
-                    <Bot className="h-4 w-4 animate-bounce" />
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-card border border-border/70 shadow-sm flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground font-medium">
-                      {isDeepThinking ? "Thinking deeply and analyzing database signals…" : "Synthesizing forensic intelligence…"}
-                    </span>
-                  </div>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
+                  </span>
+                  <span className="text-sm font-medium animate-pulse">
+                    {isDeepThinking ? "Thinking deeply and cross-referencing database signals…" : "Thinking…"}
+                  </span>
                 </motion.div>
               )}
 
@@ -831,7 +916,7 @@ Act as an expert placement tutor and interview coach. Help this student master t
         <div className="p-4 md:pb-6 bg-gradient-to-t from-background via-background to-transparent shrink-0">
           <div className="max-w-3xl mx-auto">
             
-            <div className="relative flex items-end rounded-3xl bg-card border border-border/80 shadow-md focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all p-2 pl-4">
+            <div className="relative flex items-center rounded-[28px] bg-muted/50 dark:bg-[#212121] border border-border/80 shadow-md focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all p-2 pl-3">
               
               {/* Left Action / Attach button */}
               <TooltipProvider>
@@ -840,10 +925,10 @@ Act as an expert placement tutor and interview coach. Help this student master t
                     <button
                       type="button"
                       onClick={() => handleSendMessage("Generate a complete placement drive report")}
-                      className="h-9 w-9 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0 mb-0.5 transition-colors"
+                      className="h-9 w-9 rounded-full hover:bg-background/80 text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0 transition-colors"
                       title="Quick prompt"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-5 w-5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>Quick Placement Actions</TooltipContent>
@@ -856,50 +941,64 @@ Act as an expert placement tutor and interview coach. Help this student master t
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything about students, tests, drives, reports…"
+                placeholder="Ask anything..."
                 rows={1}
-                className="flex-1 max-h-32 min-h-[40px] resize-none bg-transparent py-2.5 px-3 text-sm focus:outline-none placeholder:text-muted-foreground text-foreground"
+                className="flex-1 max-h-32 min-h-[36px] resize-none bg-transparent py-2 px-3 text-sm focus:outline-none placeholder:text-muted-foreground text-foreground leading-normal"
               />
 
               {/* Right Action Icons: Think, Mic, Send */}
-              <div className="flex items-center gap-1.5 shrink-0 mb-0.5 pr-1">
+              <div className="flex items-center gap-1.5 shrink-0 pr-1">
+                {/* Think Pill Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsDeepThinking(!isDeepThinking)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    isDeepThinking
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-background/60 hover:bg-background border border-border/70 text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Deep reasoning mode"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Think</span>
+                </button>
+
                 {/* Voice Input Mic */}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
+                      <button
                         type="button"
-                        size="icon"
-                        variant="ghost"
                         onClick={isListening ? stopListening : startListening}
-                        className={`h-9 w-9 rounded-full transition-colors ${
+                        className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${
                           isListening
                             ? "bg-destructive text-white animate-pulse"
-                            : "text-muted-foreground hover:text-foreground"
+                            : "hover:bg-background/80 text-muted-foreground hover:text-foreground"
                         }`}
+                        title={isListening ? "Stop listening" : "Voice input"}
                       >
                         {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                      </Button>
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent>{isListening ? "Stop listening" : "Voice input"}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
 
-                {/* Send Button */}
-                <Button
+                {/* Send Button: circular button with up arrow */}
+                <button
                   type="button"
-                  size="icon"
                   disabled={!input.trim() || isProcessing}
                   onClick={() => handleSendMessage()}
-                  className="h-9 w-9 rounded-full bg-[#5b51d8] hover:bg-[#4d43cc] text-white disabled:opacity-40 transition-all shadow-sm"
+                  className="h-8 w-8 rounded-full bg-foreground text-background flex items-center justify-center disabled:opacity-30 hover:opacity-90 transition-all shadow-sm"
+                  title="Send message"
                 >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
+                  <ArrowUp className="h-4 w-4 stroke-[2.5]" />
+                </button>
               </div>
 
             </div>
 
-            <p className="text-[10px] text-center text-muted-foreground mt-2">
+            <p className="text-[11px] text-center text-muted-foreground/80 mt-2 font-normal">
               Placement AI can make mistakes. Verify critical placement statistics and forensic audit logs before publishing.
             </p>
 
