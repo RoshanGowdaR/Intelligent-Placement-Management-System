@@ -21,7 +21,7 @@ import {
   Upload, FileText, Loader2, CheckCircle2, Check,
   Sparkles, ExternalLink, Download, UserCheck, ShieldCheck,
   Eye, Copy, Plus, Trash2, ArrowRight, Github, Linkedin, Globe,
-  Briefcase, GraduationCap, Award, Languages, Settings2, Code, Link2
+  Briefcase, GraduationCap, Award, Languages, Settings2, Code, Link2, FileCheck
 } from "lucide-react";
 import { formatExternalUrl } from "@/lib/utils";
 
@@ -55,11 +55,11 @@ export default function StudentProfile() {
     hackerrank: "",
     skills: [] as string[],
     newSkill: "",
-    experiences: [] as { role: string; company: string; duration: string; description: string }[],
+    experiences: [] as { role: string; company: string; duration: string; description: string; certificate_url?: string }[],
     projects: [] as { title: string; link: string; repo_url?: string; live_url?: string; stack: string; description: string }[],
     education: [] as { degree: string; institution: string; year: string; score: string }[],
-    certifications: [] as { name: string; issuer: string; link?: string; issue_date?: string; credential_id?: string }[],
-    achievements: [] as string[],
+    certifications: [] as { name: string; issuer: string; link?: string; issue_date?: string; credential_id?: string; certificate_url?: string }[],
+    achievements: [] as (string | { title: string; description?: string; certificate_url?: string })[],
     languages: [] as string[],
     usn: "",
     branch: "",
@@ -88,13 +88,16 @@ export default function StudentProfile() {
   const [newProject, setNewProject] = useState({ title: "", description: "", stack: "", repo_url: "", live_url: "" });
 
   const [certModalOpen, setCertModalOpen] = useState(false);
-  const [newCert, setNewCert] = useState({ name: "", issuer: "", issue_date: "", credential_id: "", link: "" });
+  const [newCert, setNewCert] = useState({ name: "", issuer: "", issue_date: "", credential_id: "", link: "", certificate_url: "" });
+  const [uploadingCertDoc, setUploadingCertDoc] = useState(false);
 
   const [expModalOpen, setExpModalOpen] = useState(false);
-  const [newExp, setNewExp] = useState({ role: "", company: "", duration: "", description: "" });
+  const [newExp, setNewExp] = useState({ role: "", company: "", duration: "", description: "", certificate_url: "" });
+  const [uploadingExpDoc, setUploadingExpDoc] = useState(false);
 
   const [achModalOpen, setAchModalOpen] = useState(false);
-  const [newAch, setNewAch] = useState({ title: "", description: "" });
+  const [newAch, setNewAch] = useState({ title: "", description: "", certificate_url: "" });
+  const [uploadingAchDoc, setUploadingAchDoc] = useState(false);
 
   const [eduModalOpen, setEduModalOpen] = useState(false);
   const [newEdu, setNewEdu] = useState({ degree: "", institution: "", year: "", score: "" });
@@ -203,7 +206,11 @@ export default function StudentProfile() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Profile picture must be under 2MB"); return; }
+    const MAX_AVATAR_SIZE = 500 * 1024; // 500 KB limit for avatar
+    if (file.size > MAX_AVATAR_SIZE) {
+      toast.error(`Profile picture (${(file.size / 1024).toFixed(0)} KB) exceeds 500 KB limit. Please compress to preserve campus storage quota.`);
+      return;
+    }
 
     setUploadingAvatar(true);
     try {
@@ -335,8 +342,12 @@ export default function StudentProfile() {
   const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("File must be under 10MB"); return; }
-    if (!file.name.endsWith(".pdf")) { toast.error("Only PDF files are accepted"); return; }
+    const MAX_RESUME_SIZE = 1 * 1024 * 1024; // 1 MB limit to fit 150 students in 1GB
+    if (file.size > MAX_RESUME_SIZE) {
+      toast.error(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds the 1 MB campus quota. Please upload an optimized PDF under 1 MB, or link your Google Drive resume URL below!`, { duration: 6000 });
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".pdf")) { toast.error("Only PDF files are accepted for résumé"); return; }
 
     setUploading(true);
     const fileName = `${form.usn.trim() || "CANDIDATE"}_${form.name.trim().replace(/\s+/g, "_") || "Resume"}.pdf`;
@@ -363,7 +374,7 @@ export default function StudentProfile() {
         profile_completion_percentage: readinessPercentage,
       }).eq("id", user.id);
 
-      toast.success("Résumé PDF uploaded successfully!");
+      toast.success("Résumé PDF uploaded successfully (under 1 MB quota)!");
     } catch (err: any) {
       toast.error("Upload error: " + (err.message || "Failed uploading resume"));
     } finally {
@@ -386,6 +397,114 @@ export default function StudentProfile() {
       toast.success("Résumé link saved successfully! Recruiters and admins can now view and download your resume.");
     } catch (err: any) {
       toast.error("Failed saving link: " + err.message);
+    }
+  };
+
+  // Certificate Document Upload Handler (Max 800 KB)
+  const handleCertDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const MAX_CERT_SIZE = 800 * 1024; // 800 KB quota
+    if (file.size > MAX_CERT_SIZE) {
+      toast.error(`Certificate file (${(file.size / 1024).toFixed(0)} KB) exceeds 800 KB limit. Please compress to stay within campus storage quota.`, { duration: 6000 });
+      return;
+    }
+
+    setUploadingCertDoc(true);
+    try {
+      const ext = file.name.split(".").pop() || "pdf";
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const path = `${user.id}/cert_${Date.now()}_${cleanName}`;
+      const { error: uploadError } = await supabase.storage.from("certificates").upload(path, file, { upsert: true });
+
+      if (uploadError) {
+        if (uploadError.message?.toLowerCase().includes("bucket not found") || (uploadError as any).statusCode === "404") {
+          toast.error("Supabase Storage bucket 'certificates' not found. Please create the public bucket 'certificates' or link a Google Drive URL.", { duration: 7000 });
+        } else {
+          toast.error("Upload failed: " + uploadError.message);
+        }
+        return;
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from("certificates").getPublicUrl(path);
+      setNewCert(prev => ({ ...prev, certificate_url: publicUrl }));
+      toast.success("Certificate document uploaded & verified!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed uploading certificate");
+    } finally {
+      setUploadingCertDoc(false);
+    }
+  };
+
+  // Work Experience / Internship Certificate Upload Handler (Max 800 KB)
+  const handleExpDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const MAX_EXP_SIZE = 800 * 1024; // 800 KB quota
+    if (file.size > MAX_EXP_SIZE) {
+      toast.error(`Internship document (${(file.size / 1024).toFixed(0)} KB) exceeds 800 KB limit. Please compress to stay within campus storage quota.`, { duration: 6000 });
+      return;
+    }
+
+    setUploadingExpDoc(true);
+    try {
+      const ext = file.name.split(".").pop() || "pdf";
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const path = `${user.id}/internship_${Date.now()}_${cleanName}`;
+      const { error: uploadError } = await supabase.storage.from("certificates").upload(path, file, { upsert: true });
+
+      if (uploadError) {
+        if (uploadError.message?.toLowerCase().includes("bucket not found") || (uploadError as any).statusCode === "404") {
+          toast.error("Supabase Storage bucket 'certificates' not found. Please create the public bucket 'certificates' or link a Google Drive URL.", { duration: 7000 });
+        } else {
+          toast.error("Upload failed: " + uploadError.message);
+        }
+        return;
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from("certificates").getPublicUrl(path);
+      setNewExp(prev => ({ ...prev, certificate_url: publicUrl }));
+      toast.success("Internship certificate uploaded & verified!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed uploading internship certificate");
+    } finally {
+      setUploadingExpDoc(false);
+    }
+  };
+
+  // Achievement Proof Document Upload Handler (Max 800 KB)
+  const handleAchDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const MAX_ACH_SIZE = 800 * 1024; // 800 KB quota
+    if (file.size > MAX_ACH_SIZE) {
+      toast.error(`Honor proof (${(file.size / 1024).toFixed(0)} KB) exceeds 800 KB limit. Please compress to stay within campus storage quota.`);
+      return;
+    }
+
+    setUploadingAchDoc(true);
+    try {
+      const ext = file.name.split(".").pop() || "pdf";
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const path = `${user.id}/award_${Date.now()}_${cleanName}`;
+      const { error: uploadError } = await supabase.storage.from("certificates").upload(path, file, { upsert: true });
+
+      if (uploadError) {
+        if (uploadError.message?.toLowerCase().includes("bucket not found") || (uploadError as any).statusCode === "404") {
+          toast.error("Supabase Storage bucket 'certificates' not found. Please create the public bucket 'certificates' or link a Google Drive URL.", { duration: 7000 });
+        } else {
+          toast.error("Upload failed: " + uploadError.message);
+        }
+        return;
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from("certificates").getPublicUrl(path);
+      setNewAch(prev => ({ ...prev, certificate_url: publicUrl }));
+      toast.success("Honor proof uploaded & verified!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed uploading honor proof");
+    } finally {
+      setUploadingAchDoc(false);
     }
   };
 
@@ -425,6 +544,7 @@ export default function StudentProfile() {
     if (!newCert.issuer.trim()) { toast.error("Please enter issuing organization"); return; }
 
     const formattedLink = newCert.link.trim() ? formatExternalUrl(newCert.link.trim()) : undefined;
+    const formattedCertDoc = newCert.certificate_url.trim() ? formatExternalUrl(newCert.certificate_url.trim()) : undefined;
 
     setForm(prev => ({
       ...prev,
@@ -436,20 +556,26 @@ export default function StudentProfile() {
           issue_date: newCert.issue_date.trim() || undefined,
           credential_id: newCert.credential_id.trim() || undefined,
           link: formattedLink,
+          certificate_url: formattedCertDoc,
         }
       ]
     }));
 
-    setNewCert({ name: "", issuer: "", issue_date: "", credential_id: "", link: "" });
+    setNewCert({ name: "", issuer: "", issue_date: "", credential_id: "", link: "", certificate_url: "" });
     setCertModalOpen(false);
     toast.success("Certificate added successfully! Click 'Save Changes' to update your profile.");
   };
 
-  // Add Experience Modal Handler
+  // Add Experience Modal Handler (MANDATORY CERTIFICATE/VERIFICATION PROOF)
   const handleAddExpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newExp.role.trim() || !newExp.company.trim()) {
       toast.error("Please enter role title and company name");
+      return;
+    }
+
+    if (!newExp.certificate_url.trim()) {
+      toast.error("Mandatory Security Verification: Please upload your internship certificate or completion letter before proceeding.");
       return;
     }
 
@@ -462,13 +588,14 @@ export default function StudentProfile() {
           company: newExp.company.trim(),
           duration: newExp.duration.trim(),
           description: newExp.description.trim(),
+          certificate_url: formatExternalUrl(newExp.certificate_url.trim()),
         }
       ]
     }));
 
-    setNewExp({ role: "", company: "", duration: "", description: "" });
+    setNewExp({ role: "", company: "", duration: "", description: "", certificate_url: "" });
     setExpModalOpen(false);
-    toast.success("Experience added successfully! Click 'Save Changes' to update your profile.");
+    toast.success("Experience added with verified certificate! Click 'Save Changes' to update your profile.");
   };
 
   // Add Achievement Modal Handler
@@ -476,13 +603,18 @@ export default function StudentProfile() {
     e.preventDefault();
     if (!newAch.title.trim()) { toast.error("Please enter achievement title"); return; }
 
-    const fullAch = newAch.description.trim()
-      ? `${newAch.title.trim()} — ${newAch.description.trim()}`
-      : newAch.title.trim();
+    const formattedProof = newAch.certificate_url.trim() ? formatExternalUrl(newAch.certificate_url.trim()) : undefined;
 
     setForm(prev => ({
       ...prev,
-      achievements: [...prev.achievements, fullAch]
+      achievements: [
+        ...prev.achievements,
+        {
+          title: newAch.title.trim(),
+          description: newAch.description.trim() || undefined,
+          certificate_url: formattedProof,
+        }
+      ]
     }));
 
     setNewAch({ title: "", description: "" });
@@ -1100,6 +1232,19 @@ export default function StudentProfile() {
                     {exp.description && (
                       <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{exp.description}</p>
                     )}
+                    {exp.certificate_url && (
+                      <div className="pt-2 border-t border-border/40">
+                        <a
+                          href={formatExternalUrl(exp.certificate_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1 rounded-xl border border-emerald-500/25 transition-colors"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                          View Internship Certificate <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1288,22 +1433,34 @@ export default function StudentProfile() {
               <div className="space-y-3">
                 {form.certifications.map((cert, idx) => (
                   <div key={idx} className="p-4 rounded-2xl bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <div className="font-bold text-xs text-foreground">{cert.name}</div>
                       <div className="text-[11px] text-muted-foreground">
                         {cert.issuer} {cert.issue_date ? `• Issued ${cert.issue_date}` : ""}
                         {cert.credential_id ? ` • ID: ${cert.credential_id}` : ""}
                       </div>
-                      {cert.link && (
-                        <a
-                          href={formatExternalUrl(cert.link)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-[#5b51d8] hover:underline font-bold mt-1"
-                        >
-                          Verify credential <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        {cert.certificate_url && (
+                          <a
+                            href={formatExternalUrl(cert.certificate_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-bold"
+                          >
+                            <FileText className="h-3 w-3" /> View Certificate Doc <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                        {cert.link && (
+                          <a
+                            href={formatExternalUrl(cert.link)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-[#5b51d8] hover:underline font-bold"
+                          >
+                            Verify Online <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={() => setForm({ ...form, certifications: form.certifications.filter((_, i) => i !== idx) })}
@@ -1345,20 +1502,34 @@ export default function StudentProfile() {
 
             {form.achievements.length > 0 ? (
               <div className="space-y-2.5">
-                {form.achievements.map((ach, idx) => (
-                  <div key={idx} className="p-3.5 rounded-2xl bg-muted/20 border border-border/60 flex items-center justify-between text-xs font-medium">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <span>{ach}</span>
+                {form.achievements.map((ach, idx) => {
+                  const achTitle = typeof ach === "string" ? ach : ach.title;
+                  const achProof = typeof ach === "object" && ach?.certificate_url ? ach.certificate_url : null;
+                  return (
+                    <div key={idx} className="p-3.5 rounded-2xl bg-muted/20 border border-border/60 flex items-center justify-between text-xs font-medium">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <span>{achTitle}</span>
+                        {achProof && (
+                          <a
+                            href={formatExternalUrl(achProof)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-2 text-amber-600 hover:underline inline-flex items-center gap-1 text-[11px] font-bold"
+                          >
+                            Proof <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setForm({ ...form, achievements: form.achievements.filter((_, i) => i !== idx) })}
+                        className="text-muted-foreground hover:text-rose-500 p-1"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setForm({ ...form, achievements: form.achievements.filter((_, i) => i !== idx) })}
-                      className="text-muted-foreground hover:text-rose-500 p-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-8 text-center rounded-2xl border border-dashed border-border/60 text-xs text-muted-foreground space-y-2">
@@ -1682,10 +1853,51 @@ export default function StudentProfile() {
               </div>
             </div>
 
+            {/* Upload Certificate Document (Max 800 KB) */}
+            <div className="space-y-1.5 p-3 rounded-2xl bg-muted/30 border border-border/70">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-primary" /> Certificate Document (PDF / Image)
+                </Label>
+                <span className="text-[10px] text-muted-foreground font-mono">Max 800 KB</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={uploadingCertDoc}
+                    onChange={handleCertDocUpload}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={newCert.certificate_url ? "outline" : "default"}
+                    asChild
+                    className={`h-8 text-xs rounded-xl ${!newCert.certificate_url ? "bg-[#5b51d8] hover:bg-[#4d43cc] text-white" : "border-emerald-500/30 text-emerald-600 bg-emerald-500/10 font-bold"}`}
+                    disabled={uploadingCertDoc}
+                  >
+                    <span>
+                      {uploadingCertDoc ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                      {uploadingCertDoc ? "Uploading..." : newCert.certificate_url ? "Change File" : "Upload Document"}
+                    </span>
+                  </Button>
+                </label>
+                {newCert.certificate_url ? (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 truncate">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Document attached
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground">Upload PDF or certificate photo</span>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Credential URL</Label>
+              <Label className="text-xs font-semibold">Or Online Credential URL (Credly / Coursera / Drive)</Label>
               <Input
-                placeholder="https://www.credly.com/badges/..."
+                placeholder="https://www.credly.com/badges/... or Drive link"
                 value={newCert.link}
                 onChange={(e) => setNewCert({ ...newCert, link: e.target.value })}
                 className="h-9 text-xs rounded-xl"
@@ -1756,8 +1968,64 @@ export default function StudentProfile() {
                 placeholder="Responsibilities, project deliverables, and technologies used..."
                 value={newExp.description}
                 onChange={(e) => setNewExp({ ...newExp, description: e.target.value })}
-                className="min-h-[80px] text-xs rounded-xl"
+                className="min-h-[70px] text-xs rounded-xl"
               />
+            </div>
+
+            {/* MANDATORY: Internship Certificate Upload (Max 800 KB) */}
+            <div className="space-y-2 p-3.5 rounded-2xl bg-muted/40 border border-border/80">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" /> Internship Certificate / Proof *
+                </Label>
+                <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 bg-emerald-500/10 text-[10px] py-0 px-1.5 font-bold">
+                  Mandatory Security Audit
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Upload your certificate or completion letter (PDF, PNG, JPG under 800 KB) for verified security credentialing.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-1">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={uploadingExpDoc}
+                    onChange={handleExpDocUpload}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={newExp.certificate_url ? "outline" : "default"}
+                    asChild
+                    className={`h-8 text-xs rounded-xl ${!newExp.certificate_url ? "bg-emerald-600 hover:bg-emerald-700 text-white font-bold" : "border-emerald-500/30 text-emerald-600 bg-emerald-500/10 font-bold"}`}
+                    disabled={uploadingExpDoc}
+                  >
+                    <span>
+                      {uploadingExpDoc ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                      {uploadingExpDoc ? "Uploading..." : newExp.certificate_url ? "Replace Certificate" : "Upload Certificate PDF/Image"}
+                    </span>
+                  </Button>
+                </label>
+
+                {newExp.certificate_url && (
+                  <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 truncate">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Verified Certificate Attached
+                  </span>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-border/40">
+                <div className="text-[10px] text-muted-foreground mb-1">Or paste Google Drive / Cloud Link:</div>
+                <Input
+                  placeholder="https://drive.google.com/file/... (0 KB storage used)"
+                  value={newExp.certificate_url}
+                  onChange={(e) => setNewExp({ ...newExp, certificate_url: e.target.value })}
+                  className="h-8 text-xs rounded-xl bg-card border-border"
+                />
+              </div>
             </div>
 
             <DialogFooter className="pt-2">
@@ -1804,6 +2072,45 @@ export default function StudentProfile() {
                 onChange={(e) => setNewAch({ ...newAch, description: e.target.value })}
                 className="min-h-[70px] text-xs rounded-xl"
               />
+            </div>
+
+            {/* Honor / Achievement Proof Upload (Max 800 KB) */}
+            <div className="space-y-1.5 p-3 rounded-2xl bg-muted/30 border border-border/70">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Award className="h-3.5 w-3.5 text-amber-500" /> Certificate / Trophy Proof (Optional)
+                </Label>
+                <span className="text-[10px] text-muted-foreground font-mono">Max 800 KB</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={uploadingAchDoc}
+                    onChange={handleAchDocUpload}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={newAch.certificate_url ? "outline" : "outline"}
+                    asChild
+                    className={`h-8 text-xs rounded-xl ${newAch.certificate_url ? "border-amber-500/30 text-amber-600 bg-amber-500/10 font-bold" : "border-border"}`}
+                    disabled={uploadingAchDoc}
+                  >
+                    <span>
+                      {uploadingAchDoc ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                      {uploadingAchDoc ? "Uploading..." : newAch.certificate_url ? "Change Proof" : "Upload Proof Document"}
+                    </span>
+                  </Button>
+                </label>
+                {newAch.certificate_url && (
+                  <span className="text-[11px] text-amber-600 font-semibold flex items-center gap-1 truncate">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Proof attached
+                  </span>
+                )}
+              </div>
             </div>
 
             <DialogFooter className="pt-2">

@@ -369,13 +369,32 @@ export function StudentProfileDialog({
               </h4>
               <div className="space-y-3">
                 {experiences.length > 0 ? (
-                  experiences.map((exp: any, i: number) => (
-                    <div key={i} className="text-xs border-l-2 border-emerald-500 pl-3 py-0.5 space-y-0.5">
-                      <div className="font-bold text-foreground">{exp.role} {exp.company ? `@ ${exp.company}` : ""}</div>
-                      {exp.duration && <div className="text-muted-foreground">{exp.duration}</div>}
-                      {exp.description && <p className="text-[11px] text-muted-foreground line-clamp-3">{exp.description}</p>}
-                    </div>
-                  ))
+                  experiences.map((exp: any, i: number) => {
+                    const certUrl = exp.certificate_url || exp.link;
+                    return (
+                      <div key={i} className="text-xs border-l-2 border-emerald-500 pl-3 py-1 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-bold text-foreground">{exp.role} {exp.company ? `@ ${exp.company}` : ""}</div>
+                            {exp.duration && <div className="text-muted-foreground">{exp.duration}</div>}
+                          </div>
+                          {certUrl ? (
+                            <a
+                              href={formatExternalUrl(certUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 border border-emerald-500/25 transition-colors"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Verify Certificate <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/80 italic shrink-0">Unverified</span>
+                          )}
+                        </div>
+                        {exp.description && <p className="text-[11px] text-muted-foreground line-clamp-3 leading-relaxed">{exp.description}</p>}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="text-xs text-muted-foreground py-2">
                     No corporate internships or employment history listed yet.
@@ -396,24 +415,53 @@ export function StudentProfileDialog({
                     <Award className="h-4 w-4 text-[#5b51d8]" /> Certifications &amp; Badges
                   </h4>
                   <div className="space-y-2.5">
-                    {certifications.map((cert: any, i: number) => (
-                      <div key={i} className="text-xs flex items-center justify-between gap-2 border-b border-border/40 pb-2 last:border-b-0">
-                        <div>
-                          <div className="font-bold text-foreground">{cert.name}</div>
-                          <div className="text-muted-foreground text-[11px]">{cert.issuer} {cert.issue_date ? `• ${cert.issue_date}` : ""}</div>
+                    {certifications.map((cert: any, i: number) => {
+                      const fileUrl = cert.certificate_url;
+                      const webUrl = cert.link;
+                      const primaryUrl = fileUrl || webUrl;
+
+                      return (
+                        <div key={i} className="text-xs flex items-center justify-between gap-2 border-b border-border/40 pb-2.5 last:border-b-0">
+                          <div>
+                            <div className="font-bold text-foreground">{cert.name}</div>
+                            <div className="text-muted-foreground text-[11px]">
+                              {cert.issuer} {cert.issue_date ? `• ${cert.issue_date}` : ""}
+                            </div>
+                            {cert.credential_id && (
+                              <div className="text-[10px] text-muted-foreground font-mono">ID: {cert.credential_id}</div>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {fileUrl && (
+                              <a
+                                href={formatExternalUrl(fileUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-emerald-500/20"
+                                title="View uploaded certificate file"
+                              >
+                                <FileText className="h-3 w-3" /> View Doc <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            )}
+                            {webUrl && (
+                              <a
+                                href={formatExternalUrl(webUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[#5b51d8] bg-[#5b51d8]/10 hover:bg-[#5b51d8]/20 px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-[#5b51d8]/20"
+                                title="Verify online credential"
+                              >
+                                Verify <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            )}
+                            {!fileUrl && !webUrl && (
+                              <span className="text-[10px] text-muted-foreground italic">Self-reported</span>
+                            )}
+                          </div>
                         </div>
-                        {cert.link && (
-                          <a
-                            href={formatExternalUrl(cert.link)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#5b51d8] hover:underline text-[11px] font-bold flex items-center gap-1 shrink-0"
-                          >
-                            Verify <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -425,12 +473,28 @@ export function StudentProfileDialog({
                     <Award className="h-4 w-4 text-amber-500" /> Honors &amp; Recognitions
                   </h4>
                   <div className="space-y-2">
-                    {achievements.map((ach: any, i: number) => (
-                      <div key={i} className="text-xs flex items-start gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                        <span className="text-foreground">{typeof ach === "string" ? ach : ach.title || JSON.stringify(ach)}</span>
-                      </div>
-                    ))}
+                    {achievements.map((ach: any, i: number) => {
+                      const achTitle = typeof ach === "string" ? ach : ach.title || JSON.stringify(ach);
+                      const achCertUrl = typeof ach === "object" && ach?.certificate_url ? ach.certificate_url : null;
+                      return (
+                        <div key={i} className="text-xs flex items-center justify-between gap-2">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                            <span className="text-foreground">{achTitle}</span>
+                          </div>
+                          {achCertUrl && (
+                            <a
+                              href={formatExternalUrl(achCertUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0 border border-amber-500/20"
+                            >
+                              Proof <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
