@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ClipboardList, Plus, Trash2, Clock, Calendar, CheckCircle2, AlertTriangle, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { isPast } from "date-fns";
@@ -17,6 +27,7 @@ export default function CompanyTests() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testToDelete, setTestToDelete] = useState<any | null>(null);
 
   // Form State with draft persistence
   const [title, setTitle] = useState(() => sessionStorage.getItem("company_test_title") || "");
@@ -205,15 +216,16 @@ export default function CompanyTests() {
   };
 
   const handleDeleteTest = async (testId: string) => {
-    if (!confirm("Are you sure you want to delete this assessment?")) return;
-
     try {
+      await supabase.from("schedules").delete().eq("test_id", testId);
       const { error } = await supabase.from("tests").delete().eq("id", testId);
       if (error) throw error;
       toast.success("Assessment deleted");
       fetchCompanyTests();
     } catch (err: any) {
       toast.error(err?.message || "Could not delete test");
+    } finally {
+      setTestToDelete(null);
     }
   };
 
@@ -343,7 +355,7 @@ export default function CompanyTests() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteTest(test.id)}
+                      onClick={() => setTestToDelete(test)}
                       className="h-10 w-10 rounded-xl text-destructive hover:bg-destructive/10"
                       title="Delete assessment"
                     >
@@ -454,6 +466,34 @@ export default function CompanyTests() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Assessment Confirmation Dialog */}
+      <AlertDialog open={!!testToDelete} onOpenChange={(isOpen) => !isOpen && setTestToDelete(null)}>
+        <AlertDialogContent className="max-w-md rounded-2xl border border-border/80 bg-card p-6 text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg font-bold text-foreground">
+              Delete Assessment?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-foreground font-semibold">"{testToDelete?.title}"</strong>? All student registrations and scheduled sessions will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 mt-4">
+            <AlertDialogCancel onClick={() => setTestToDelete(null)} className="rounded-xl text-xs font-semibold">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (testToDelete) {
+                  handleDeleteTest(testToDelete.id);
+                }
+              }}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-bold"
+            >
+              Delete Assessment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -442,14 +442,10 @@ export default function StudentTests() {
     ]);
 
     const liveTests = (testsRes.data ?? []) as any[];
-    const mergedTests = [...liveTests];
-    for (const demo of DEMO_TESTS) {
-      if (!mergedTests.some((t) => t.id === demo.id || t.title.toLowerCase() === demo.title.toLowerCase())) {
-        mergedTests.push(demo);
-      }
-    }
-
-    setTests(mergedTests);
+    // Use live assessments from Supabase as the source of truth so deleted tests disappear immediately.
+    // Fall back to DEMO_TESTS only if the database has zero tests configured.
+    const finalTests = liveTests.length > 0 ? liveTests : DEMO_TESTS;
+    setTests(finalTests);
     setProfileCompletion(profileRes.data?.profile_completion_percentage ?? 0);
 
     const counts: Record<string, number> = {};
@@ -511,7 +507,20 @@ export default function StudentTests() {
     }
   }, [user, progressKey, activeTest]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("student-tests-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tests" }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
 
   // Persist progress whenever answers/currentIdx/timeLeft change during an active attempt
   useEffect(() => {
@@ -833,16 +842,30 @@ export default function StudentTests() {
       proctor_events: JSON.parse(JSON.stringify(proctorEventsRef.current)),
       retake_reason: retakeReasonRef.current,
     };
-    let insertError = null;
-    try {
-      const { error } = await (supabase.from("test_attempts") as any).insert(insertPayload);
-      insertError = error;
-    } catch (e: any) {
-      insertError = e;
+    let insertSuccess = false;
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { error: insErr } = await (supabase.from("test_attempts") as any).insert(insertPayload);
+      if (!insErr) {
+        insertSuccess = true;
+        break;
+      }
+      lastError = insErr;
+      const errText = `${insErr.message || ""} ${(insErr as any).details || ""} ${(insErr as any).hint || ""}`;
+      const missingColMatch =
+        errText.match(/Could not find the '([^']+)' column of '(?:public\.)?test_attempts'/i) ||
+        errText.match(/column "?([^"\s.]+)"? of relation "test_attempts" does not exist/i) ||
+        errText.match(/column test_attempts\.([a-zA-Z0-9_]+) does not exist/i);
+
+      if (missingColMatch && missingColMatch[1] && missingColMatch[1] in insertPayload) {
+        delete insertPayload[missingColMatch[1]];
+        continue;
+      }
+      break;
     }
 
-    if (insertError && !activeTest.id.startsWith("test-")) {
-      toast.error("Failed to submit: " + (insertError?.message || "Submission error"));
+    if (!insertSuccess && !activeTest.id.startsWith("test-")) {
+      toast.error("Failed to submit: " + (lastError?.message || "Submission error"));
       submittingRef.current = false;
       return;
     }

@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,6 +98,7 @@ export default function AdminTests() {
   });
   const [editing, setEditing] = useState<Test | null>(null);
   const [viewingTest, setViewingTest] = useState<Test | null>(null);
+  const [testToDelete, setTestToDelete] = useState<Test | null>(null);
   const [attempts, setAttempts] = useState<Tables<"test_attempts">[]>([]);
 
   const GADGET_CLASS_OPTIONS = ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"];
@@ -913,7 +924,7 @@ export default function AdminTests() {
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleViewResults(t)}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setTestToDelete(t)} title="Delete assessment"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -971,6 +982,36 @@ export default function AdminTests() {
           </Table>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Assessment Confirmation Dialog */}
+      <AlertDialog open={!!testToDelete} onOpenChange={(isOpen) => !isOpen && setTestToDelete(null)}>
+        <AlertDialogContent className="max-w-md rounded-2xl border border-border/80 bg-card p-6 text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg font-bold text-foreground">
+              Delete Assessment?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-foreground font-semibold">"{testToDelete?.title}"</strong>? All associated questions, retake banks, and scheduled registrations will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 mt-4">
+            <AlertDialogCancel onClick={() => setTestToDelete(null)} className="rounded-xl text-xs font-semibold">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (testToDelete) {
+                  handleDelete(testToDelete.id);
+                  setTestToDelete(null);
+                }
+              }}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-bold"
+            >
+              Delete Assessment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
