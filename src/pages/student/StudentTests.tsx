@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Clock, AlertTriangle, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Loader2, Sparkles, Eye, ShieldAlert, Camera, RefreshCw } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Loader2, Sparkles, Eye, ShieldAlert, Camera, RefreshCw, Calendar, GitBranch } from "lucide-react";
 import { isPast, differenceInSeconds, format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import WebcamProctor, { type ProctorEvent, type ProctorConfig } from "@/components/WebcamProctor";
@@ -1212,76 +1212,155 @@ export default function StudentTests() {
           const deadlinePast = deadline ? isPast(deadline) : false;
           const isLockedOut = deadlinePast && !isRegistered;
 
-          const matchedComp = companies.find((c) => c.id === test.company_id);
+          const cleanTitle = (test.title || "").toLowerCase();
+          const matchedComp =
+            companies.find((c) => c.id === test.company_id) ||
+            companies.find((c) => cleanTitle.includes(c.name.toLowerCase())) ||
+            (cleanTitle.includes("google") ? { name: "GOOGLE", id: "google" } : null) ||
+            (cleanTitle.includes("tcs") || cleanTitle.includes("tata") ? { name: "TCS", id: "tcs" } : null) ||
+            (cleanTitle.includes("amazon") ? { name: "AMAZON", id: "amazon" } : null) ||
+            (cleanTitle.includes("microsoft") ? { name: "MICROSOFT", id: "microsoft" } : null);
+
           const roundName = (test as any).round_name || (test.pass_criteria as any)?.round_name || "Round 1: Online Technical Assessment (OA)";
           const totalPoints = ((test.question_bank as unknown as Question[]) ?? []).reduce((acc, q) => acc + (q.points || 1), 0);
 
           return (
-            <Card key={test.id} className={isLockedOut ? "opacity-75 border-destructive/30" : "hover:border-primary/40 transition-all duration-300"}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
+            <Card
+              key={test.id}
+              className={`h-full flex flex-col justify-between rounded-3xl border border-border/70 bg-card hover:border-primary/40 hover:shadow-xl transition-all duration-300 ${
+                isLockedOut ? "opacity-75 border-destructive/30" : ""
+              }`}
+            >
+              <CardHeader className="p-5 pb-3 space-y-3.5">
+                {/* 1. Header Row: Logo & Company on Left, Status Badge on Right */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <CompanyLogo
                       name={matchedComp?.name || test.title}
                       logoUrl={(matchedComp?.contact_info as any)?.logo_url}
                       size="md"
+                      className="shadow-sm shrink-0 border-border/60"
                     />
-                    <div>
-                      <CardTitle className="text-base font-bold leading-tight">{test.title}</CardTitle>
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        {matchedComp?.name && (
-                          <span className="text-xs font-semibold text-muted-foreground">{matchedComp.name}</span>
-                        )}
-                        <Badge variant="outline" className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20 py-0">
-                          {roundName}
-                        </Badge>
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground block truncate">
+                        {matchedComp?.name || "Campus Drive"}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 font-medium">
+                        <Calendar className="h-3 w-3 text-primary/70 shrink-0" />
+                        <span>{format(new Date(test.scheduled_date), "MMM d, yyyy")}</span>
                       </div>
                     </div>
                   </div>
-                  <div>
+
+                  {/* Status badge: Cleanly positioned on the top right */}
+                  <div className="shrink-0">
                     {exhausted ? (
-                      <Badge variant="secondary">Completed</Badge>
+                      <Badge variant="secondary" className="text-xs font-semibold px-2.5 py-0.5">
+                        Completed
+                      </Badge>
                     ) : isLockedOut ? (
-                      <Badge variant="destructive">Registration Closed</Badge>
+                      <Badge variant="destructive" className="text-xs font-semibold px-2.5 py-0.5">
+                        Registration Closed
+                      </Badge>
                     ) : !isRegistered ? (
-                      <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500/30">Registration Open</Badge>
+                      <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-semibold px-2.5 py-0.5 shadow-none">
+                        Registration Open
+                      </Badge>
                     ) : isUpcoming ? (
-                      <Badge variant="outline" className="border-primary/40 text-primary">Registered · Upcoming</Badge>
+                      <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold px-2.5 py-0.5">
+                        Registered · Upcoming
+                      </Badge>
                     ) : (
-                      <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">Registered · Available</Badge>
+                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold px-2.5 py-0.5 shadow-none">
+                        Registered · Available
+                      </Badge>
                     )}
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                  <span>Date (IST)</span><span className="text-right">{format(new Date(test.scheduled_date), "MMM d, yyyy h:mm a")}</span>
-                  <span>Duration</span><span className="text-right">{test.duration} min</span>
-                  <span>Questions</span><span className="text-right">{test.questions_per_student ?? qCount} ({totalPoints} marks)</span>
-                  <span>Attempts</span><span className="text-right">{attempts} / {maxAttempts}</span>
-                  {deadline && (
-                    <>
-                      <span className={deadlinePast ? "text-destructive font-semibold" : "text-amber-500 font-semibold"}>Reg. Deadline</span>
-                      <span className={`text-right ${deadlinePast ? "text-destructive font-semibold" : "text-amber-500 font-semibold"}`}>
-                        {format(deadline, "MMM d, h:mm a")}
-                      </span>
-                    </>
-                  )}
+
+                {/* 2. Assessment Title: Full width, guaranteed 2-line height */}
+                <div>
+                  <h3
+                    className="font-display text-base font-extrabold text-foreground leading-snug line-clamp-2 min-h-[2.6rem]"
+                    title={test.title}
+                  >
+                    {test.title}
+                  </h3>
                 </div>
 
-                {isLockedOut ? (
-                  <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-2.5 text-center text-xs text-destructive font-semibold">
-                    Registration for this assessment is closed. Unregistered candidates cannot attend.
-                  </div>
-                ) : !isRegistered ? (
-                  <Button className="w-full bg-[#5b51d8] hover:bg-[#4d42cc] text-white font-bold shadow-md" onClick={() => handleRegisterForTest(test)}>
-                    Register for Assessment
-                  </Button>
-                ) : (
-                  <Button className="w-full" disabled={!eligible || exhausted || isUpcoming} onClick={() => handleStartClick(test)}>
-                    {exhausted ? "Max Attempts Reached" : isUpcoming ? `Starts in ${Math.floor(secsUntil / 3600)}h ${Math.floor((secsUntil % 3600) / 60)}m` : !eligible ? "Profile Incomplete" : attempts > 0 ? "Retake Test" : "Start Test"}
-                  </Button>
-                )}
+                {/* 3. Round Information Badge: Dedicated clean row with proper breathing room */}
+                <div>
+                  <Badge
+                    variant="outline"
+                    className="bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/25 text-[11px] font-semibold px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 max-w-full"
+                  >
+                    <GitBranch className="h-3 w-3 text-purple-500 shrink-0" />
+                    <span className="truncate">{roundName}</span>
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-5 pt-1 flex-1 flex flex-col justify-between space-y-4">
+                {/* 4. Uniform 5-Row Metadata Grid with Consistent Baseline */}
+                <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-xs border-t border-border/50 pt-3">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
+                    Time (IST)
+                  </span>
+                  <span className="text-right font-medium text-foreground">
+                    {format(new Date(test.scheduled_date), "h:mm a")}
+                  </span>
+
+                  <span className="text-muted-foreground">Duration</span>
+                  <span className="text-right font-medium text-foreground">{test.duration} min</span>
+
+                  <span className="text-muted-foreground">Questions</span>
+                  <span className="text-right font-medium text-foreground">
+                    {test.questions_per_student ?? qCount} ({totalPoints} marks)
+                  </span>
+
+                  <span className="text-muted-foreground">Attempts</span>
+                  <span className="text-right font-medium text-foreground">{attempts} / {maxAttempts}</span>
+
+                  <span className={deadline ? (deadlinePast ? "text-destructive font-semibold" : "text-amber-500 font-semibold") : "text-muted-foreground"}>
+                    Reg. Deadline
+                  </span>
+                  <span className={`text-right ${deadline ? (deadlinePast ? "text-destructive font-semibold" : "text-amber-500 font-semibold") : "text-muted-foreground font-medium"}`}>
+                    {deadline ? format(deadline, "MMM d, h:mm a") : "Open / Rolling"}
+                  </span>
+                </div>
+
+                {/* 5. Action Button: Always pinned to the bottom baseline */}
+                <div className="mt-auto pt-2">
+                  {isLockedOut ? (
+                    <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-2.5 text-center text-xs text-destructive font-semibold">
+                      Registration closed. Unregistered candidates cannot attend.
+                    </div>
+                  ) : !isRegistered ? (
+                    <Button
+                      className="w-full h-11 rounded-xl bg-[#5b51d8] hover:bg-[#4d42cc] text-white font-bold shadow-md transition-all text-sm"
+                      onClick={() => handleRegisterForTest(test)}
+                    >
+                      Register for Assessment
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full h-11 rounded-xl font-bold shadow-md text-sm transition-all"
+                      disabled={!eligible || exhausted || isUpcoming}
+                      onClick={() => handleStartClick(test)}
+                    >
+                      {exhausted
+                        ? "Max Attempts Reached"
+                        : isUpcoming
+                        ? `Starts in ${Math.floor(secsUntil / 3600)}h ${Math.floor((secsUntil % 3600) / 60)}m`
+                        : !eligible
+                        ? "Profile Incomplete"
+                        : attempts > 0
+                        ? "Retake Test"
+                        : "Start Test"}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           );
