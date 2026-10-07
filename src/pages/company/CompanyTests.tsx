@@ -17,6 +17,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import CompanyLogo from "@/components/CompanyLogo";
 import { ClipboardList, Plus, Trash2, Clock, Calendar, CheckCircle2, AlertTriangle, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { isPast } from "date-fns";
@@ -31,6 +33,8 @@ export default function CompanyTests() {
 
   // Form State with draft persistence
   const [title, setTitle] = useState(() => sessionStorage.getItem("company_test_title") || "");
+  const [roundName, setRoundName] = useState(() => sessionStorage.getItem("company_test_round_name") || "Round 1: Online Technical Assessment (OA)");
+  const [roundNumber, setRoundNumber] = useState(() => Number(sessionStorage.getItem("company_test_round_num")) || 1);
   const [scheduledDate, setScheduledDate] = useState(() => sessionStorage.getItem("company_test_date") || "");
   const [duration, setDuration] = useState(() => Number(sessionStorage.getItem("company_test_duration")) || 60);
   const [passPercentage, setPassPercentage] = useState(() => Number(sessionStorage.getItem("company_test_pass")) || 60);
@@ -40,16 +44,20 @@ export default function CompanyTests() {
   useEffect(() => {
     if (title || scheduledDate) {
       sessionStorage.setItem("company_test_title", title);
+      sessionStorage.setItem("company_test_round_name", roundName);
+      sessionStorage.setItem("company_test_round_num", String(roundNumber));
       sessionStorage.setItem("company_test_date", scheduledDate);
       sessionStorage.setItem("company_test_duration", String(duration));
       sessionStorage.setItem("company_test_pass", String(passPercentage));
       sessionStorage.setItem("company_test_participants", String(maxParticipants));
       sessionStorage.setItem("company_test_deadline", registrationDeadline);
     }
-  }, [title, scheduledDate, duration, passPercentage, maxParticipants, registrationDeadline]);
+  }, [title, roundName, roundNumber, scheduledDate, duration, passPercentage, maxParticipants, registrationDeadline]);
 
   const clearCompanyDraft = () => {
     sessionStorage.removeItem("company_test_title");
+    sessionStorage.removeItem("company_test_round_name");
+    sessionStorage.removeItem("company_test_round_num");
     sessionStorage.removeItem("company_test_date");
     sessionStorage.removeItem("company_test_duration");
     sessionStorage.removeItem("company_test_pass");
@@ -142,10 +150,16 @@ export default function CompanyTests() {
 
       let payload: Record<string, any> = {
         title: title.trim(),
+        round_number: roundNumber,
+        round_name: roundName,
         scheduled_date: new Date(scheduledDate).toISOString(),
         duration: Number(duration) || 60,
         max_participants: Number(maxParticipants) || 100,
-        pass_criteria: { pass_percentage: Number(passPercentage) || 50 },
+        pass_criteria: {
+          pass_percentage: Number(passPercentage) || 50,
+          round_number: roundNumber,
+          round_name: roundName,
+        },
         registration_start: new Date().toISOString(),
         registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
         created_by: user?.id,
@@ -255,6 +269,8 @@ export default function CompanyTests() {
   const resetForm = () => {
     clearCompanyDraft();
     setTitle("");
+    setRoundName("Round 1: Online Technical Assessment (OA)");
+    setRoundNumber(1);
     setScheduledDate("");
     setDuration(60);
     setPassPercentage(60);
@@ -308,16 +324,26 @@ export default function CompanyTests() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <h2 className="font-display text-xl font-bold text-foreground">{test.title}</h2>
-                      {test.registration_deadline && (
-                        deadlinePast ? (
-                          <Badge variant="destructive" className="text-xs">Registration Closed</Badge>
-                        ) : (
-                          <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs">
-                            Registration Open
-                          </Badge>
-                        )
-                      )}
+                      <CompanyLogo name={test.title} size="md" />
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="font-display text-xl font-bold text-foreground">{test.title}</h2>
+                          {((test as any).round_name || (test.pass_criteria as any)?.round_name) && (
+                            <Badge variant="outline" className="text-xs font-semibold bg-primary/10 text-primary border-primary/20">
+                              {(test as any).round_name || (test.pass_criteria as any)?.round_name}
+                            </Badge>
+                          )}
+                          {test.registration_deadline && (
+                            deadlinePast ? (
+                              <Badge variant="destructive" className="text-xs">Registration Closed</Badge>
+                            ) : (
+                              <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs">
+                                Registration Open
+                              </Badge>
+                            )
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -382,15 +408,45 @@ export default function CompanyTests() {
           </DialogHeader>
 
           <form onSubmit={handleCreateTest} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label className="text-xs uppercase text-muted-foreground font-semibold">Assessment Title *</Label>
-              <Input
-                required
-                placeholder="e.g. Technical Coding & Aptitude Round 1"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Assessment Title *</Label>
+                <Input
+                  required
+                  placeholder="e.g. Technical Coding & Aptitude Round 1"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="h-11 rounded-xl border-border bg-muted/40 text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase text-muted-foreground font-semibold">Hiring Round *</Label>
+                <Select
+                  value={roundName}
+                  onValueChange={(val) => {
+                    let num = 1;
+                    if (val.startsWith("Round 1")) num = 1;
+                    else if (val.startsWith("Round 2")) num = 2;
+                    else if (val.startsWith("Round 3")) num = 3;
+                    else if (val.startsWith("Round 4")) num = 4;
+                    else if (val.startsWith("Round 5")) num = 5;
+                    setRoundName(val);
+                    setRoundNumber(num);
+                  }}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-border bg-muted/40 text-foreground">
+                    <SelectValue placeholder="Select Round" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Round 1: Online Technical Assessment (OA)">Round 1: Online Technical Assessment (OA)</SelectItem>
+                    <SelectItem value="Round 2: Coding & Problem Solving Round">Round 2: Coding & Problem Solving Round</SelectItem>
+                    <SelectItem value="Round 3: Technical Interview & Live Assessment">Round 3: Technical Interview & Live Assessment</SelectItem>
+                    <SelectItem value="Round 4: System Architecture & Design">Round 4: System Architecture & Design</SelectItem>
+                    <SelectItem value="Round 5: HR & Leadership Interview">Round 5: HR & Leadership Interview</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

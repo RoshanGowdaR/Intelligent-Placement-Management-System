@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import CompanyLogo from "@/components/CompanyLogo";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Company = Tables<"companies">;
@@ -269,9 +270,12 @@ export default function AdminCompanies() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{c.name}</p>
-                        {(c as any).job_location && <p className="text-xs text-muted-foreground">{(c as any).job_location}</p>}
+                      <div className="flex items-center gap-3">
+                        <CompanyLogo name={c.name} logoUrl={(c.contact_info as any)?.logo_url || (c as any).logo_url} size="sm" />
+                        <div>
+                          <p className="font-semibold text-foreground">{c.name}</p>
+                          {(c as any).job_location && <p className="text-xs text-muted-foreground">{(c as any).job_location}</p>}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">{(c as any).job_role || "—"}</TableCell>

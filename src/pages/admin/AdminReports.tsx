@@ -7,11 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Download, FileText, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ShieldAlert } from "lucide-react";
+import { Download, FileText, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ShieldAlert, CheckCircle2, AlertTriangle, Monitor, Laptop, Smartphone } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import CompanyLogo from "@/components/CompanyLogo";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -31,10 +33,13 @@ interface ReportRow {
   email: string;
   cgpa: number | null;
   totalScore: number | null;
+  earnedMarks: number;
+  totalMarks: number;
   passed: boolean | null;
   attemptNumber: number;
   completedAt: string | null;
   resumeUrl: string | null;
+  tabSwitches: number;
   proctorEvents: ProctorEvent[];
   autoSubmitted: boolean;
   retakeReason: string | null;
@@ -49,6 +54,7 @@ export default function AdminReports() {
   const [selectedTest, setSelectedTest] = useState("");
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedAuditRow, setSelectedAuditRow] = useState<ReportRow | null>(null);
 
   // Filters
   const [filterCompany, setFilterCompany] = useState("all");
@@ -96,7 +102,7 @@ export default function AdminReports() {
 
     const { data: attempts } = await supabase
       .from("test_attempts")
-      .select("id, test_id, student_id, total_score, passed, attempt_number, completed_at, auto_submitted, proctor_events, retake_reason")
+      .select("id, test_id, student_id, total_score, scores, passed, attempt_number, completed_at, tab_switches, auto_submitted, proctor_events, retake_reason")
       .eq("test_id", selectedTest)
       .order("total_score", { ascending: false });
 
@@ -119,7 +125,13 @@ export default function AdminReports() {
     const reportRows: ReportRow[] = attempts.map((a) => {
       const p = profileMap.get(a.student_id);
       const t = testMap.get(a.test_id);
-      const rec = a as unknown as { auto_submitted?: boolean; proctor_events?: ProctorEvent[]; retake_reason?: string | null };
+      const rec = a as unknown as { auto_submitted?: boolean; proctor_events?: ProctorEvent[]; retake_reason?: string | null; tab_switches?: number; scores?: any };
+      const scoresObj = (rec.scores as any) || {};
+      const testTotalMarks = ((t?.question_bank as any[]) || []).reduce((sum, q) => sum + (q.points || 1), 0) || 100;
+      const earnedMarks = scoresObj._earned_marks !== undefined ? Number(scoresObj._earned_marks) : Math.round(((a.total_score || 0) * testTotalMarks) / 100);
+      const totalMarks = scoresObj._total_marks !== undefined ? Number(scoresObj._total_marks) : testTotalMarks;
+      const tabSwitches = typeof a.tab_switches === "number" ? a.tab_switches : 0;
+
       return {
         attemptId: a.id,
         testId: a.test_id,
@@ -128,10 +140,13 @@ export default function AdminReports() {
         email: p?.email || "—",
         cgpa: p?.cgpa ?? null,
         totalScore: a.total_score,
+        earnedMarks,
+        totalMarks,
         passed: a.passed,
         attemptNumber: a.attempt_number,
         completedAt: a.completed_at,
         resumeUrl: p?.resume_url ?? null,
+        tabSwitches,
         proctorEvents: Array.isArray(rec.proctor_events) ? rec.proctor_events : [],
         autoSubmitted: !!rec.auto_submitted,
         retakeReason: rec.retake_reason ?? null,
@@ -366,7 +381,20 @@ export default function AdminReports() {
                     <TableCell className="font-medium">{r.studentName}</TableCell>
                     <TableCell>{r.email}</TableCell>
                     <TableCell>{r.cgpa ?? "—"}</TableCell>
-                    <TableCell>{r.totalScore ?? "—"}</TableCell>
+                    <TableCell>
+                      {r.totalScore != null ? (
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-foreground">
+                            {r.earnedMarks} / {r.totalMarks}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            ({r.totalScore}%)
+                          </span>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={r.passed ? "default" : "destructive"}>
                         {r.passed ? "Passed" : "Failed"}
@@ -378,119 +406,44 @@ export default function AdminReports() {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const warnings = r.proctorEvents.filter((e) => e.action === "warning");
-                        const autoEvt = r.proctorEvents.find((e) => e.action === "auto_submit");
-                        const gadgets = [...new Set(r.proctorEvents.map((e) => e.gadget))];
-                        if (r.proctorEvents.length === 0 && !r.autoSubmitted) {
-                          return <span className="text-xs text-muted-foreground">Clean</span>;
-                        }
+                        const isClean = r.tabSwitches === 0 && r.proctorEvents.length === 0 && !r.autoSubmitted;
+                        const gadgets = [...new Set(r.proctorEvents.filter((e) => e.gadget !== "tab_switch").map((e) => e.gadget))];
                         return (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="text-xs space-y-1 max-w-[240px] text-left hover:opacity-80">
-                                <div className="flex flex-wrap gap-1">
-                                  {warnings.length > 0 && <Badge variant="secondary">{warnings.length} warning{warnings.length > 1 ? "s" : ""}</Badge>}
-                                  {autoEvt && <Badge variant="destructive">Auto-submit</Badge>}
-                                  {r.autoSubmitted && !autoEvt && <Badge variant="outline">Auto-submitted</Badge>}
-                                </div>
-                                {gadgets.length > 0 && (
-                                  <p className="text-muted-foreground truncate" title={gadgets.join(", ")}>
-                                    Detected: {gadgets.join(", ")}
-                                  </p>
-                                )}
-                                <span className="text-[10px] text-primary underline">View timeline</span>
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-96 max-h-[400px] overflow-auto" align="end">
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2 border-b pb-2">
-                                  <ShieldAlert className="h-4 w-4 text-destructive" />
-                                  <div>
-                                    <p className="text-sm font-semibold">Proctor Event Timeline</p>
-                                    <p className="text-xs text-muted-foreground">{r.studentName} · Attempt #{r.attemptNumber}</p>
-                                  </div>
-                                </div>
-                                {(() => {
-                                  const t = tests.find((x) => x.id === r.testId) as (Test & { proctor_config?: Record<string, unknown> }) | undefined;
-                                  const cfg = (t?.proctor_config ?? {}) as Record<string, unknown>;
-                                  const DEFAULT_CLASSES = ["cell phone","laptop","tv","remote","keyboard","mouse","tablet","book"];
-                                  const watched = Array.isArray(cfg.watched_classes) ? (cfg.watched_classes as string[]) : DEFAULT_CLASSES;
-                                  const excluded = DEFAULT_CLASSES.filter((c) => !watched.includes(c));
-                                  const threshold = typeof cfg.confidence_threshold === "number" ? cfg.confidence_threshold : 0.55;
-                                  const frames = typeof cfg.consecutive_frames === "number" ? cfg.consecutive_frames : 1;
-                                  const warnDelay = typeof cfg.warning_delay_seconds === "number" ? cfg.warning_delay_seconds : 5;
-                                  const interval = typeof cfg.detection_interval_ms === "number" ? cfg.detection_interval_ms : 1500;
-                                  const secondOffense = typeof cfg.second_offense_action === "string" ? cfg.second_offense_action : "submit";
-                                  return (
-                                    <div className="rounded-md border bg-muted/30 p-2 space-y-1.5">
-                                      <p className="text-[10px] font-semibold uppercase text-muted-foreground">Effective proctor config for this attempt</p>
-                                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                                        <div><span className="text-muted-foreground">Confidence:</span> <span className="font-mono font-medium">{Number(threshold).toFixed(2)}</span></div>
-                                        <div><span className="text-muted-foreground">Consecutive frames:</span> <span className="font-mono font-medium">{frames}</span></div>
-                                        <div><span className="text-muted-foreground">Warning grace:</span> <span className="font-mono font-medium">{warnDelay}s</span></div>
-                                        <div><span className="text-muted-foreground">Scan interval:</span> <span className="font-mono font-medium">{interval}ms</span></div>
-                                        <div className="col-span-2"><span className="text-muted-foreground">2nd offense:</span> <span className="font-mono font-medium">{secondOffense === "submit" ? "Auto-submit" : "Warn again"}</span></div>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">Allowlist ({watched.length}/{DEFAULT_CLASSES.length})</p>
-                                        <div className="flex flex-wrap gap-1">
-                                          {watched.map((c) => (
-                                            <Badge key={c} variant="outline" className="text-[9px] px-1.5 py-0">{c}</Badge>
-                                          ))}
-                                          {excluded.map((c) => (
-                                            <Badge key={c} variant="secondary" className="text-[9px] px-1.5 py-0 line-through opacity-60">{c}</Badge>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-                                {r.proctorEvents.length === 0 ? (
-                                  <p className="text-xs text-muted-foreground py-2">
-                                    No proctor events. {r.autoSubmitted && "Attempt was auto-submitted (non-proctor)."}
-                                  </p>
-                                ) : (
-                                  <ol className="space-y-2">
-                                    {r.proctorEvents
-                                      .slice()
-                                      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                                      .map((ev, i) => (
-                                        <li key={i} className="flex gap-3 text-xs">
-                                          <div className="flex flex-col items-center">
-                                            <div className={`h-2 w-2 rounded-full ${ev.action === "auto_submit" ? "bg-destructive" : "bg-yellow-500"}`} />
-                                            {i < r.proctorEvents.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
-                                          </div>
-                                          <div className="flex-1 pb-2">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <Badge variant={ev.action === "auto_submit" ? "destructive" : "secondary"} className="text-[10px]">
-                                                {ev.action === "auto_submit" ? "Auto-submit" : "Warning"}
-                                              </Badge>
-                                              <span className="font-medium">{ev.gadget}</span>
-                                            </div>
-                                            <p className="text-muted-foreground mt-0.5 font-mono">
-                                              {format(new Date(ev.timestamp), "yyyy-MM-dd HH:mm:ss")}
-                                            </p>
-                                            <button
-                                              type="button"
-                                              onClick={() => markFalsePositive(r.testId, ev.gadget)}
-                                              className="mt-1 text-[10px] font-medium text-primary hover:underline"
-                                            >
-                                              Mark as false positive — stop flagging "{ev.gadget}" in this test
-                                            </button>
-                                          </div>
-                                        </li>
-                                      ))}
-                                  </ol>
-                                )}
-                                {r.retakeReason && (
-                                  <div className="border-t pt-2">
-                                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Retake reason</p>
-                                    <p className="text-xs mt-1">{r.retakeReason}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-1 max-w-[200px]">
+                              {isClean ? (
+                                <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs">
+                                  <CheckCircle2 className="h-3 w-3 mr-1 inline" /> Clean
+                                </Badge>
+                              ) : (
+                                <>
+                                  {r.tabSwitches > 0 && (
+                                    <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px]">
+                                      {r.tabSwitches} tab switch{r.tabSwitches > 1 ? "es" : ""}
+                                    </Badge>
+                                  )}
+                                  {gadgets.length > 0 && (
+                                    <Badge variant="destructive" className="text-[10px]">
+                                      {gadgets.length} gadget{gadgets.length > 1 ? "s" : ""}
+                                    </Badge>
+                                  )}
+                                  {r.autoSubmitted && (
+                                    <Badge variant="destructive" className="text-[10px]">
+                                      Auto-submitted
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs font-medium ml-auto"
+                              onClick={() => setSelectedAuditRow(r)}
+                            >
+                              View
+                            </Button>
+                          </div>
                         );
                       })()}
                     </TableCell>
@@ -522,6 +475,158 @@ export default function AdminReports() {
           </CardContent>
         </Card>
       )}
+
+      {/* Proctoring & Integrity Detail Dialog */}
+      <Dialog open={!!selectedAuditRow} onOpenChange={(open) => !open && setSelectedAuditRow(null)}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShieldAlert className="h-5 w-5 text-primary" /> Proctoring & Integrity Audit
+            </DialogTitle>
+            <DialogDescription>
+              Candidate: <span className="font-semibold text-foreground">{selectedAuditRow?.studentName}</span> ({selectedAuditRow?.email}) · Attempt #{selectedAuditRow?.attemptNumber}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAuditRow && (
+            <div className="space-y-4 pt-2">
+              {/* Integrity Overview Banner */}
+              <div className={`p-3.5 rounded-lg border flex items-center justify-between ${
+                selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                  : "bg-destructive/10 border-destructive/30 text-destructive"
+              }`}>
+                <div className="flex items-center gap-2.5">
+                  {selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                      <div>
+                        <div className="font-bold text-sm">Clean Integrity Record</div>
+                        <div className="text-xs text-muted-foreground">No tab switching or gadget detection flagged during session.</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      <div>
+                        <div className="font-bold text-sm">Integrity Infractions Detected</div>
+                        <div className="text-xs text-muted-foreground">Violations recorded during assessment session.</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <Badge variant={selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? "default" : "destructive"}>
+                  {selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? "VERIFIED" : "FLAGGED"}
+                </Badge>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                    <Monitor className="h-3.5 w-3.5" /> Tab Switches
+                  </div>
+                  <div className="text-xl font-bold font-mono mt-1 text-foreground">
+                    {selectedAuditRow.tabSwitches}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                    <Smartphone className="h-3.5 w-3.5" /> Gadgets Flagged
+                  </div>
+                  <div className="text-xl font-bold font-mono mt-1 text-foreground">
+                    {[...new Set(selectedAuditRow.proctorEvents.filter(e => e.gadget !== "tab_switch").map(e => e.gadget))].length}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                    Score Breakdown
+                  </div>
+                  <div className="text-sm font-bold font-mono mt-1 text-foreground">
+                    {selectedAuditRow.earnedMarks} / {selectedAuditRow.totalMarks}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">({selectedAuditRow.totalScore ?? 0}%)</div>
+                </div>
+
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                    Auto-Submitted
+                  </div>
+                  <div className="text-base font-bold mt-1">
+                    {selectedAuditRow.autoSubmitted ? (
+                      <span className="text-destructive font-mono">YES</span>
+                    ) : (
+                      <span className="text-emerald-500 font-mono">NO</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chronological Event Timeline */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Audit Timeline & Event Log
+                </h4>
+
+                {selectedAuditRow.proctorEvents.length === 0 && selectedAuditRow.tabSwitches === 0 ? (
+                  <div className="p-4 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
+                    Candidate completed the assessment without any detected gadget infractions or tab switches.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border divide-y max-h-60 overflow-y-auto">
+                    {selectedAuditRow.tabSwitches > 0 && !selectedAuditRow.proctorEvents.some(e => e.gadget === "tab_switch") && (
+                      <div className="p-3 flex items-start gap-3 bg-amber-500/5">
+                        <Monitor className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="flex-1 text-xs">
+                          <div className="font-semibold text-foreground flex items-center gap-2">
+                            <span>Window / Tab Focus Lost</span>
+                            <Badge variant="outline" className="text-[9px] text-amber-600 dark:text-amber-400 border-amber-500/30">
+                              {selectedAuditRow.tabSwitches} occurrence{selectedAuditRow.tabSwitches > 1 ? "s" : ""}
+                            </Badge>
+                          </div>
+                          <div className="text-muted-foreground mt-0.5">
+                            Candidate navigated away from the assessment window or switched tabs.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedAuditRow.proctorEvents
+                      .slice()
+                      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                      .map((ev, i) => (
+                        <div key={i} className="p-3 flex items-start gap-3 hover:bg-muted/30">
+                          <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${ev.action === "auto_submit" ? "bg-destructive" : "bg-amber-500"}`} />
+                          <div className="flex-1 text-xs">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={ev.action === "auto_submit" ? "destructive" : "secondary"} className="text-[10px]">
+                                {ev.action === "auto_submit" ? "Auto-submitted" : "AI Warning"}
+                              </Badge>
+                              <span className="font-semibold text-foreground">
+                                {ev.gadget === "tab_switch" ? "Tab Switch Detected" : `Gadget Flagged: ${ev.gadget}`}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-1 font-mono">
+                              {format(new Date(ev.timestamp), "yyyy-MM-dd HH:mm:ss")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedAuditRow.retakeReason && (
+                <div className="p-3 rounded-lg border bg-muted/40 text-xs">
+                  <span className="font-semibold text-foreground">Retake Justification:</span> {selectedAuditRow.retakeReason}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

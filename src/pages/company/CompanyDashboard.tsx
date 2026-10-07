@@ -9,6 +9,7 @@ import {
   Building2, Users, ClipboardList, TrendingUp, Plus, Calendar,
   CheckCircle2, Clock, ChevronRight, FileText, Sparkles, UserCheck
 } from "lucide-react";
+import CompanyLogo from "@/components/CompanyLogo";
 import { motion } from "framer-motion";
 import { isPast } from "date-fns";
 
@@ -162,19 +163,27 @@ export default function CompanyDashboard() {
       
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30 font-mono text-[11px] px-2.5 py-0.5">
-              RECRUITER PORTAL
-            </Badge>
-            <span className="text-xs text-muted-foreground font-semibold">{company?.name || "Company Recruiter"}</span>
+        <div className="flex items-start gap-4">
+          <CompanyLogo
+            name={company?.name}
+            logoUrl={company?.contact_info?.logo_url || company?.logo_url}
+            size="xl"
+            className="shadow-md hidden sm:flex shrink-0 mt-1"
+          />
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30 font-mono text-[11px] px-2.5 py-0.5">
+                RECRUITER PORTAL
+              </Badge>
+              <span className="text-xs text-muted-foreground font-semibold">{company?.name || "Company Recruiter"}</span>
+            </div>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+              Recruitment Command Center
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Schedule hiring assessments, monitor candidate registration deadlines &amp; evaluate performance.
+            </p>
           </div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Recruitment Command Center
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Schedule hiring assessments, monitor candidate registration deadlines &amp; evaluate performance.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -261,17 +270,27 @@ export default function CompanyDashboard() {
                 return (
                   <div key={t.id} className="p-5 rounded-2xl bg-card border border-border/70 hover:border-primary/40 transition-colors shadow-sm">
                     <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-display text-base font-bold text-foreground">{t.title}</h3>
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-primary" />
-                            Date: {new Date(t.scheduled_date).toLocaleDateString()}
-                          </span>
-                          <span>•</span>
-                          <span>Duration: {t.duration} mins</span>
-                          <span>•</span>
-                          <span>Passing Cutoff: {t.pass_criteria?.pass_percentage ?? 50}%</span>
+                      <div className="flex items-center gap-3">
+                        <CompanyLogo name={company?.name} logoUrl={company?.contact_info?.logo_url || company?.logo_url} size="sm" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-display text-base font-bold text-foreground">{t.title}</h3>
+                            {t.round_name && (
+                              <Badge variant="outline" className="text-[10px] px-2 py-0 border-primary/30 text-primary">
+                                {t.round_name}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-primary" />
+                              Date: {new Date(t.scheduled_date).toLocaleDateString()}
+                            </span>
+                            <span>•</span>
+                            <span>Duration: {t.duration} mins</span>
+                            <span>•</span>
+                            <span>Passing Cutoff: {t.pass_criteria?.pass_percentage ?? 50}%</span>
+                          </div>
                         </div>
                       </div>
 

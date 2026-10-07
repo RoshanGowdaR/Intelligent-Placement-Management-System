@@ -12,6 +12,7 @@ import {
   Briefcase, DollarSign, CheckCircle2, XCircle, Clock, Users, FileText, Link2
 } from "lucide-react";
 import { DriveProgressTimeline } from "@/components/student/DriveProgressTimeline";
+import CompanyLogo from "@/components/CompanyLogo";
 
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -81,7 +82,12 @@ export default function CompanyDetail() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Building2 className="h-8 w-8 text-primary" />
+            <CompanyLogo
+              name={company.name}
+              logoUrl={(company.contact_info as any)?.logo_url || company.logo_url}
+              size="lg"
+              className="shadow-sm"
+            />
             {company.name}
           </h1>
           {company.description && (
