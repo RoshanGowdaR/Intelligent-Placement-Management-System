@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import CompanyLogo from "@/components/CompanyLogo";
 import {
   Search, Building2, CheckCircle2, XCircle, ArrowRight, Briefcase,
   MapPin, DollarSign, Sparkles, Filter, ShieldCheck, Globe
@@ -85,6 +86,8 @@ export default function StudentCompanies() {
           {
             id: "comp-google-campus-2026",
             name: "GOOGLE",
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
+            contact_info: { logo_url: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" },
             job_role: "Software Development Engineer (Campus 2026)",
             salary_package: "24 - 32 LPA",
             job_location: "Bengaluru / Hyderabad, India",
@@ -98,6 +101,8 @@ export default function StudentCompanies() {
           {
             id: "comp-microsoft-sde-2026",
             name: "MICROSOFT",
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg",
+            contact_info: { logo_url: "https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg" },
             job_role: "Software Engineer - Core Platform & Azure",
             salary_package: "18 - 24 LPA",
             job_location: "Bengaluru / Hyderabad, Hybrid",
@@ -111,6 +116,8 @@ export default function StudentCompanies() {
           {
             id: "comp-amazon-sde-2026",
             name: "AMAZON",
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg",
+            contact_info: { logo_url: "https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg" },
             job_role: "Graduate SDE - AWS Cloud & Systems",
             salary_package: "16 - 22 LPA",
             job_location: "Bengaluru / Chennai, India",
@@ -124,6 +131,8 @@ export default function StudentCompanies() {
           {
             id: "comp-tcs-digital-2026",
             name: "TCS",
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg",
+            contact_info: { logo_url: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg" },
             job_role: "Software Development Engineer (Digital / Prime)",
             salary_package: "9 - 14 LPA",
             job_location: "Bengaluru, Pan-India",
@@ -264,9 +273,12 @@ export default function StudentCompanies() {
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-[#5b51d8] to-[#8277ff] text-white font-display font-extrabold text-lg flex items-center justify-center shadow-md shrink-0">
-                        {c.name ? c.name.charAt(0).toUpperCase() : "C"}
-                      </div>
+                      <CompanyLogo
+                        name={c.name}
+                        logoUrl={(c.contact_info as any)?.logo_url || c.logo_url}
+                        size="lg"
+                        className="shadow-sm"
+                      />
                       <div>
                         <h3 className="font-display text-base font-extrabold text-foreground group-hover:text-[#5b51d8] transition-colors line-clamp-1">
                           {c.name}

@@ -7,8 +7,8 @@ import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Building2, ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Building2, ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck, Upload, Image as ImageIcon, Check } from "lucide-react";
+import CompanyLogo, { KNOWN_COMPANY_LOGOS } from "@/components/CompanyLogo";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -42,6 +42,54 @@ export default function CompanyRegister() {
   const [jobRole, setJobRole] = useState("Software Development Engineer");
   const [salaryPackage, setSalaryPackage] = useState("12 - 18 LPA");
   const [maxBacklogs, setMaxBacklogs] = useState(0);
+
+  // Mandatory Company Logo
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast.error("Logo file size exceeds 1.5MB. Please choose a smaller image.");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        setLogoPreview(base64);
+        setLogoUrl(base64);
+
+        try {
+          const fileExt = file.name.split(".").pop();
+          const fileName = `company-${Date.now()}.${fileExt}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("company-logos")
+            .upload(fileName, file, { upsert: true });
+
+          if (!uploadError && uploadData) {
+            const { data: publicUrlData } = supabase.storage
+              .from("company-logos")
+              .getPublicUrl(fileName);
+            if (publicUrlData?.publicUrl) {
+              setLogoUrl(publicUrlData.publicUrl);
+            }
+          }
+        } catch (_) {}
+        toast.success("Company logo uploaded successfully!");
+        setIsUploadingLogo(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (_) {
+      toast.error("Failed to read image file");
+      setIsUploadingLogo(false);
+    }
+  };
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -105,7 +153,30 @@ export default function CompanyRegister() {
         })
       );
 
+      const cleanCompanyName = companyName.trim();
+      const resolvedLogo = logoUrl.trim() || logoPreview || (KNOWN_COMPANY_LOGOS[cleanCompanyName.toLowerCase()] ?? "");
+
+      if (!resolvedLogo) {
+        toast.error("Company Logo is mandatory! Please upload an official logo image or select a brand.");
+        return;
+      }
+
       const redirectTo = `${window.location.origin}/login`;
+      sessionStorage.setItem(
+        "pending_company_details",
+        JSON.stringify({
+          name: cleanCompanyName || "Visiting Recruiter",
+          website: website.trim(),
+          industry: industry.trim(),
+          description: description.trim(),
+          hrName: hrName.trim(),
+          phone: phone.trim(),
+          jobRole: jobRole.trim(),
+          salaryPackage: salaryPackage.trim(),
+          maxBacklogs: Number(maxBacklogs) || 0,
+          logo_url: resolvedLogo,
+        })
+      );
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -124,6 +195,14 @@ export default function CompanyRegister() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const cleanCompanyName = companyName.trim();
+    const resolvedLogo = logoUrl.trim() || logoPreview || (KNOWN_COMPANY_LOGOS[cleanCompanyName.toLowerCase()] ?? "");
+
+    if (!resolvedLogo) {
+      toast.error("Company Logo is mandatory! Please upload an official logo image or select a brand.");
+      return;
+    }
 
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
@@ -152,7 +231,8 @@ export default function CompanyRegister() {
           options: {
             data: {
               name: hrName.trim(),
-              company_name: companyName.trim(),
+              company_name: cleanCompanyName,
+              logo_url: resolvedLogo,
               role: "company",
             },
           },
@@ -193,12 +273,20 @@ export default function CompanyRegister() {
         return;
       }
 
+      const contactInfoObj = {
+        logo_url: resolvedLogo,
+        website: website.trim(),
+        hr_name: hrName.trim(),
+        hr_phone: phone.trim(),
+        industry: industry.trim(),
+      };
+
       // 3. Upsert into public.companies
       try {
         const { data: existingComp } = await supabase
           .from("companies")
           .select("id")
-          .or(`user_id.eq.${activeUserId},name.ilike.${companyName.trim()}`)
+          .or(`user_id.eq.${activeUserId},name.ilike.${cleanCompanyName}`)
           .maybeSingle();
 
         if (existingComp) {
@@ -206,7 +294,7 @@ export default function CompanyRegister() {
             .from("companies")
             .update({
               user_id: activeUserId,
-              name: companyName.trim(),
+              name: cleanCompanyName,
               website: website.trim() || null,
               industry: industry.trim() || null,
               description: description.trim() || null,
@@ -216,11 +304,12 @@ export default function CompanyRegister() {
               job_role: jobRole.trim() || null,
               salary_package: salaryPackage.trim() || null,
               max_backlogs: Number(maxBacklogs) || 0,
+              contact_info: contactInfoObj,
             })
             .eq("id", existingComp.id);
         } else {
           await supabase.from("companies").insert({
-            name: companyName.trim(),
+            name: cleanCompanyName,
             user_id: activeUserId,
             email: cleanEmail,
             website: website.trim() || null,
@@ -231,6 +320,7 @@ export default function CompanyRegister() {
             job_role: jobRole.trim() || null,
             salary_package: salaryPackage.trim() || null,
             max_backlogs: Number(maxBacklogs) || 0,
+            contact_info: contactInfoObj,
           });
         }
       } catch (companyError) {
@@ -339,6 +429,112 @@ export default function CompanyRegister() {
               <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 border-b border-border pb-2">
                 <Building2 className="h-4 w-4" /> 1. Company Information
               </h2>
+
+              {/* Mandatory Company Logo Upload */}
+              <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase text-foreground font-bold flex items-center gap-1.5">
+                    <ImageIcon className="h-4 w-4 text-primary" /> Official Company Logo *
+                  </Label>
+                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+                    Mandatory
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  {/* Visual Preview */}
+                  <div className="shrink-0 flex flex-col items-center gap-1.5">
+                    <CompanyLogo
+                      name={companyName || "Company"}
+                      logoUrl={logoUrl || logoPreview}
+                      size="xl"
+                      className="shadow-md border-primary/30 h-16 w-16"
+                    />
+                    <span className="text-[10px] text-muted-foreground font-mono">Live Preview</span>
+                  </div>
+
+                  {/* Upload Controls */}
+                  <div className="flex-1 space-y-2 w-full">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:bg-muted text-xs font-semibold shadow-sm transition-colors text-foreground">
+                        <Upload className="h-3.5 w-3.5 text-primary" />
+                        {isUploadingLogo ? "Uploading..." : "Upload Logo (PNG, SVG, JPG)"}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                          className="hidden"
+                          onChange={handleLogoFileChange}
+                          disabled={isUploadingLogo}
+                        />
+                      </label>
+
+                      {logoPreview && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs text-destructive hover:bg-destructive/10"
+                          onClick={() => { setLogoPreview(null); setLogoUrl(""); }}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Input
+                        type="url"
+                        placeholder="Or paste direct Image / SVG link (e.g. https://...)"
+                        value={logoUrl.startsWith("data:") ? "" : logoUrl}
+                        onChange={(e) => {
+                          setLogoUrl(e.target.value);
+                          setLogoPreview(e.target.value);
+                        }}
+                        className="h-9 text-xs rounded-xl border-border bg-card text-foreground"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Popular Brand One-Click Selectors */}
+                <div className="pt-2 border-t border-border/50">
+                  <div className="text-[10px] text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-amber-500" /> Or select verified enterprise brand:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { name: "Google", key: "google" },
+                      { name: "Microsoft", key: "microsoft" },
+                      { name: "Amazon", key: "amazon" },
+                      { name: "TCS", key: "tcs" },
+                      { name: "Infosys", key: "infosys" },
+                      { name: "Wipro", key: "wipro" },
+                      { name: "Accenture", key: "accenture" },
+                      { name: "Meta", key: "meta" },
+                    ].map((brand) => (
+                      <button
+                        key={brand.key}
+                        type="button"
+                        onClick={() => {
+                          const url = KNOWN_COMPANY_LOGOS[brand.key];
+                          setLogoUrl(url);
+                          setLogoPreview(url);
+                          if (!companyName.trim()) setCompanyName(brand.name);
+                          toast.success(`Loaded ${brand.name} official vector logo!`);
+                        }}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                          (logoUrl === KNOWN_COMPANY_LOGOS[brand.key] || companyName.toLowerCase() === brand.key)
+                            ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
+                            : "bg-card border-border hover:border-primary/50 text-foreground"
+                        }`}
+                      >
+                        <CompanyLogo name={brand.name} size="xs" />
+                        <span>{brand.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">

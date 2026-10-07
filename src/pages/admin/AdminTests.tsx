@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Eye, Sparkles, Upload, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Sparkles, Upload, Loader2, ShieldAlert } from "lucide-react";
+import CompanyLogo from "@/components/CompanyLogo";
 import { format, isPast } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import * as pdfjsLib from "pdfjs-dist";
@@ -110,6 +111,8 @@ export default function AdminTests() {
     } catch {}
     return {
       title: "",
+      round_number: "1",
+      round_name: "Round 1: Online Technical Assessment (OA)",
       scheduled_date: "",
       duration: "60",
       max_participants: "100",
@@ -118,8 +121,8 @@ export default function AdminTests() {
       min_score_percent: "60",
       warning_delay_seconds: "5",
       second_offense_action: "submit" as "submit" | "warn",
-      detection_interval_ms: "1500",
-      confidence_threshold: "0.55",
+      detection_interval_ms: "800",
+      confidence_threshold: "0.35",
       consecutive_frames: "1",
       watched_classes: ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"],
     };
@@ -173,7 +176,23 @@ export default function AdminTests() {
     sessionStorage.removeItem("admin_test_open");
     sessionStorage.removeItem("admin_test_form_draft");
     sessionStorage.removeItem("admin_test_questions_draft");
-    setForm({ title: "", scheduled_date: "", duration: "60", max_participants: "100", company_id: "", questions_per_student: "25", min_score_percent: "60", warning_delay_seconds: "5", second_offense_action: "submit", detection_interval_ms: "1500", confidence_threshold: "0.55", consecutive_frames: "1", watched_classes: [...GADGET_CLASS_OPTIONS] });
+    setForm({
+      title: "",
+      round_number: "1",
+      round_name: "Round 1: Online Technical Assessment (OA)",
+      scheduled_date: "",
+      duration: "60",
+      max_participants: "100",
+      company_id: "",
+      questions_per_student: "25",
+      min_score_percent: "60",
+      warning_delay_seconds: "5",
+      second_offense_action: "submit",
+      detection_interval_ms: "800",
+      confidence_threshold: "0.35",
+      consecutive_frames: "1",
+      watched_classes: [...GADGET_CLASS_OPTIONS],
+    });
     setQuestions([]);
     setRetakeQuestions([]);
     setEditing(null);
@@ -315,7 +334,11 @@ export default function AdminTests() {
 
   const handleSave = async () => {
     if (!form.title.trim() || !form.scheduled_date) { toast.error("Title and scheduled date are required"); return; }
-    const passCriteria: PassCriteria = { min_score_percent: parseInt(form.min_score_percent) || 60 };
+    const passCriteria = {
+      min_score_percent: parseInt(form.min_score_percent) || 60,
+      round_number: parseInt(form.round_number) || 1,
+      round_name: form.round_name || "Round 1: Online Technical Assessment (OA)",
+    };
 
     // Convert local datetime to ISO
     const scheduledISO = localDatetimeToISO(form.scheduled_date);
@@ -325,14 +348,16 @@ export default function AdminTests() {
     const proctorConfig = {
       warning_delay_seconds: parseInt(form.warning_delay_seconds) || 5,
       second_offense_action: form.second_offense_action,
-      detection_interval_ms: parseInt(form.detection_interval_ms) || 1500,
-      confidence_threshold: Number.isFinite(parsedThreshold) ? Math.min(0.95, Math.max(0.1, parsedThreshold)) : 0.55,
+      detection_interval_ms: parseInt(form.detection_interval_ms) || 800,
+      confidence_threshold: Number.isFinite(parsedThreshold) ? Math.min(0.95, Math.max(0.1, parsedThreshold)) : 0.35,
       consecutive_frames: Number.isFinite(parsedFrames) ? Math.min(10, Math.max(1, parsedFrames)) : 1,
-      watched_classes: form.watched_classes,
+      watched_classes: GADGET_CLASS_OPTIONS,
     };
 
     const payload = {
       title: form.title,
+      round_number: parseInt(form.round_number) || 1,
+      round_name: form.round_name || "Round 1: Online Technical Assessment (OA)",
       scheduled_date: scheduledISO,
       duration: parseInt(form.duration) || 60,
       max_participants: parseInt(form.max_participants) || null,
@@ -442,11 +467,13 @@ export default function AdminTests() {
   };
 
   const handleEdit = (t: Test) => {
-    const criteria = (t.pass_criteria as Record<string, number>) ?? {};
+    const criteria = (t.pass_criteria as Record<string, any>) ?? {};
     const proctorCfg = ((t as unknown as { proctor_config?: { warning_delay_seconds?: number; second_offense_action?: "submit" | "warn"; detection_interval_ms?: number; confidence_threshold?: number; consecutive_frames?: number; watched_classes?: string[] } }).proctor_config) ?? {};
     const localDate = toLocalDatetimeString(new Date(t.scheduled_date));
     setForm({
       title: t.title,
+      round_number: String((t as any).round_number || criteria.round_number || 1),
+      round_name: (t as any).round_name || criteria.round_name || "Round 1: Online Technical Assessment (OA)",
       scheduled_date: localDate,
       duration: String(t.duration),
       max_participants: String(t.max_participants ?? ""),
@@ -455,8 +482,8 @@ export default function AdminTests() {
       min_score_percent: String(criteria.min_score_percent ?? "60"),
       warning_delay_seconds: String(proctorCfg.warning_delay_seconds ?? 5),
       second_offense_action: (proctorCfg.second_offense_action ?? "submit"),
-      detection_interval_ms: String(proctorCfg.detection_interval_ms ?? 1500),
-      confidence_threshold: String(proctorCfg.confidence_threshold ?? 0.55),
+      detection_interval_ms: String(proctorCfg.detection_interval_ms ?? 800),
+      confidence_threshold: String(proctorCfg.confidence_threshold ?? 0.35),
       consecutive_frames: String(proctorCfg.consecutive_frames ?? 1),
       watched_classes: Array.isArray(proctorCfg.watched_classes) && proctorCfg.watched_classes.length ? proctorCfg.watched_classes : [...GADGET_CLASS_OPTIONS],
     });
@@ -532,9 +559,40 @@ export default function AdminTests() {
               </TabsList>
 
               <TabsContent value="details" className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Test Title</Label>
-                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. TCS Aptitude Round 1" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Assessment Title *</Label>
+                    <Input
+                      required
+                      value={form.title}
+                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                      placeholder="e.g. TCS CodeVita / SDE Diagnostic"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hiring Round *</Label>
+                    <Select
+                      value={form.round_name}
+                      onValueChange={(val) => {
+                        let num = "1";
+                        if (val.startsWith("Round 1")) num = "1";
+                        else if (val.startsWith("Round 2")) num = "2";
+                        else if (val.startsWith("Round 3")) num = "3";
+                        else if (val.startsWith("Round 4")) num = "4";
+                        else if (val.startsWith("Round 5")) num = "5";
+                        setForm({ ...form, round_name: val, round_number: num });
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select Round" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Round 1: Online Technical Assessment (OA)">Round 1: Online Technical Assessment (OA)</SelectItem>
+                        <SelectItem value="Round 2: Coding & Problem Solving Round">Round 2: Coding & Problem Solving Round</SelectItem>
+                        <SelectItem value="Round 3: Technical Interview & Live Assessment">Round 3: Technical Interview & Live Assessment</SelectItem>
+                        <SelectItem value="Round 4: System Architecture & Design">Round 4: System Architecture & Design</SelectItem>
+                        <SelectItem value="Round 5: HR & Leadership Interview">Round 5: HR & Leadership Interview</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -633,32 +691,17 @@ export default function AdminTests() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 pt-1">
-                    <Label>Watched gadget classes</Label>
-                    <p className="text-[10px] text-muted-foreground">Unchecked items will not trigger warnings for this test.</p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {GADGET_CLASS_OPTIONS.map((cls) => {
-                        const checked = form.watched_classes.includes(cls);
-                        return (
-                          <label key={cls} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs cursor-pointer hover:bg-accent">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                const next = e.target.checked
-                                  ? [...form.watched_classes, cls]
-                                  : form.watched_classes.filter((c) => c !== cls);
-                                setForm({ ...form, watched_classes: next });
-                              }}
-                            />
-                            <span className="capitalize">{cls}</span>
-                          </label>
-                        );
-                      })}
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3 mt-2">
+                    <ShieldAlert className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-foreground">Universal AI Anti-Cheat Monitoring Active</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Automatic real-time detection for all unauthorized gadgets including mobile phones, secondary laptops, tablets, external screens, and books. Full window lockout and proctor violation timeline logging are permanently enforced.
+                      </p>
                     </div>
                   </div>
                 </div>
-                </div>
+              </div>
               </TabsContent>
 
 
@@ -893,9 +936,27 @@ export default function AdminTests() {
               {filtered.map((t) => {
                 const qCount = ((t.question_bank as unknown as Question[]) ?? []).length;
                 const isRegOpen = !t.registration_deadline || !isPast(new Date(t.registration_deadline));
+                const comp = companies.find((c) => c.id === t.company_id);
+                const round = (t as any).round_name || (t.pass_criteria as any)?.round_name;
+
                 return (
                   <TableRow key={t.id}>
-                    <TableCell className="font-medium">{t.title}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2.5">
+                        <CompanyLogo name={comp?.name || t.title} logoUrl={(comp as any)?.contact_info?.logo_url} size="sm" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span>{t.title}</span>
+                            {round && (
+                              <Badge variant="outline" className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20">
+                                {round}
+                              </Badge>
+                            )}
+                          </div>
+                          {comp?.name && <span className="text-xs text-muted-foreground">{comp.name}</span>}
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell>{formatToIST12hr(t.scheduled_date)}</TableCell>
                     <TableCell>{t.duration} min</TableCell>
                     <TableCell>{qCount} in bank / {t.questions_per_student ?? qCount} per student</TableCell>
@@ -960,19 +1021,31 @@ export default function AdminTests() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {attempts.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="font-mono text-xs">{a.student_id.slice(0, 8)}…</TableCell>
-                  <TableCell>{a.attempt_number}</TableCell>
-                  <TableCell>{a.total_score ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={a.passed ? "default" : "destructive"}>
-                      {a.passed ? "Passed" : "Failed"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{a.completed_at ? formatToIST12hr(a.completed_at) : "In progress"}</TableCell>
-                </TableRow>
-              ))}
+              {attempts.map((a) => {
+                const scoresObj = (a.scores as any) || {};
+                const testTotalMarks = ((viewingTest?.question_bank as any[]) || []).reduce((sum, q) => sum + (q.points || 1), 0) || 100;
+                const earnedMarks = scoresObj._earned_marks !== undefined ? scoresObj._earned_marks : Math.round(((a.total_score || 0) * testTotalMarks) / 100);
+                const totalMarks = scoresObj._total_marks !== undefined ? scoresObj._total_marks : testTotalMarks;
+
+                return (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-mono text-xs">{a.student_id.slice(0, 8)}…</TableCell>
+                    <TableCell>{a.attempt_number}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-foreground">{earnedMarks} / {totalMarks}</span>
+                        <span className="text-[10px] text-muted-foreground">{a.total_score ?? 0}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={a.passed ? "default" : "destructive"}>
+                        {a.passed ? "Passed" : "Failed"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{a.completed_at ? formatToIST12hr(a.completed_at) : "In progress"}</TableCell>
+                  </TableRow>
+                );
+              })}
               {attempts.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No attempts yet</TableCell>

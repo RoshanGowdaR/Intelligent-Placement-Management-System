@@ -14,6 +14,7 @@ import { Clock, AlertTriangle, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Loa
 import { isPast, differenceInSeconds, format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import WebcamProctor, { type ProctorEvent, type ProctorConfig } from "@/components/WebcamProctor";
+import CompanyLogo from "@/components/CompanyLogo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 type Test = Tables<"tests">;
@@ -431,21 +432,22 @@ export default function StudentTests() {
   const progressKey = user ? `stp:${user.id}` : null;
 
   const [schedules, setSchedules] = useState<Record<string, string>>({});
+  const [companies, setCompanies] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [testsRes, attemptsRes, profileRes, schedulesRes] = await Promise.all([
+    const [testsRes, attemptsRes, profileRes, schedulesRes, companiesRes] = await Promise.all([
       supabase.from("tests").select("*").order("scheduled_date", { ascending: true }),
       supabase.from("test_attempts").select("test_id, attempt_number").eq("student_id", user.id),
       supabase.from("profiles").select("profile_completion_percentage").eq("id", user.id).single(),
       supabase.from("schedules").select("test_id, status").eq("student_id", user.id),
+      supabase.from("companies").select("id, name, contact_info").order("name"),
     ]);
 
     const liveTests = (testsRes.data ?? []) as any[];
-    // Use live assessments from Supabase as the source of truth so deleted tests disappear immediately.
-    // Fall back to DEMO_TESTS only if the database has zero tests configured.
-    const finalTests = liveTests.length > 0 ? liveTests : DEMO_TESTS;
-    setTests(finalTests);
+    // Strictly live tests from Supabase so deleted assessments (e.g. Microsoft) never show for students
+    setTests(liveTests);
+    setCompanies(companiesRes.data ?? []);
     setProfileCompletion(profileRes.data?.profile_completion_percentage ?? 0);
 
     const counts: Record<string, number> = {};
@@ -561,6 +563,14 @@ export default function StudentTests() {
         tabSwitchRef.current += 1;
         setTabSwitchCount(tabSwitchRef.current);
 
+        const isFatal = tabSwitchRef.current >= 2;
+        const ev: ProctorEvent = {
+          timestamp: new Date().toISOString(),
+          gadget: "Tab Switch / Window Inactive",
+          action: isFatal ? "auto_submit" : "warning",
+        };
+        proctorEventsRef.current.push(ev);
+
         if (tabSwitchRef.current === 1) {
           setShowTabWarning(true);
           toast.warning("⚠️ Tab switch detected! One more and your test will be auto-submitted.", { duration: 5000 });
@@ -577,6 +587,14 @@ export default function StudentTests() {
         fullscreenExitRef.current += 1;
         tabSwitchRef.current += 1;
         setTabSwitchCount(tabSwitchRef.current);
+
+        const isFatal = tabSwitchRef.current >= 2;
+        const ev: ProctorEvent = {
+          timestamp: new Date().toISOString(),
+          gadget: "Fullscreen Exit",
+          action: isFatal ? "auto_submit" : "warning",
+        };
+        proctorEventsRef.current.push(ev);
 
         if (fullscreenExitRef.current === 1) {
           setShowTabWarning(true);
@@ -831,7 +849,12 @@ export default function StudentTests() {
       student_id: user.id,
       test_id: activeTest.id,
       answers: JSON.parse(JSON.stringify(answers)),
-      scores: JSON.parse(JSON.stringify(scoresMap)),
+      scores: JSON.parse(JSON.stringify({
+        ...scoresMap,
+        _earned_marks: totalScore,
+        _total_marks: totalPoints,
+        _percentage: scorePercent,
+      })),
       total_score: scorePercent,
       passed,
       attempt_number: attemptNum,
@@ -1189,29 +1212,52 @@ export default function StudentTests() {
           const deadlinePast = deadline ? isPast(deadline) : false;
           const isLockedOut = deadlinePast && !isRegistered;
 
+          const matchedComp = companies.find((c) => c.id === test.company_id);
+          const roundName = (test as any).round_name || (test.pass_criteria as any)?.round_name || "Round 1: Online Technical Assessment (OA)";
+          const totalPoints = ((test.question_bank as unknown as Question[]) ?? []).reduce((acc, q) => acc + (q.points || 1), 0);
+
           return (
-            <Card key={test.id} className={isLockedOut ? "opacity-75 border-destructive/30" : ""}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{test.title}</CardTitle>
-                  {exhausted ? (
-                    <Badge variant="secondary">Completed</Badge>
-                  ) : isLockedOut ? (
-                    <Badge variant="destructive">Registration Closed</Badge>
-                  ) : !isRegistered ? (
-                    <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500/30">Registration Open</Badge>
-                  ) : isUpcoming ? (
-                    <Badge variant="outline" className="border-primary/40 text-primary">Registered · Upcoming</Badge>
-                  ) : (
-                    <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">Registered · Available</Badge>
-                  )}
+            <Card key={test.id} className={isLockedOut ? "opacity-75 border-destructive/30" : "hover:border-primary/40 transition-all duration-300"}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <CompanyLogo
+                      name={matchedComp?.name || test.title}
+                      logoUrl={(matchedComp?.contact_info as any)?.logo_url}
+                      size="md"
+                    />
+                    <div>
+                      <CardTitle className="text-base font-bold leading-tight">{test.title}</CardTitle>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        {matchedComp?.name && (
+                          <span className="text-xs font-semibold text-muted-foreground">{matchedComp.name}</span>
+                        )}
+                        <Badge variant="outline" className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20 py-0">
+                          {roundName}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    {exhausted ? (
+                      <Badge variant="secondary">Completed</Badge>
+                    ) : isLockedOut ? (
+                      <Badge variant="destructive">Registration Closed</Badge>
+                    ) : !isRegistered ? (
+                      <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500/30">Registration Open</Badge>
+                    ) : isUpcoming ? (
+                      <Badge variant="outline" className="border-primary/40 text-primary">Registered · Upcoming</Badge>
+                    ) : (
+                      <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">Registered · Available</Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                   <span>Date (IST)</span><span className="text-right">{format(new Date(test.scheduled_date), "MMM d, yyyy h:mm a")}</span>
                   <span>Duration</span><span className="text-right">{test.duration} min</span>
-                  <span>Questions</span><span className="text-right">{test.questions_per_student ?? qCount}</span>
+                  <span>Questions</span><span className="text-right">{test.questions_per_student ?? qCount} ({totalPoints} marks)</span>
                   <span>Attempts</span><span className="text-right">{attempts} / {maxAttempts}</span>
                   {deadline && (
                     <>

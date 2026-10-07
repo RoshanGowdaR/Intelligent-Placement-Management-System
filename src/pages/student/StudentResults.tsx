@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Trophy, TrendingUp, Sparkles, Loader2, Eye, CheckCircle2, XCircle } from "lucide-react";
+import CompanyLogo from "@/components/CompanyLogo";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Attempt = Tables<"test_attempts">;
@@ -153,24 +154,45 @@ function ReviewModal({ attempt, questions, onClose }: {
 
 export default function StudentResults() {
   const { user } = useAuth();
-  const [attempts, setAttempts] = useState<(Attempt & { test_title: string; test_questions: Question[] })[]>([]);
+  const [attempts, setAttempts] = useState<(Attempt & {
+    test_title: string;
+    test_questions: Question[];
+    round_name?: string | null;
+    company_name?: string | null;
+    company_logo?: string | null;
+  })[]>([]);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [reviewAttempt, setReviewAttempt] = useState<(Attempt & { test_title: string; test_questions: Question[] }) | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [attRes, testRes] = await Promise.all([
+      const [attRes, testRes, compRes] = await Promise.all([
         supabase.from("test_attempts").select("*").eq("student_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("tests").select("id, title, question_bank"),
+        supabase.from("tests").select("id, title, company_id, round_number, round_name, question_bank"),
+        supabase.from("companies").select("id, name, contact_info"),
       ]);
-      const testMap = new Map((testRes.data ?? []).map((t) => [t.id, { title: t.title, questions: (t.question_bank as unknown as Question[]) ?? [] }]));
+      const compMap = new Map((compRes.data ?? []).map((c) => [c.id, c]));
+      const testMap = new Map((testRes.data ?? []).map((t) => [t.id, {
+        title: t.title,
+        company_id: t.company_id,
+        round_name: (t as any).round_name,
+        questions: (t.question_bank as unknown as Question[]) ?? [],
+      }]));
+
       setAttempts(
-        (attRes.data ?? []).map((a) => ({
-          ...a,
-          test_title: testMap.get(a.test_id)?.title ?? "Unknown Test",
-          test_questions: testMap.get(a.test_id)?.questions ?? [],
-        }))
+        (attRes.data ?? []).map((a) => {
+          const tInfo = testMap.get(a.test_id);
+          const cInfo = tInfo?.company_id ? compMap.get(tInfo.company_id) : null;
+          return {
+            ...a,
+            test_title: tInfo?.title ?? "Assessment",
+            round_name: tInfo?.round_name ?? null,
+            company_name: cInfo?.name ?? null,
+            company_logo: (cInfo?.contact_info as any)?.logo_url ?? null,
+            test_questions: tInfo?.questions ?? [],
+          };
+        })
       );
     };
     load();
@@ -226,9 +248,14 @@ export default function StudentResults() {
               <Card key={a.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Trophy className="h-4 w-4" />
-                      {a.test_title}
+                    <CardTitle className="text-base flex items-center gap-2.5">
+                      <CompanyLogo name={a.company_name} logoUrl={a.company_logo} size="xs" />
+                      <span>{a.test_title}</span>
+                      {a.round_name && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary">
+                          {a.round_name}
+                        </Badge>
+                      )}
                     </CardTitle>
                     <Badge variant={a.passed ? "default" : "destructive"}>
                       {a.passed ? "Passed" : "Failed"}
@@ -238,8 +265,19 @@ export default function StudentResults() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-3xl font-bold">{a.total_score ?? 0}%</span>
-                      <p className="text-xs text-muted-foreground">
+                      {(() => {
+                        const totalPoints = a.test_questions.reduce((sum, q) => sum + (q.points || 1), 0) || 100;
+                        const scoresAny = (a.scores as any) || {};
+                        const earnedMarks = scoresAny._earned_marks !== undefined ? Number(scoresAny._earned_marks) : Math.round(((a.total_score || 0) * totalPoints) / 100);
+                        const totalMarks = scoresAny._total_marks !== undefined ? Number(scoresAny._total_marks) : totalPoints;
+                        return (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold font-mono text-foreground">{earnedMarks} / {totalMarks}</span>
+                            <span className="text-sm font-semibold text-muted-foreground font-mono">({a.total_score ?? 0}%)</span>
+                          </div>
+                        );
+                      })()}
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Attempt #{a.attempt_number} · {a.completed_at ? format(new Date(a.completed_at), "MMM d, yyyy h:mm a") : "—"}
                       </p>
                     </div>

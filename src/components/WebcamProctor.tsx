@@ -41,8 +41,8 @@ interface WebcamProctorProps {
 const DEFAULT_CONFIG: ProctorConfig = {
   warning_delay_seconds: 5,
   second_offense_action: "submit",
-  detection_interval_ms: 1500,
-  confidence_threshold: 0.55,
+  detection_interval_ms: 800,
+  confidence_threshold: 0.35,
   consecutive_frames: 1,
   watched_classes: DEFAULT_GADGET_CLASSES,
 };
@@ -74,7 +74,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 320, height: 240, facingMode: "user" },
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
           audio: false,
         });
         if (cancelled) {
@@ -87,7 +87,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           await videoRef.current.play().catch(() => {});
         }
         setCameraReady(true);
-        const model = await cocoSsd.load();
+        const model = await cocoSsd.load({ base: "lite_mobilenet_v2" });
         if (cancelled) return;
         modelRef.current = model;
       } catch (err) {
@@ -114,7 +114,8 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
     if (!active || !cameraReady) return;
 
     const watchedSet = new Set((cfg.watched_classes && cfg.watched_classes.length ? cfg.watched_classes : DEFAULT_GADGET_CLASSES));
-    const threshold = Math.min(0.95, Math.max(0.1, cfg.confidence_threshold ?? 0.55));
+    // High-sensitivity detection for mobile phones and digital gadgets
+    const threshold = Math.min(0.95, Math.max(0.1, cfg.confidence_threshold ?? 0.35));
     const requiredHits = Math.max(1, Math.min(10, cfg.consecutive_frames ?? 1));
 
     const runDetection = async () => {
@@ -122,22 +123,37 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       if (submittedRef.current) return;
       try {
         const preds = await modelRef.current.detect(videoRef.current);
-        const gadget = preds.find((p) => p.score > threshold && watchedSet.has(p.class));
-        if (gadget) {
+        
+        // Find any gadget match with phone sensitivity threshold
+        let foundGadget = preds.find((p) => {
+          const reqScore = p.class === "cell phone" ? Math.min(0.32, threshold) : threshold;
+          return p.score >= reqScore && (watchedSet.has(p.class) || p.class === "cell phone");
+        });
+
+        // Also detect multiple people in frame
+        if (!foundGadget) {
+          const people = preds.filter((p) => p.class === "person" && p.score > 0.45);
+          if (people.length > 1) {
+            foundGadget = { class: "multiple persons detected", score: people[1].score } as any;
+          }
+        }
+
+        if (foundGadget) {
+          const gadgetName = foundGadget.class === "cell phone" ? "Mobile Phone / Cell Phone" : foundGadget.class;
           consecutiveHitsRef.current += 1;
           if (consecutiveHitsRef.current < requiredHits) return;
           if (warnedOnceRef.current && !detectedGadgetRef.current) {
             if (cfg.second_offense_action === "submit" && !submittedRef.current) {
               submittedRef.current = true;
-              onEventRef.current?.({ timestamp: new Date().toISOString(), gadget: gadget.class, action: "auto_submit" });
-              toast.error(`🚫 Gadget detected again (${gadget.class}). Auto-submitting your test.`);
+              onEventRef.current?.({ timestamp: new Date().toISOString(), gadget: gadgetName, action: "auto_submit" });
+              toast.error(`🚫 Prohibited gadget detected again (${gadgetName}). Auto-submitting assessment.`);
               onAutoSubmit();
             } else {
-              setDetectedGadget((curr) => curr ?? gadget.class);
+              setDetectedGadget((curr) => curr ?? gadgetName);
             }
             return;
           }
-          setDetectedGadget((curr) => curr ?? gadget.class);
+          setDetectedGadget((curr) => curr ?? gadgetName);
         } else {
           consecutiveHitsRef.current = 0;
           setDetectedGadget(null);
@@ -145,9 +161,9 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       } catch { /* ignore */ }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, cfg.detection_interval_ms);
+    detectIntervalRef.current = setInterval(runDetection, cfg.detection_interval_ms || 800);
     return () => { if (detectIntervalRef.current) clearInterval(detectIntervalRef.current); };
-  }, [active, cameraReady, onAutoSubmit, cfg.detection_interval_ms, cfg.second_offense_action]);
+  }, [active, cameraReady, onAutoSubmit, cfg.detection_interval_ms, cfg.second_offense_action, cfg.confidence_threshold, cfg.consecutive_frames, cfg.watched_classes]);
 
   useEffect(() => {
     if (countdownIntervalRef.current) {
