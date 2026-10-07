@@ -166,8 +166,9 @@ export default defineConfig(({ mode }) => ({
               }
 
               const groqKey = process.env.GROQ_API_KEY;
-              const geminiKey = process.env.GEMINI_API_KEY ||
-                (typeof atob === "function" ? atob("QVEuQWI4Uk42TEJxUFhzZk1WOWVZcWswSWNYRXV0dkxhVVRlUWgyUThlMTh6UVgydkdKR3c=") : "");
+              const primaryGeminiKey = process.env.GEMINI_API_KEY;
+              const backupGeminiKey = process.env.GEMINI_BACKUP_API_KEY;
+              const geminiKeys = [primaryGeminiKey, backupGeminiKey].filter(Boolean) as string[];
 
               const callDevGroq = async (): Promise<string> => {
                 if (!groqKey) throw new Error("GROQ_API_KEY is not configured");
@@ -211,48 +212,56 @@ export default defineConfig(({ mode }) => ({
               };
 
               const callDevGemini = async (): Promise<string> => {
-                if (!geminiKey) throw new Error("GEMINI_API_KEY is not configured");
+                if (geminiKeys.length === 0) throw new Error("No GEMINI API keys configured");
                 const fullPrompt = systemContext
                   ? `System Context:\n${systemContext}\n\nUser Question: ${prompt}\n\nProvide an intelligent response.`
                   : prompt;
 
                 const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
-                const authModes = [
-                  { urlSuffix: `?key=${geminiKey}`, headers: { "Content-Type": "application/json" } },
-                  { urlSuffix: "", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${geminiKey}` } },
-                  { urlSuffix: "", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey } },
-                ];
+                let lastError: any = null;
 
-                let err: any = null;
-                for (const m of models) {
-                  for (const auth of authModes) {
-                    try {
-                      const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 15000);
-                      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent${auth.urlSuffix}`;
-                      const response = await fetch(geminiUrl, {
-                        method: "POST",
-                        headers: auth.headers,
-                        body: JSON.stringify({
-                          contents: [{ parts: [{ text: fullPrompt }] }],
-                          generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
-                        }),
-                        signal: controller.signal,
-                      });
-                      clearTimeout(timeoutId);
-                      if (response.ok) {
-                        const data = await response.json();
-                        const txt = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (txt) return txt;
-                      } else {
-                        err = new Error(`Gemini HTTP ${response.status}`);
+                for (let kIdx = 0; kIdx < geminiKeys.length; kIdx++) {
+                  const currentKey = geminiKeys[kIdx];
+                  const authModes = [
+                    { urlSuffix: `?key=${currentKey}`, headers: { "Content-Type": "application/json" } },
+                    { urlSuffix: "", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${currentKey}` } },
+                    { urlSuffix: "", headers: { "Content-Type": "application/json", "x-goog-api-key": currentKey } },
+                  ];
+
+                  let keyError: any = null;
+                  for (const m of models) {
+                    for (const auth of authModes) {
+                      try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
+                        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent${auth.urlSuffix}`;
+                        const response = await fetch(geminiUrl, {
+                          method: "POST",
+                          headers: auth.headers,
+                          body: JSON.stringify({
+                            contents: [{ parts: [{ text: fullPrompt }] }],
+                            generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
+                          }),
+                          signal: controller.signal,
+                        });
+                        clearTimeout(timeoutId);
+                        if (response.ok) {
+                          const data = await response.json();
+                          const txt = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                          if (txt) return txt;
+                        } else {
+                          keyError = new Error(`Gemini ${m} HTTP ${response.status}`);
+                        }
+                      } catch (e: any) {
+                        keyError = e;
                       }
-                    } catch (e: any) {
-                      err = e;
                     }
                   }
+                  lastError = keyError;
+                  console.warn(`[AI Failover] Dev Gemini key #${kIdx + 1} failed: ${keyError?.message}. Attempting next available key...`);
                 }
-                throw err || new Error("Gemini failed");
+
+                throw lastError || new Error("All Gemini API keys failed");
               };
 
               // Bidirectional automatic failover
@@ -270,7 +279,7 @@ export default defineConfig(({ mode }) => ({
                     usedProvider = "groq";
                     devPreferredProvider = "groq";
                     break;
-                  } else if (p === "gemini" && geminiKey) {
+                  } else if (p === "gemini" && geminiKeys.length > 0) {
                     responseText = await callDevGemini();
                     usedProvider = "gemini";
                     devPreferredProvider = "gemini";
