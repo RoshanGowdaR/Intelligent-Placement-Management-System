@@ -6,9 +6,9 @@ export const KNOWN_COMPANY_LOGOS: Record<string, string> = {
   google: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
   microsoft: "https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg",
   amazon: "https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg",
-  tcs: "https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg",
-  "tata consultancy services": "https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg",
-  tata: "https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg",
+  tcs: "https://upload.wikimedia.org/wikipedia/commons/8/8e/Tata_logo.svg",
+  "tata consultancy services": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Tata_logo.svg",
+  tata: "https://upload.wikimedia.org/wikipedia/commons/8/8e/Tata_logo.svg",
   infosys: "https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg",
   wipro: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Wipro_Logo_RGB_Silver_Combined.svg",
   accenture: "https://upload.wikimedia.org/wikipedia/commons/c/cd/Accenture.svg",
@@ -65,12 +65,13 @@ function renderInlineBrandVector(name?: string | null) {
   if (!name) return null;
   const clean = name.trim().toLowerCase();
 
-  // TCS vector badge (Official TATA blue typography)
+  // TCS vector badge (Official TATA / TCS blue emblem)
   if (clean === "tcs" || clean.includes("tata") || clean.includes("consultancy")) {
     return (
-      <svg viewBox="0 0 100 48" className="w-full h-full p-0.5" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <text x="50%" y="42%" textAnchor="middle" dominantBaseline="middle" fill="#005696" fontFamily="Arial, Helvetica, sans-serif" fontWeight="900" fontSize="18" letterSpacing="3">TATA</text>
-        <text x="50%" y="78%" textAnchor="middle" dominantBaseline="middle" fill="#1e293b" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize="6.5" letterSpacing="0.4">CONSULTANCY SERVICES</text>
+      <svg viewBox="0 0 100 100" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#005696" />
+        <text x="50" y="44" textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontFamily="Arial, Helvetica, sans-serif" fontWeight="900" fontSize="26" letterSpacing="1">TCS</text>
+        <text x="50" y="72" textAnchor="middle" dominantBaseline="middle" fill="#93c5fd" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize="10" letterSpacing="2">TATA</text>
       </svg>
     );
   }
@@ -172,13 +173,15 @@ export default function CompanyLogo({
       title={name || "Company"}
     >
       {activeUrl ? (
-        <img
-          src={activeUrl}
-          alt={name ? `${name} logo` : "Company logo"}
-          className={`object-contain w-auto h-auto transition-transform ${IMG_SIZE_STYLES[size]}`}
-          onError={handleImageError}
-          loading="lazy"
-        />
+        <div className="flex h-full w-full items-center justify-center p-1">
+          <img
+            src={activeUrl}
+            alt={name ? `${name} logo` : "Company logo"}
+            className="object-contain max-h-full max-w-full m-auto transition-transform"
+            onError={handleImageError}
+            loading="lazy"
+          />
+        </div>
       ) : inlineVector ? (
         <div className="flex h-full w-full items-center justify-center">
           {inlineVector}
