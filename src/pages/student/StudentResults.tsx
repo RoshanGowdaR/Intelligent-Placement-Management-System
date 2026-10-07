@@ -248,8 +248,8 @@ export default function StudentResults() {
               <Card key={a.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2.5">
-                      <CompanyLogo name={a.company_name} logoUrl={a.company_logo} size="xs" />
+                    <CardTitle className="text-base flex items-center gap-3">
+                      <CompanyLogo name={a.company_name} logoUrl={a.company_logo} size="md" />
                       <span>{a.test_title}</span>
                       {a.round_name && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary">

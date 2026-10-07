@@ -271,7 +271,7 @@ export default function CompanyDashboard() {
                   <div key={t.id} className="p-5 rounded-2xl bg-card border border-border/70 hover:border-primary/40 transition-colors shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <CompanyLogo name={company?.name} logoUrl={company?.contact_info?.logo_url || company?.logo_url} size="sm" />
+                        <CompanyLogo name={company?.name} logoUrl={company?.contact_info?.logo_url || company?.logo_url} size="md" />
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-display text-base font-bold text-foreground">{t.title}</h3>

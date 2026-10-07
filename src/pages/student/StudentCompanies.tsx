@@ -131,8 +131,8 @@ export default function StudentCompanies() {
           {
             id: "comp-tcs-digital-2026",
             name: "TCS",
-            logo_url: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg",
-            contact_info: { logo_url: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg" },
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg",
+            contact_info: { logo_url: "https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg" },
             job_role: "Software Development Engineer (Digital / Prime)",
             salary_package: "9 - 14 LPA",
             job_location: "Bengaluru, Pan-India",

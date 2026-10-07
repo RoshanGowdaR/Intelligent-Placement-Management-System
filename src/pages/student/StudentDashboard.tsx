@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import CompanyLogo from "@/components/CompanyLogo";
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -26,15 +27,17 @@ export default function StudentDashboard() {
   const [completedTests, setCompletedTests] = useState(0);
   const [passRate, setPassRate] = useState(0);
   const [activeCompaniesCount, setActiveCompaniesCount] = useState(0);
+  const [visitingCompanies, setVisitingCompanies] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [profileRes, schedulesRes, attemptsRes, companiesRes] = await Promise.all([
+      const [profileRes, schedulesRes, attemptsRes, companiesRes, companiesListRes] = await Promise.all([
         supabase.from("profiles").select("name, profile_completion_percentage, branch, cgpa, resume_url").eq("id", user.id).single(),
         supabase.from("schedules").select("status").eq("student_id", user.id),
         supabase.from("test_attempts").select("passed").eq("student_id", user.id),
         supabase.from("companies").select("id", { count: "exact", head: true }),
+        supabase.from("companies").select("id, name, logo_url, contact_info, industry").order("created_at", { ascending: false }).limit(4),
       ]);
 
       setProfile(profileRes.data);
@@ -46,6 +49,7 @@ export default function StudentDashboard() {
       const passed = attempts.filter((a) => a.passed).length;
       setPassRate(attempts.length > 0 ? Math.round((passed / attempts.length) * 100) : 0);
       setActiveCompaniesCount(companiesRes.count ?? 0);
+      setVisitingCompanies(companiesListRes.data ?? []);
     };
     fetchData();
   }, [user]);
@@ -59,6 +63,14 @@ export default function StudentDashboard() {
   const effectiveCompleted = completedTests > 0 ? completedTests : 3;
   const effectivePassRate = passRate > 0 ? passRate : 88;
   const effectiveCompanies = activeCompaniesCount > 1 ? activeCompaniesCount : 4;
+
+  const fallbackCompanies = [
+    { name: "GOOGLE", industry: "Cloud & AI" },
+    { name: "MICROSOFT", industry: "Enterprise Software" },
+    { name: "AMAZON", industry: "E-Commerce & AWS" },
+    { name: "TCS", industry: "Global IT Services" },
+  ];
+  const displayRecruiters = visitingCompanies.length > 0 ? visitingCompanies : fallbackCompanies;
 
   // 4 Main Milestones
   const milestones = [
@@ -575,6 +587,51 @@ export default function StudentDashboard() {
             <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
           </div>
 
+        </div>
+      </div>
+
+      {/* 3.5 Featured Campus Hiring Partners */}
+      <div className="space-y-4 pt-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-purple-500" /> Featured Campus Hiring Partners
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Verified corporate recruiters actively shortlisting candidates for upcoming drives.
+            </p>
+          </div>
+          <Link
+            to="/dashboard/companies"
+            className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+          >
+            All Drives <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {displayRecruiters.map((c) => (
+            <Link
+              key={c.id || c.name}
+              to="/dashboard/companies"
+              className="p-4 rounded-2xl bg-card border border-border/70 hover:border-primary/50 hover:shadow-md transition-all flex items-center gap-3.5 group"
+            >
+              <CompanyLogo
+                name={c.name}
+                logoUrl={c.logo_url || c.contact_info?.logo_url}
+                size="md"
+                className="shadow-sm shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                  {c.name}
+                </h4>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {c.industry || "Technology"}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
 

@@ -54,56 +54,66 @@ async function callGroq(prompt: string, systemContext?: string, apiKey?: string)
   throw lastError || new Error("All Groq models failed to respond");
 }
 
-async function callGemini(prompt: string, systemContext?: string, apiKey?: string): Promise<string> {
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+async function callGemini(prompt: string, systemContext?: string, apiKeys: string[] = []): Promise<string> {
+  if (apiKeys.length === 0) throw new Error("No GEMINI API keys configured");
 
   const fullPrompt = systemContext
     ? `System Context:\n${systemContext}\n\nUser Question: ${prompt}\n\nProvide an intelligent, structured response.`
     : prompt;
 
-  const authModes = [
-    { urlSuffix: `?key=${apiKey}`, headers: { "Content-Type": "application/json" } },
-    { urlSuffix: "", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` } },
-    { urlSuffix: "", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey } },
-  ];
-
   let lastError: any = null;
 
-  for (const model of GEMINI_MODELS) {
-    for (const auth of authModes) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  for (let kIndex = 0; kIndex < apiKeys.length; kIndex++) {
+    const apiKey = apiKeys[kIndex];
+    const isBackup = kIndex > 0;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent${auth.urlSuffix}`;
+    const authModes = [
+      { urlSuffix: `?key=${apiKey}`, headers: { "Content-Type": "application/json" } },
+      { urlSuffix: "", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` } },
+      { urlSuffix: "", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey } },
+    ];
 
-        const res = await fetch(geminiUrl, {
-          method: "POST",
-          headers: auth.headers,
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: fullPrompt }] }],
-            generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
-          }),
-          signal: controller.signal,
-        });
+    let keyError: any = null;
 
-        clearTimeout(timeoutId);
+    for (const model of GEMINI_MODELS) {
+      for (const auth of authModes) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return text;
-        } else {
-          const err = await res.json().catch(() => ({}));
-          lastError = new Error(`Gemini ${model} HTTP ${res.status}: ${err.error?.message || res.statusText}`);
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent${auth.urlSuffix}`;
+
+          const res = await fetch(geminiUrl, {
+            method: "POST",
+            headers: auth.headers,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: fullPrompt }] }],
+              generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text;
+          } else {
+            const err = await res.json().catch(() => ({}));
+            keyError = new Error(`Gemini ${model} HTTP ${res.status}: ${err.error?.message || res.statusText}`);
+          }
+        } catch (e: any) {
+          keyError = e;
         }
-      } catch (e: any) {
-        lastError = e;
       }
     }
+
+    lastError = keyError;
+    console.warn(`[AI Failover] Gemini key #${kIndex + 1} (${isBackup ? "Backup" : "Primary"}) failed: ${keyError?.message}. Attempting next available key...`);
   }
 
-  throw lastError || new Error("Gemini API failed to respond");
+  throw lastError || new Error("All Gemini API keys failed to respond");
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -127,15 +137,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const groqKey = process.env.GROQ_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const primaryGeminiKey = process.env.GEMINI_API_KEY;
+    const backupGeminiKey = process.env.GEMINI_BACKUP_API_KEY;
+    const geminiKeys = [primaryGeminiKey, backupGeminiKey].filter(Boolean) as string[];
 
-    if (!groqKey && !geminiKey) {
+    if (!groqKey && geminiKeys.length === 0) {
       return res.status(500).json({ error: "Neither GROQ_API_KEY nor GEMINI_API_KEY is configured" });
     }
 
     // Bidirectional automatic failover:
-    // If preferredProvider is "groq", try Groq first. If it fails, switch to Gemini.
-    // If preferredProvider is "gemini", try Gemini first. If it fails, switch to Groq.
+    // If preferredProvider is "groq", try Groq first. If it fails, switch to Gemini (primary & backup).
+    // If preferredProvider is "gemini", try Gemini (primary & backup) first. If it fails, switch to Groq.
     const providersToTry = preferredProvider === "groq"
       ? ["groq", "gemini"]
       : ["gemini", "groq"];
@@ -148,8 +160,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const text = await callGroq(prompt, systemContext, groqKey);
           preferredProvider = "groq";
           return res.status(200).json({ text, provider: "groq" });
-        } else if (provider === "gemini" && geminiKey) {
-          const text = await callGemini(prompt, systemContext, geminiKey);
+        } else if (provider === "gemini" && geminiKeys.length > 0) {
+          const text = await callGemini(prompt, systemContext, geminiKeys);
           preferredProvider = "gemini";
           return res.status(200).json({ text, provider: "gemini" });
         }
