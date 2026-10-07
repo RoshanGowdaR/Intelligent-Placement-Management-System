@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/3d/GlassCard";
 import { AdminAIAssistant } from "@/components/assistant/AdminAIAssistant";
 import { InviteCompanyDialog } from "@/components/admin/InviteCompanyDialog";
+import CompanyLogo from "@/components/CompanyLogo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -46,9 +47,9 @@ export default function AdminDashboard() {
         supabase.from("tests").select("id", { count: "exact", head: true }),
         supabase.from("companies").select("id", { count: "exact", head: true }),
         supabase.from("test_attempts").select("passed, tab_switches, auto_submitted"),
-        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline").order("scheduled_date", { ascending: true }).limit(4),
+        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, company_id, companies(name, logo_url, contact_info)").order("scheduled_date", { ascending: true }).limit(6),
         supabase.from("test_attempts").select("id, total_score, passed, tab_switches, completed_at").order("completed_at", { ascending: false }).limit(6),
-        supabase.from("companies").select("id, name, hr_name, website, industry, created_at").order("created_at", { ascending: false }).limit(4),
+        supabase.from("companies").select("id, name, hr_name, website, industry, logo_url, contact_info, created_at").order("created_at", { ascending: false }).limit(8),
       ]);
 
       const attempts = attemptsRes.data ?? [];
@@ -236,33 +237,41 @@ export default function AdminDashboard() {
                 return (
                   <GlassCard key={t.id} className="p-5 border-border hover:border-primary/40 transition-colors">
                     <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-display text-base font-bold text-foreground">{t.title}</span>
-                        </div>
-                        
-                        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-primary" />
-                            Test Date: {new Date(t.scheduled_date).toLocaleDateString()} at {new Date(t.scheduled_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                          <span>•</span>
-                          <span>Duration: {t.duration} min</span>
-                        </div>
-
-                        {t.registration_deadline && (
-                          <div className="mt-3 flex items-center gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              Registration Closes:
-                            </span>
-                            <Badge
-                              variant={deadlinePast ? "destructive" : "outline"}
-                              className={`text-[11px] ${!deadlinePast ? "border-amber-500/40 text-amber-500 bg-amber-500/10" : ""}`}
-                            >
-                              {new Date(t.registration_deadline).toLocaleString()} {deadlinePast ? "(Closed)" : ""}
-                            </Badge>
+                      <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                        <CompanyLogo
+                          name={(t as any)?.companies?.name || t.title}
+                          logoUrl={(t as any)?.companies?.logo_url || (t as any)?.companies?.contact_info?.logo_url}
+                          size="md"
+                          className="mt-0.5 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-display text-base font-bold text-foreground truncate">{t.title}</span>
                           </div>
-                        )}
+                          
+                          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-primary" />
+                              Test Date: {new Date(t.scheduled_date).toLocaleDateString()} at {new Date(t.scheduled_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            <span>•</span>
+                            <span>Duration: {t.duration} min</span>
+                          </div>
+
+                          {t.registration_deadline && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Registration Closes:
+                              </span>
+                              <Badge
+                                variant={deadlinePast ? "destructive" : "outline"}
+                                className={`text-[11px] ${!deadlinePast ? "border-amber-500/40 text-amber-500 bg-amber-500/10" : ""}`}
+                              >
+                                {new Date(t.registration_deadline).toLocaleString()} {deadlinePast ? "(Closed)" : ""}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <Button
@@ -364,10 +373,13 @@ export default function AdminDashboard() {
           {activeCompanies.map((comp) => (
             <GlassCard key={comp.id} className="p-5 border-border hover:border-purple-500/40 transition-colors">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold font-display">
-                  {comp.name.substring(0, 2).toUpperCase()}
-                </div>
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
+                <CompanyLogo
+                  name={comp.name}
+                  logoUrl={comp.logo_url || comp.contact_info?.logo_url}
+                  size="lg"
+                  className="shadow-sm border-purple-500/20"
+                />
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-xs font-semibold">
                   Recruiting
                 </Badge>
               </div>

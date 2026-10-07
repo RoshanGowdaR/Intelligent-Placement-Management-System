@@ -942,8 +942,8 @@ export default function AdminTests() {
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-2.5">
-                        <CompanyLogo name={comp?.name || t.title} logoUrl={(comp as any)?.contact_info?.logo_url} size="sm" />
+                      <div className="flex items-center gap-3">
+                        <CompanyLogo name={comp?.name || t.title} logoUrl={(comp as any)?.contact_info?.logo_url} size="md" />
                         <div>
                           <div className="flex items-center gap-2">
                             <span>{t.title}</span>

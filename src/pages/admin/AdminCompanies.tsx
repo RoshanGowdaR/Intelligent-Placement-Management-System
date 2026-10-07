@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CompanyLogo from "@/components/CompanyLogo";
+import { InviteCompanyDialog } from "@/components/admin/InviteCompanyDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Company = Tables<"companies">;
@@ -28,6 +29,7 @@ export default function AdminCompanies() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
 
@@ -132,10 +134,19 @@ export default function AdminCompanies() {
           <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
           <p className="text-muted-foreground">Manage placement companies and eligibility</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            onClick={() => setInviteOpen(true)}
+            className="gap-2 border-border/80 shadow-sm"
+          >
+            <Mail className="h-4 w-4 text-primary" /> Invite Company
+          </Button>
+
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Company" : "Add Company"}</DialogTitle>
@@ -243,6 +254,7 @@ export default function AdminCompanies() {
             </ScrollArea>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -271,7 +283,7 @@ export default function AdminCompanies() {
                   <TableRow key={c.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <CompanyLogo name={c.name} logoUrl={(c.contact_info as any)?.logo_url || (c as any).logo_url} size="sm" />
+                        <CompanyLogo name={c.name} logoUrl={(c.contact_info as any)?.logo_url || (c as any).logo_url} size="md" />
                         <div>
                           <p className="font-semibold text-foreground">{c.name}</p>
                           {(c as any).job_location && <p className="text-xs text-muted-foreground">{(c as any).job_location}</p>}
@@ -307,6 +319,12 @@ export default function AdminCompanies() {
           </Table>
         </CardContent>
       </Card>
+
+      <InviteCompanyDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        onInvited={fetchCompanies}
+      />
     </div>
   );
 }

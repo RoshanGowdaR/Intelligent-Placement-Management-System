@@ -18,8 +18,8 @@ SET logo_url = 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.
 WHERE LOWER(name) LIKE '%amazon%';
 
 UPDATE public.companies
-SET logo_url = 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg',
-    contact_info = jsonb_set(COALESCE(contact_info, '{}'::jsonb), '{logo_url}', '"https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg"')
+SET logo_url = 'https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg',
+    contact_info = jsonb_set(COALESCE(contact_info, '{}'::jsonb), '{logo_url}', '"https://upload.wikimedia.org/wikipedia/commons/9/9b/TATA_Consultancy_Services_Logo.svg"')
 WHERE LOWER(name) LIKE '%tcs%' OR LOWER(name) LIKE '%tata consultancy%';
 
 UPDATE public.companies
