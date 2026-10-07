@@ -34,6 +34,7 @@ const adminLinks = [
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Reports", url: "/admin/reports", icon: FileText },
   { title: "Leaderboard", url: "/admin/leaderboard", icon: Trophy },
+  { title: "Notifications", url: "/admin/notifications", icon: Bell },
   { title: "Security", url: "/admin/settings", icon: Shield },
 ];
 
@@ -45,6 +46,7 @@ const companyLinks = [
   { title: "Assessments", url: "/company/tests", icon: ClipboardList },
   { title: "Candidates", url: "/company/candidates", icon: Users },
   { title: "Drive Reports", url: "/company/reports", icon: FileText },
+  { title: "Notifications", url: "/company/notifications", icon: Bell },
 ];
 
 const studentLinks = [

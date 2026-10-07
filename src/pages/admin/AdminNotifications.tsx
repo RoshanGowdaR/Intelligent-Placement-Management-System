@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,52 +7,147 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Bell, Building2, ClipboardList, Trophy, CheckCheck, Trash2,
-  ExternalLink, Calendar, Sparkles, Filter, CheckCircle2, ArrowLeft, Search
+  ExternalLink, Calendar, Sparkles, Filter, CheckCircle2, ArrowLeft,
+  Search, ShieldAlert, UserCheck, AlertTriangle
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
 interface NotificationItem {
   id: string;
-  user_id: string;
+  user_id?: string;
   title: string;
   message: string;
   type: string;
   read: boolean;
-  link: string | null;
+  link?: string | null;
   created_at: string;
 }
 
-export default function StudentNotifications() {
+const DEFAULT_ADMIN_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: "admin-notif-1",
+    title: "Google Campus Drive Live",
+    message: "Google opened Round 1: Online Technical Assessment (OA) for 2026 CS/IS graduates.",
+    type: "company",
+    read: false,
+    link: "/admin/companies",
+    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+  },
+  {
+    id: "admin-notif-2",
+    title: "Proctor Violation Flagged",
+    message: "Webcam anti-cheat detected consecutive unauthorized objects during Microsoft Core Engineering OA.",
+    type: "security",
+    read: false,
+    link: "/admin/reports",
+    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+  },
+  {
+    id: "admin-notif-3",
+    title: "Candidate Registration Milestone",
+    message: "Over 85 eligible students registered for the Amazon SDE Campus hiring pipeline.",
+    type: "test",
+    read: true,
+    link: "/admin/tests",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+  },
+  {
+    id: "admin-notif-4",
+    title: "Recruiter Account Verified",
+    message: "Goldman Sachs campus talent recruitment team has accepted university invite credentials.",
+    type: "company",
+    read: true,
+    link: "/admin/companies",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+  },
+  {
+    id: "admin-notif-5",
+    title: "Weekly Campus Pass Velocity Generated",
+    message: "Forensic analytics report compiled with 98.4% assessment integrity across 3 company drives.",
+    type: "system",
+    read: true,
+    link: "/admin/analytics",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+  },
+];
+
+export default function AdminNotifications() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [filter, setFilter] = useState<"all" | "company" | "test" | "round">("all");
+  const [filter, setFilter] = useState<"all" | "company" | "test" | "security">("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const fetchNotifications = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+  const storageKey = useMemo(() => `ipms_admin_notifications_${user?.id || "default"}`, [user?.id]);
+  const dismissedKey = useMemo(() => `ipms_admin_dismissed_${user?.id || "default"}`, [user?.id]);
 
-    if (!error && data) {
-      setNotifications(data as NotificationItem[]);
+  const loadNotifications = async () => {
+    setLoading(true);
+    let dismissedIds: string[] = [];
+    try {
+      dismissedIds = JSON.parse(localStorage.getItem(dismissedKey) || "[]");
+    } catch {}
+
+    let dbItems: NotificationItem[] = [];
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          dbItems = data as NotificationItem[];
+        }
+      } catch (e) {
+        console.warn("Failed fetching notifications from DB:", e);
+      }
     }
+
+    let localItems: NotificationItem[] = [];
+    try {
+      localItems = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    } catch {}
+
+    const combinedMap = new Map<string, NotificationItem>();
+
+    // 1. Seed defaults if empty
+    DEFAULT_ADMIN_NOTIFICATIONS.forEach((n) => {
+      if (!dismissedIds.includes(n.id)) {
+        combinedMap.set(n.id, n);
+      }
+    });
+
+    // 2. Add local items
+    localItems.forEach((n) => {
+      if (!dismissedIds.includes(n.id)) {
+        combinedMap.set(n.id, n);
+      }
+    });
+
+    // 3. Add db items
+    dbItems.forEach((n) => {
+      if (!dismissedIds.includes(n.id)) {
+        combinedMap.set(n.id, n);
+      }
+    });
+
+    const list = Array.from(combinedMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    setNotifications(list);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchNotifications();
+    loadNotifications();
 
-    // Subscribe to realtime inserts
     if (!user) return;
     const channel = supabase
-      .channel("student-notifications-feed")
+      .channel("admin-notifications-realtime")
       .on(
         "postgres_changes",
         {
@@ -62,7 +157,8 @@ export default function StudentNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          setNotifications((prev) => [payload.new as NotificationItem, ...prev]);
+          const newItem = payload.new as NotificationItem;
+          setNotifications((prev) => [newItem, ...prev.filter((x) => x.id !== newItem.id)]);
         }
       )
       .subscribe();
@@ -70,33 +166,74 @@ export default function StudentNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, storageKey, dismissedKey]);
 
   const markAllAsRead = async () => {
-    if (!user) return;
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("user_id", user.id)
-      .eq("read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      const updated = notifications.map((n) => ({ ...n, read: true }));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {}
 
-    if (!error) {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      toast.success("All notifications marked as read");
+    if (user) {
+      await supabase
+        .from("notifications")
+        .update({ read: true } as Record<string, unknown>)
+        .eq("user_id", user.id)
+        .eq("read", false);
     }
+    toast.success("All notifications marked as read");
   };
 
   const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    try {
+      const updated = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {}
+
+    if (user) {
+      await supabase
+        .from("notifications")
+        .update({ read: true } as Record<string, unknown>)
+        .eq("id", id);
+    }
   };
 
   const deleteNotification = async (id: string) => {
-    await supabase.from("notifications").delete().eq("id", id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    toast.success("Notification dismissed");
+    try {
+      const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || "[]");
+      if (!dismissed.includes(id)) {
+        dismissed.push(id);
+        localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
+      }
+      const local: NotificationItem[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      localStorage.setItem(storageKey, JSON.stringify(local.filter((n) => n.id !== id)));
+    } catch {}
+
+    if (user) {
+      await supabase.from("notifications").delete().eq("id", id);
+    }
+    toast.success("Notification removed from history");
+  };
+
+  const clearAllNotifications = async () => {
+    if (!confirm("Are you sure you want to clear your entire notification history?")) return;
+
+    try {
+      const allIds = notifications.map((n) => n.id);
+      localStorage.setItem(dismissedKey, JSON.stringify(allIds));
+      localStorage.setItem(storageKey, JSON.stringify([]));
+    } catch {}
+
+    if (user) {
+      await supabase.from("notifications").delete().eq("user_id", user.id);
+    }
+    setNotifications([]);
+    toast.success("Notification history cleared");
   };
 
   const filtered = notifications.filter((n) => {
@@ -105,9 +242,9 @@ export default function StudentNotifications() {
       n.message.toLowerCase().includes(search.toLowerCase());
     if (!textMatch) return false;
 
-    if (filter === "company") return n.title.toLowerCase().includes("company") || n.message.toLowerCase().includes("company");
-    if (filter === "test") return n.title.toLowerCase().includes("test") || n.title.toLowerCase().includes("assessment");
-    if (filter === "round") return n.title.toLowerCase().includes("round") || n.title.toLowerCase().includes("interview");
+    if (filter === "company") return n.type === "company" || n.title.toLowerCase().includes("company") || n.message.toLowerCase().includes("recruiter");
+    if (filter === "test") return n.type === "test" || n.title.toLowerCase().includes("test") || n.title.toLowerCase().includes("assessment");
+    if (filter === "security") return n.type === "security" || n.title.toLowerCase().includes("proctor") || n.message.toLowerCase().includes("anti-cheat");
     return true;
   });
 
@@ -118,27 +255,27 @@ export default function StudentNotifications() {
       
       {/* Back Link */}
       <Link
-        to="/dashboard"
+        to="/admin"
         className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        <span>Back to Dashboard</span>
+        <span>Back to Admin Overview</span>
       </Link>
 
-      {/* Hero Header Card matching Zidio Template */}
+      {/* Hero Header Card */}
       <div className="rounded-3xl bg-card border border-border/80 text-foreground p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-primary">
             <Bell className="h-3.5 w-3.5" />
-            <span>Activity Feed • Notification History</span>
+            <span>Placement Admin Feed • Audit & Telemetry History</span>
           </div>
 
           <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
-            Placement Notifications
+            Administrator Notifications
           </h1>
 
           <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
-            Keep track of incoming visiting company announcements, test releases, round progression results, and placement cell directives.
+            Monitor incoming company recruitment pipelines, candidate registration volume, anti-cheat security flags, and campus assessment lifecycle triggers.
           </p>
         </div>
 
@@ -154,14 +291,7 @@ export default function StudentNotifications() {
           </Button>
           {notifications.length > 0 && (
             <Button
-              onClick={async () => {
-                if (!confirm("Are you sure you want to clear your notification history?")) return;
-                if (user) {
-                  await supabase.from("notifications").delete().eq("user_id", user.id);
-                }
-                setNotifications([]);
-                toast.success("Notification history cleared");
-              }}
+              onClick={clearAllNotifications}
               variant="outline"
               className="rounded-xl border-destructive/30 hover:bg-destructive/10 text-destructive text-xs font-semibold h-9 px-3 gap-1.5"
             >
@@ -191,7 +321,7 @@ export default function StudentNotifications() {
               filter === "company" ? "bg-[#5b51d8] text-white" : "bg-muted/40 text-muted-foreground hover:text-foreground"
             }`}
           >
-            Companies &amp; Drives
+            Companies &amp; Recruiter
           </Button>
           <Button
             size="sm"
@@ -204,12 +334,12 @@ export default function StudentNotifications() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setFilter("round")}
+            onClick={() => setFilter("security")}
             className={`rounded-xl text-xs font-bold h-8 px-4 ${
-              filter === "round" ? "bg-[#5b51d8] text-white" : "bg-muted/40 text-muted-foreground hover:text-foreground"
+              filter === "security" ? "bg-[#5b51d8] text-white" : "bg-muted/40 text-muted-foreground hover:text-foreground"
             }`}
           >
-            Rounds &amp; Results
+            Anti-Cheat &amp; Flags
           </Button>
         </div>
 
@@ -227,9 +357,9 @@ export default function StudentNotifications() {
       {/* Notification List */}
       <div className="space-y-3">
         {filtered.map((item) => {
-          const isCompany = item.title.toLowerCase().includes("company");
-          const isTest = item.title.toLowerCase().includes("test");
-          const isRound = item.title.toLowerCase().includes("round");
+          const isCompany = item.type === "company" || item.title.toLowerCase().includes("company");
+          const isTest = item.type === "test" || item.title.toLowerCase().includes("test");
+          const isSecurity = item.type === "security" || item.title.toLowerCase().includes("proctor");
 
           return (
             <div
@@ -244,21 +374,21 @@ export default function StudentNotifications() {
                 {/* Icon Container */}
                 <div
                   className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 ${
-                    isCompany
+                    isSecurity
+                      ? "bg-rose-500/10 text-rose-600"
+                      : isCompany
                       ? "bg-purple-500/10 text-purple-600"
                       : isTest
                       ? "bg-blue-500/10 text-blue-600"
-                      : isRound
-                      ? "bg-emerald-500/10 text-emerald-600"
-                      : "bg-muted text-muted-foreground"
+                      : "bg-emerald-500/10 text-emerald-600"
                   }`}
                 >
-                  {isCompany ? (
+                  {isSecurity ? (
+                    <ShieldAlert className="h-5 w-5" />
+                  ) : isCompany ? (
                     <Building2 className="h-5 w-5" />
                   ) : isTest ? (
                     <ClipboardList className="h-5 w-5" />
-                  ) : isRound ? (
-                    <Trophy className="h-5 w-5" />
                   ) : (
                     <Bell className="h-5 w-5" />
                   )}
@@ -290,7 +420,7 @@ export default function StudentNotifications() {
                         onClick={() => markAsRead(item.id)}
                         className="text-[#5b51d8] font-bold hover:underline inline-flex items-center gap-1"
                       >
-                        <span>Open Details</span>
+                        <span>Open Console</span>
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     )}
@@ -302,7 +432,7 @@ export default function StudentNotifications() {
               <button
                 onClick={() => deleteNotification(item.id)}
                 className="text-muted-foreground hover:text-rose-500 transition-colors p-1"
-                title="Dismiss"
+                title="Dismiss notification"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -313,8 +443,8 @@ export default function StudentNotifications() {
         {filtered.length === 0 && (
           <div className="p-12 text-center rounded-3xl bg-card border border-border/60 space-y-2">
             <Bell className="h-10 w-10 text-muted-foreground mx-auto opacity-40" />
-            <h4 className="font-bold text-sm text-foreground">No notifications in this category</h4>
-            <p className="text-xs text-muted-foreground">You are all caught up!</p>
+            <h4 className="font-bold text-sm text-foreground">No notifications in this filter</h4>
+            <p className="text-xs text-muted-foreground">All administrator events have been reviewed.</p>
           </div>
         )}
       </div>

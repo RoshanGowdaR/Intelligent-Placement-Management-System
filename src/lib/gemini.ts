@@ -42,6 +42,98 @@ export async function askGemini(prompt: string, systemContext?: string): Promise
 }
 
 /**
+ * Resilient JSON repair and extractor for AI responses
+ * Handles truncated model outputs, trailing fragments, unescaped characters, and duplicate keys.
+ */
+export function repairAndParseQuestionsJSON(raw: string, fallbackSubject = "Assessment", fallbackType = "mcq"): GeminiQuestion[] {
+  if (!raw || typeof raw !== "string") return [];
+
+  // Strip markdown fences
+  let cleaned = raw
+    .replace(/^```json\s*/gim, "")
+    .replace(/^```\s*/gim, "")
+    .replace(/```$/gm, "")
+    .trim();
+
+  // Try standard direct parsing if it has brackets
+  const firstBracket = cleaned.indexOf("[");
+  if (firstBracket !== -1) {
+    let candidate = cleaned.slice(firstBracket);
+
+    // Try parsing as-is if it has matching closing bracket
+    const lastBracket = candidate.lastIndexOf("]");
+    if (lastBracket !== -1) {
+      try {
+        const fullJson = candidate.slice(0, lastBracket + 1);
+        const parsed = JSON.parse(fullJson);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return sanitizeQuestions(parsed, fallbackSubject, fallbackType);
+        }
+      } catch {
+        // Fall through to salvage attempts
+      }
+    }
+
+    // Truncation salvage: Find the last complete object boundary '}'
+    const lastBrace = candidate.lastIndexOf("}");
+    if (lastBrace !== -1 && lastBrace > 0) {
+      try {
+        // Slice up to the last complete object and close array
+        const salvagedSlice = candidate.slice(0, lastBrace + 1) + "]";
+        const parsed = JSON.parse(salvagedSlice);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return sanitizeQuestions(parsed, fallbackSubject, fallbackType);
+        }
+      } catch {
+        // Fall through to object-by-object regex extraction
+      }
+    }
+  }
+
+  // Object-by-object regex extraction: extract each individual valid {...}
+  const extractedQuestions: any[] = [];
+  const objectRegex = /\{[\s\S]*?"text"\s*:\s*"[\s\S]*?\}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = objectRegex.exec(cleaned)) !== null) {
+    try {
+      const obj = JSON.parse(match[0]);
+      if (obj && obj.text) {
+        extractedQuestions.push(obj);
+      }
+    } catch {
+      // Continue searching
+    }
+  }
+
+  if (extractedQuestions.length > 0) {
+    return sanitizeQuestions(extractedQuestions, fallbackSubject, fallbackType);
+  }
+
+  throw new Error("Unable to parse valid question structure from AI response. Please try again.");
+}
+
+function sanitizeQuestions(items: any[], fallbackSubject: string, fallbackType: string): GeminiQuestion[] {
+  return items.map((q: any) => {
+    const rawOptions = Array.isArray(q.options) ? q.options.map(String) : [];
+    const options = rawOptions.length >= 2 ? rawOptions.slice(0, 4) : undefined;
+    const type = q.type === "coding" ? "coding" : (fallbackType === "coding" ? "coding" : "mcq");
+
+    return {
+      id: q.id && typeof q.id === "string" ? q.id : crypto.randomUUID(),
+      type,
+      subject: q.subject || fallbackSubject,
+      topic: q.topic || "",
+      text: String(q.text || "Question content").trim(),
+      options: type === "mcq" ? (options || ["Option A", "Option B", "Option C", "Option D"]) : undefined,
+      correct_answer: String(q.correct_answer || (type === "mcq" ? "A" : "")).trim(),
+      explanation: q.explanation ? String(q.explanation).slice(0, 300) : undefined,
+      points: Number(q.points) || 1,
+    };
+  });
+}
+
+/**
  * AI Question Generator for Tests & Assessments
  */
 export async function generateQuestionsAI(params: {
@@ -56,7 +148,12 @@ export async function generateQuestionsAI(params: {
   const prompt = `You are a Senior Technical Assessment Lead for University Campus Recruitment.
 Generate exactly ${count} high-quality ${difficulty} level ${type.toUpperCase()} assessment questions for the subject "${subject}"${topic ? ` on the topic "${topic}"` : ""}.
 
-Return ONLY a valid JSON array of objects without markdown fences, code blocks, or preamble. Use this exact schema:
+STRICT FORMAT RULES:
+1. Return ONLY a valid JSON array of objects without markdown fences, code blocks, or preamble.
+2. Explanations must be concise (at most 25 words). DO NOT write multi-step scratchpad calculations.
+3. NEVER repeat keys. Output valid, standard JSON.
+
+Exact schema:
 [
   {
     "id": "uuid-v4-like-string",
@@ -64,29 +161,58 @@ Return ONLY a valid JSON array of objects without markdown fences, code blocks, 
     "subject": "${subject}",
     "topic": "${topic || subject}",
     "text": "Detailed question text with clear technical context",
-    ${type === "coding" ? '"correct_answer": "Complete standard working solution in clean pseudocode or JavaScript/Python"' : '"options": ["Option A text", "Option B text", "Option C text", "Option D text"],\n    "correct_answer": "A",\n    "explanation": "Brief reasoning explaining why Option A is correct"'},
+    ${type === "coding" ? '"correct_answer": "Standard clean working solution"' : '"options": ["Option A text", "Option B text", "Option C text", "Option D text"],\n    "correct_answer": "A",\n    "explanation": "Brief reasoning explaining why Option A is correct"'},
     "points": 1
   }
 ]`;
 
   const raw = await askGemini(prompt);
   
-  // Extract and parse JSON
   try {
-    const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
-    
-    return parsed.map((q: any) => ({
-      ...q,
-      id: q.id || crypto.randomUUID(),
-      type: q.type || type,
-      points: q.points || 1,
-    }));
+    return repairAndParseQuestionsJSON(raw, subject, type);
   } catch (err) {
     console.error("Failed to parse Gemini questions JSON:", raw, err);
     throw new Error("Failed to format generated questions from AI. Please try again.");
   }
+}
+
+/**
+ * Extract questions from document text (PDF, DOCX, TXT) using AI
+ */
+export async function extractQuestionsFromTextAI(extractedText: string, defaultSubject = "Assessment"): Promise<GeminiQuestion[]> {
+  if (!extractedText || extractedText.trim().length < 20) {
+    throw new Error("Document text is too short or empty to extract questions.");
+  }
+
+  const truncatedText = extractedText.slice(0, 20000); // Keep within reasonable token window
+
+  const prompt = `You are an AI assessment parser. Extract ALL examination/quiz questions from the provided document text and convert them into a structured JSON array.
+
+DOCUMENT TEXT:
+${truncatedText}
+
+STRICT INSTRUCTIONS:
+- Identify every question, its type (mcq or coding), options (if MCQ), and correct answer.
+- If the correct answer is not explicitly marked in the document, determine the best correct answer.
+- Explanations must be concise (max 20 words).
+- Return ONLY the JSON array without any markdown fences, preambles, or explanations.
+
+Schema:
+[
+  {
+    "id": "unique-uuid",
+    "type": "mcq",
+    "subject": "${defaultSubject}",
+    "topic": "Extracted Topic",
+    "text": "Question statement",
+    "options": ["A text", "B text", "C text", "D text"],
+    "correct_answer": "A",
+    "points": 1
+  }
+]`;
+
+  const raw = await askGemini(prompt);
+  return repairAndParseQuestionsJSON(raw, defaultSubject, "mcq");
 }
 
 /**

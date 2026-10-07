@@ -180,7 +180,7 @@ export default defineConfig(({ mode }) => ({
                 for (const m of models) {
                   try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
                     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                       method: "POST",
                       headers: {
@@ -190,8 +190,8 @@ export default defineConfig(({ mode }) => ({
                       body: JSON.stringify({
                         model: m,
                         messages,
-                        temperature: 0.6,
-                        max_tokens: 2048,
+                        temperature: 0.5,
+                        max_tokens: 4096,
                       }),
                       signal: controller.signal,
                     });
@@ -228,14 +228,14 @@ export default defineConfig(({ mode }) => ({
                   for (const auth of authModes) {
                     try {
                       const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 8000);
+                      const timeoutId = setTimeout(() => controller.abort(), 15000);
                       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent${auth.urlSuffix}`;
                       const response = await fetch(geminiUrl, {
                         method: "POST",
                         headers: auth.headers,
                         body: JSON.stringify({
                           contents: [{ parts: [{ text: fullPrompt }] }],
-                          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+                          generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
                         }),
                         signal: controller.signal,
                       });

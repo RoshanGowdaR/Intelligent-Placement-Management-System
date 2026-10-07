@@ -19,7 +19,7 @@ async function callGroq(prompt: string, systemContext?: string, apiKey?: string)
   for (const model of GROQ_MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -30,8 +30,8 @@ async function callGroq(prompt: string, systemContext?: string, apiKey?: string)
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.6,
-          max_tokens: 2048,
+          temperature: 0.5,
+          max_tokens: 4096,
         }),
         signal: controller.signal,
       });
@@ -73,7 +73,7 @@ async function callGemini(prompt: string, systemContext?: string, apiKey?: strin
     for (const auth of authModes) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent${auth.urlSuffix}`;
 
@@ -82,7 +82,7 @@ async function callGemini(prompt: string, systemContext?: string, apiKey?: strin
           headers: auth.headers,
           body: JSON.stringify({
             contents: [{ parts: [{ text: fullPrompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+            generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
           }),
           signal: controller.signal,
         });

@@ -23,6 +23,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminLeaderboard from "./pages/admin/AdminLeaderboard";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminNotifications from "./pages/admin/AdminNotifications";
 
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentTests from "./pages/student/StudentTests";
@@ -42,6 +43,7 @@ import CompanyTests from "./pages/company/CompanyTests";
 import CompanyCandidates from "./pages/company/CompanyCandidates";
 import CompanyReports from "./pages/company/CompanyReports";
 import CompanyOnboarding from "./pages/company/CompanyOnboarding";
+import CompanyNotifications from "./pages/company/CompanyNotifications";
 import PlacementAIChat from "./pages/ai/PlacementAIChat";
 
 const queryClient = new QueryClient({
@@ -87,6 +89,7 @@ const App = () => (
               <Route path="/admin/analytics" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminAnalytics /></DashboardLayout></ProtectedRoute>} />
               <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminReports /></DashboardLayout></ProtectedRoute>} />
               <Route path="/admin/leaderboard" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminLeaderboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/admin/notifications" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminNotifications /></DashboardLayout></ProtectedRoute>} />
               <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><DashboardLayout><AdminSettings /></DashboardLayout></ProtectedRoute>} />
 
               {/* Company Recruiter routes */}
@@ -98,6 +101,7 @@ const App = () => (
               <Route path="/company/tests" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyTests /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/candidates" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyCandidates /></DashboardLayout></ProtectedRoute>} />
               <Route path="/company/reports" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyReports /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/company/notifications" element={<ProtectedRoute requiredRole="company"><DashboardLayout><CompanyNotifications /></DashboardLayout></ProtectedRoute>} />
 
               {/* Student routes */}
               <Route path="/dashboard" element={<ProtectedRoute requiredRole="student"><DashboardLayout><StudentDashboard /></DashboardLayout></ProtectedRoute>} />

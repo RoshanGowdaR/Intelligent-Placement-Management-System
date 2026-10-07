@@ -217,6 +217,29 @@ export default function CompanyTests() {
     }
   };
 
+  const handleToggleRegistration = async (testId: string, isCurrentlyClosed: boolean, title: string) => {
+    try {
+      const newDeadline = isCurrentlyClosed
+        ? new Date(Date.now() + 7 * 86400000).toISOString()
+        : new Date(Date.now() - 60000).toISOString();
+
+      const { error } = await supabase
+        .from("tests")
+        .update({ registration_deadline: newDeadline })
+        .eq("id", testId);
+
+      if (error) throw error;
+      toast.success(
+        isCurrentlyClosed
+          ? `Registration reopened for "${title}" (open for 7 days)`
+          : `Registration closed for "${title}"`
+      );
+      fetchCompanyTests();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update registration status");
+    }
+  };
+
   const resetForm = () => {
     clearCompanyDraft();
     setTitle("");
@@ -309,6 +332,14 @@ export default function CompanyTests() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleRegistration(test.id, deadlinePast, test.title)}
+                      className="h-9 px-3 rounded-xl text-xs font-semibold"
+                    >
+                      {deadlinePast ? "Re-open Registration" : "Close Registration"}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

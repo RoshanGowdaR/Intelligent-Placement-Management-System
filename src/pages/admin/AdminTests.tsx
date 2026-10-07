@@ -13,10 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, Eye, Sparkles, Upload, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isPast } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import * as pdfjsLib from "pdfjs-dist";
-import { generateQuestionsAI } from "@/lib/gemini";
+import mammoth from "mammoth";
+import { generateQuestionsAI, extractQuestionsFromTextAI } from "@/lib/gemini";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -228,7 +229,7 @@ export default function AdminTests() {
     }
   };
 
-  // Support PDF, Word, and other file types
+  // Support PDF, Word (.doc, .docx), and text files directly in-browser
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -242,61 +243,63 @@ export default function AdminTests() {
 
     setFileLoading(true);
     try {
-      let pdfText = "";
-      let documentBase64 = "";
-      let mimeType = file.type || "application/octet-stream";
+      let rawText = "";
 
       if (ext === ".pdf") {
-        // Try text extraction first
         const arrayBuffer = await file.arrayBuffer();
         try {
           const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map((item: unknown) => {
-              const it = item as Record<string, unknown>;
-              return typeof it.str === 'string' ? it.str : '';
-            }).join(" ");
-            pdfText += pageText + "\n\n";
+            const pageText = textContent.items
+              .map((item: any) => (typeof item?.str === "string" ? item.str : ""))
+              .join(" ");
+            rawText += pageText + "\n\n";
           }
-        } catch {
-          // PDF parsing failed, fall back to vision
+        } catch (pdfErr: any) {
+          console.warn("PDF extraction error:", pdfErr);
         }
-
-        // If text extraction yielded minimal content, use vision fallback
-        if (pdfText.replace(/\s+/g, " ").trim().length < 50) {
-          documentBase64 = arrayBufferToBase64(arrayBuffer);
-          mimeType = "application/pdf";
-          pdfText = "";
-        }
-      } else {
-        // For Word docs and other formats, send as base64 for vision API
+      } else if (ext === ".docx") {
         const arrayBuffer = await file.arrayBuffer();
-        documentBase64 = arrayBufferToBase64(arrayBuffer);
-        if (ext === ".txt") {
-          // Text files can be read directly
-          pdfText = new TextDecoder().decode(arrayBuffer);
-          documentBase64 = "";
+        try {
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          rawText = result.value || "";
+        } catch (docxErr: any) {
+          console.warn("Mammoth docx extraction error:", docxErr);
+        }
+      } else if (ext === ".txt") {
+        const arrayBuffer = await file.arrayBuffer();
+        rawText = new TextDecoder().decode(arrayBuffer);
+      } else {
+        // .doc or .rtf
+        const arrayBuffer = await file.arrayBuffer();
+        try {
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          rawText = result.value || "";
+        } catch {
+          rawText = new TextDecoder().decode(arrayBuffer).replace(/[^\x20-\x7E\n]/g, " ");
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("extract-questions-pdf", {
-        body: {
-          pdfText: pdfText ? pdfText.slice(0, 30000) : undefined,
-          documentBase64: documentBase64 || undefined,
-          mimeType: documentBase64 ? mimeType : undefined,
-        },
-      });
-      if (error) throw error;
-      const extracted = (data?.questions || []) as Question[];
-      setQuestions([...questions, ...extracted]);
-      toast.success(`${extracted.length} questions extracted from ${file.name}`);
-    } catch (err) {
-      toast.error("Failed to extract questions: " + (err as Error).message);
+      if (!rawText || rawText.trim().length < 20) {
+        throw new Error(`Could not extract readable question text from ${file.name}. Please ensure the file has selectable text.`);
+      }
+
+      const extracted = await extractQuestionsFromTextAI(rawText, form.title || aiSubject || "Assessment");
+      if (extracted.length === 0) {
+        throw new Error("No structured questions could be extracted from this document.");
+      }
+
+      setQuestions((prev) => [...prev, ...(extracted as any[])]);
+      toast.success(`${extracted.length} questions successfully extracted from ${file.name}`);
+    } catch (err: any) {
+      console.error("Document question extraction failed:", err);
+      toast.error("Failed to extract questions: " + (err?.message || "Check document format"));
+    } finally {
+      setFileLoading(false);
+      e.target.value = "";
     }
-    setFileLoading(false);
-    e.target.value = "";
   };
 
   const handleSave = async () => {
@@ -457,6 +460,30 @@ export default function AdminTests() {
     if (error) { toast.error(error.message); return; }
     toast.success("Test deleted");
     auditLog("test_deleted", "tests", id);
+    fetchTests();
+  };
+
+  const handleToggleRegistration = async (t: Test) => {
+    const isCurrentlyOpen = t.registration_deadline ? !isPast(new Date(t.registration_deadline)) : true;
+    const newDeadline = isCurrentlyOpen
+      ? new Date(Date.now() - 60000).toISOString()
+      : new Date(Date.now() + 7 * 86400000).toISOString();
+
+    const { error } = await (supabase.from("tests") as any)
+      .update({ registration_deadline: newDeadline })
+      .eq("id", t.id);
+
+    if (error) {
+      toast.error("Failed to update registration status: " + error.message);
+      return;
+    }
+
+    toast.success(
+      isCurrentlyOpen
+        ? `Registration closed for "${t.title}"`
+        : `Registration opened for "${t.title}" (closes in 7 days)`
+    );
+    auditLog(isCurrentlyOpen ? "registration_closed" : "registration_opened", "tests", t.id, { title: t.title });
     fetchTests();
   };
 
@@ -847,18 +874,41 @@ export default function AdminTests() {
                 <TableHead>Date (IST)</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Questions</TableHead>
+                <TableHead>Registration</TableHead>
                 <TableHead className="w-32">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t) => {
                 const qCount = ((t.question_bank as unknown as Question[]) ?? []).length;
+                const isRegOpen = !t.registration_deadline || !isPast(new Date(t.registration_deadline));
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">{t.title}</TableCell>
                     <TableCell>{formatToIST12hr(t.scheduled_date)}</TableCell>
                     <TableCell>{t.duration} min</TableCell>
                     <TableCell>{qCount} in bank / {t.questions_per_student ?? qCount} per student</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {isRegOpen ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs font-semibold">
+                            Open
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-xs font-semibold">
+                            Closed
+                          </Badge>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[11px] px-2"
+                          onClick={() => handleToggleRegistration(t)}
+                        >
+                          {isRegOpen ? "Close Reg" : "Open Reg"}
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleViewResults(t)}><Eye className="h-4 w-4" /></Button>
@@ -871,7 +921,7 @@ export default function AdminTests() {
               })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No tests found</TableCell>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No tests found</TableCell>
                 </TableRow>
               )}
             </TableBody>
