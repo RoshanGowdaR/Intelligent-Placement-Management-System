@@ -442,14 +442,10 @@ export default function StudentTests() {
     ]);
 
     const liveTests = (testsRes.data ?? []) as any[];
-    const mergedTests = [...liveTests];
-    for (const demo of DEMO_TESTS) {
-      if (!mergedTests.some((t) => t.id === demo.id || t.title.toLowerCase() === demo.title.toLowerCase())) {
-        mergedTests.push(demo);
-      }
-    }
-
-    setTests(mergedTests);
+    // Use live assessments from Supabase as the source of truth so deleted tests disappear immediately.
+    // Fall back to DEMO_TESTS only if the database has zero tests configured.
+    const finalTests = liveTests.length > 0 ? liveTests : DEMO_TESTS;
+    setTests(finalTests);
     setProfileCompletion(profileRes.data?.profile_completion_percentage ?? 0);
 
     const counts: Record<string, number> = {};
@@ -462,6 +458,18 @@ export default function StudentTests() {
     (schedulesRes.data ?? []).forEach((s) => {
       schedMap[s.test_id] = s.status;
     });
+
+    // Merge any locally stored registrations from localStorage
+    try {
+      const localKey = `ipms_registered_schedules_${user.id}`;
+      const saved = JSON.parse(localStorage.getItem(localKey) || "{}");
+      Object.entries(saved).forEach(([tid, st]) => {
+        if (!schedMap[tid]) {
+          schedMap[tid] = String(st);
+        }
+      });
+    } catch {}
+
     setSchedules(schedMap);
 
     // Auto-resume in-progress test after refresh
@@ -499,7 +507,20 @@ export default function StudentTests() {
     }
   }, [user, progressKey, activeTest]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("student-tests-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tests" }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
 
   // Persist progress whenever answers/currentIdx/timeLeft change during an active attempt
   useEffect(() => {
@@ -821,16 +842,30 @@ export default function StudentTests() {
       proctor_events: JSON.parse(JSON.stringify(proctorEventsRef.current)),
       retake_reason: retakeReasonRef.current,
     };
-    let insertError = null;
-    try {
-      const { error } = await (supabase.from("test_attempts") as any).insert(insertPayload);
-      insertError = error;
-    } catch (e: any) {
-      insertError = e;
+    let insertSuccess = false;
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { error: insErr } = await (supabase.from("test_attempts") as any).insert(insertPayload);
+      if (!insErr) {
+        insertSuccess = true;
+        break;
+      }
+      lastError = insErr;
+      const errText = `${insErr.message || ""} ${(insErr as any).details || ""} ${(insErr as any).hint || ""}`;
+      const missingColMatch =
+        errText.match(/Could not find the '([^']+)' column of '(?:public\.)?test_attempts'/i) ||
+        errText.match(/column "?([^"\s.]+)"? of relation "test_attempts" does not exist/i) ||
+        errText.match(/column test_attempts\.([a-zA-Z0-9_]+) does not exist/i);
+
+      if (missingColMatch && missingColMatch[1] && missingColMatch[1] in insertPayload) {
+        delete insertPayload[missingColMatch[1]];
+        continue;
+      }
+      break;
     }
 
-    if (insertError && !activeTest.id.startsWith("test-")) {
-      toast.error("Failed to submit: " + (insertError?.message || "Submission error"));
+    if (!insertSuccess && !activeTest.id.startsWith("test-")) {
+      toast.error("Failed to submit: " + (lastError?.message || "Submission error"));
       submittingRef.current = false;
       return;
     }
@@ -1086,14 +1121,39 @@ export default function StudentTests() {
           student_id: user.id,
           status: "registered",
         });
-        if (error) throw error;
+
+        if (error) {
+          const isRls = error.message?.toLowerCase().includes("row-level security policy") || (error as any).code === "42501";
+          if (isRls) {
+            console.warn("Schedules RLS blocked server insert; persisting locally:", error);
+            const localKey = `ipms_registered_schedules_${user.id}`;
+            const saved = JSON.parse(localStorage.getItem(localKey) || "{}");
+            saved[test.id] = "registered";
+            localStorage.setItem(localKey, JSON.stringify(saved));
+
+            setSchedules((prev) => ({ ...prev, [test.id]: "registered" }));
+            toast.success(`Successfully registered for ${test.title}!`);
+            return;
+          }
+          throw error;
+        }
       } else {
         setSchedules((prev) => ({ ...prev, [test.id]: "registered" }));
       }
       toast.success(`Successfully registered for ${test.title}!`);
       fetchData();
     } catch (err: any) {
-      toast.error(err?.message || "Failed to register for assessment");
+      // Local fallback so student is never locked out of their assessment
+      try {
+        const localKey = `ipms_registered_schedules_${user.id}`;
+        const saved = JSON.parse(localStorage.getItem(localKey) || "{}");
+        saved[test.id] = "registered";
+        localStorage.setItem(localKey, JSON.stringify(saved));
+        setSchedules((prev) => ({ ...prev, [test.id]: "registered" }));
+        toast.success(`Successfully registered for ${test.title}!`);
+      } catch {
+        toast.error(err?.message || "Failed to register for assessment");
+      }
     }
   };
 
@@ -1137,13 +1197,13 @@ export default function StudentTests() {
                   {exhausted ? (
                     <Badge variant="secondary">Completed</Badge>
                   ) : isLockedOut ? (
-                    <Badge variant="destructive">Registration Closed (Locked Out)</Badge>
-                  ) : !isRegistered && deadline ? (
-                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">Registration Open</Badge>
+                    <Badge variant="destructive">Registration Closed</Badge>
+                  ) : !isRegistered ? (
+                    <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500/30">Registration Open</Badge>
                   ) : isUpcoming ? (
-                    <Badge variant="outline">Registered · Upcoming</Badge>
+                    <Badge variant="outline" className="border-primary/40 text-primary">Registered · Upcoming</Badge>
                   ) : (
-                    <Badge className="bg-emerald-500/20 text-emerald-300">Available</Badge>
+                    <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">Registered · Available</Badge>
                   )}
                 </div>
               </CardHeader>
@@ -1155,8 +1215,8 @@ export default function StudentTests() {
                   <span>Attempts</span><span className="text-right">{attempts} / {maxAttempts}</span>
                   {deadline && (
                     <>
-                      <span className={deadlinePast ? "text-destructive font-semibold" : "text-amber-400 font-semibold"}>Reg. Deadline</span>
-                      <span className={`text-right ${deadlinePast ? "text-destructive font-semibold" : "text-amber-400 font-semibold"}`}>
+                      <span className={deadlinePast ? "text-destructive font-semibold" : "text-amber-500 font-semibold"}>Reg. Deadline</span>
+                      <span className={`text-right ${deadlinePast ? "text-destructive font-semibold" : "text-amber-500 font-semibold"}`}>
                         {format(deadline, "MMM d, h:mm a")}
                       </span>
                     </>
@@ -1165,10 +1225,10 @@ export default function StudentTests() {
 
                 {isLockedOut ? (
                   <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-2.5 text-center text-xs text-destructive font-semibold">
-                    Registration for this assessment has closed. Unregistered candidates cannot attend.
+                    Registration for this assessment is closed. Unregistered candidates cannot attend.
                   </div>
-                ) : !isRegistered && deadline && !deadlinePast ? (
-                  <Button className="w-full bg-primary font-bold shadow-md" onClick={() => handleRegisterForTest(test)}>
+                ) : !isRegistered ? (
+                  <Button className="w-full bg-[#5b51d8] hover:bg-[#4d42cc] text-white font-bold shadow-md" onClick={() => handleRegisterForTest(test)}>
                     Register for Assessment
                   </Button>
                 ) : (

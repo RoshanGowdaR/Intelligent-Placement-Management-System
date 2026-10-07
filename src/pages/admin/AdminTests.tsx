@@ -6,17 +6,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, Eye, Sparkles, Upload, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isPast } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import * as pdfjsLib from "pdfjs-dist";
-import { generateQuestionsAI } from "@/lib/gemini";
+import mammoth from "mammoth";
+import { generateQuestionsAI, extractQuestionsFromTextAI } from "@/lib/gemini";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -87,6 +98,7 @@ export default function AdminTests() {
   });
   const [editing, setEditing] = useState<Test | null>(null);
   const [viewingTest, setViewingTest] = useState<Test | null>(null);
+  const [testToDelete, setTestToDelete] = useState<Test | null>(null);
   const [attempts, setAttempts] = useState<Tables<"test_attempts">[]>([]);
 
   const GADGET_CLASS_OPTIONS = ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"];
@@ -228,7 +240,7 @@ export default function AdminTests() {
     }
   };
 
-  // Support PDF, Word, and other file types
+  // Support PDF, Word (.doc, .docx), and text files directly in-browser
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -242,61 +254,63 @@ export default function AdminTests() {
 
     setFileLoading(true);
     try {
-      let pdfText = "";
-      let documentBase64 = "";
-      let mimeType = file.type || "application/octet-stream";
+      let rawText = "";
 
       if (ext === ".pdf") {
-        // Try text extraction first
         const arrayBuffer = await file.arrayBuffer();
         try {
           const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map((item: unknown) => {
-              const it = item as Record<string, unknown>;
-              return typeof it.str === 'string' ? it.str : '';
-            }).join(" ");
-            pdfText += pageText + "\n\n";
+            const pageText = textContent.items
+              .map((item: any) => (typeof item?.str === "string" ? item.str : ""))
+              .join(" ");
+            rawText += pageText + "\n\n";
           }
-        } catch {
-          // PDF parsing failed, fall back to vision
+        } catch (pdfErr: any) {
+          console.warn("PDF extraction error:", pdfErr);
         }
-
-        // If text extraction yielded minimal content, use vision fallback
-        if (pdfText.replace(/\s+/g, " ").trim().length < 50) {
-          documentBase64 = arrayBufferToBase64(arrayBuffer);
-          mimeType = "application/pdf";
-          pdfText = "";
-        }
-      } else {
-        // For Word docs and other formats, send as base64 for vision API
+      } else if (ext === ".docx") {
         const arrayBuffer = await file.arrayBuffer();
-        documentBase64 = arrayBufferToBase64(arrayBuffer);
-        if (ext === ".txt") {
-          // Text files can be read directly
-          pdfText = new TextDecoder().decode(arrayBuffer);
-          documentBase64 = "";
+        try {
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          rawText = result.value || "";
+        } catch (docxErr: any) {
+          console.warn("Mammoth docx extraction error:", docxErr);
+        }
+      } else if (ext === ".txt") {
+        const arrayBuffer = await file.arrayBuffer();
+        rawText = new TextDecoder().decode(arrayBuffer);
+      } else {
+        // .doc or .rtf
+        const arrayBuffer = await file.arrayBuffer();
+        try {
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          rawText = result.value || "";
+        } catch {
+          rawText = new TextDecoder().decode(arrayBuffer).replace(/[^\x20-\x7E\n]/g, " ");
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("extract-questions-pdf", {
-        body: {
-          pdfText: pdfText ? pdfText.slice(0, 30000) : undefined,
-          documentBase64: documentBase64 || undefined,
-          mimeType: documentBase64 ? mimeType : undefined,
-        },
-      });
-      if (error) throw error;
-      const extracted = (data?.questions || []) as Question[];
-      setQuestions([...questions, ...extracted]);
-      toast.success(`${extracted.length} questions extracted from ${file.name}`);
-    } catch (err) {
-      toast.error("Failed to extract questions: " + (err as Error).message);
+      if (!rawText || rawText.trim().length < 20) {
+        throw new Error(`Could not extract readable question text from ${file.name}. Please ensure the file has selectable text.`);
+      }
+
+      const extracted = await extractQuestionsFromTextAI(rawText, form.title || aiSubject || "Assessment");
+      if (extracted.length === 0) {
+        throw new Error("No structured questions could be extracted from this document.");
+      }
+
+      setQuestions((prev) => [...prev, ...(extracted as any[])]);
+      toast.success(`${extracted.length} questions successfully extracted from ${file.name}`);
+    } catch (err: any) {
+      console.error("Document question extraction failed:", err);
+      toast.error("Failed to extract questions: " + (err?.message || "Check document format"));
+    } finally {
+      setFileLoading(false);
+      e.target.value = "";
     }
-    setFileLoading(false);
-    e.target.value = "";
   };
 
   const handleSave = async () => {
@@ -330,28 +344,98 @@ export default function AdminTests() {
       proctor_config: JSON.parse(JSON.stringify(proctorConfig)),
     } as Record<string, unknown>;
 
+    const parseMissingColumnName = (err: any): string | null => {
+      if (!err) return null;
+      const str = `${err.message || ""} ${err.details || ""} ${err.hint || ""}`;
+      const m1 = str.match(/Could not find the '([^']+)' column of '(?:public\.)?tests'/i);
+      if (m1) return m1[1];
+      const m2 = str.match(/column "?([^"\s.]+)"? of relation "tests" does not exist/i);
+      if (m2) return m2[1];
+      const m3 = str.match(/column tests\.([a-zA-Z0-9_]+) does not exist/i);
+      if (m3) return m3[1];
+      return null;
+    };
+
+    let currentPayload = { ...payload };
+    let savedTest: any = null;
+    const removedColumns: string[] = [];
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if (editing) {
+        const { data, error } = await (supabase.from("tests") as any)
+          .update(currentPayload)
+          .eq("id", editing.id)
+          .select()
+          .maybeSingle();
+
+        if (!error) {
+          savedTest = data || { id: editing.id };
+          break;
+        }
+
+        const missingCol = parseMissingColumnName(error);
+        if (missingCol && missingCol in currentPayload) {
+          delete currentPayload[missingCol];
+          removedColumns.push(missingCol);
+          continue;
+        }
+
+        toast.error(error.message);
+        return;
+      } else {
+        const { data, error } = await (supabase.from("tests") as any)
+          .insert(currentPayload)
+          .select()
+          .single();
+
+        if (!error) {
+          savedTest = data;
+          break;
+        }
+
+        const missingCol = parseMissingColumnName(error);
+        if (missingCol && missingCol in currentPayload) {
+          delete currentPayload[missingCol];
+          removedColumns.push(missingCol);
+          continue;
+        }
+
+        toast.error(error.message);
+        return;
+      }
+    }
+
+    if (!savedTest) {
+      toast.error("Failed to save assessment. Please check database permissions.");
+      return;
+    }
+
     if (editing) {
-      const { error } = await (supabase.from("tests") as any).update(payload).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Test updated");
+      toast.success("Assessment updated successfully");
       auditLog("test_updated", "tests", editing.id, { title: form.title });
     } else {
-      const { data: newTest, error } = await (supabase.from("tests") as any).insert(payload).select().single();
-      if (error) { toast.error(error.message); return; }
-      toast.success("Test created");
-      auditLog("test_created", "tests", newTest.id, { title: form.title });
+      toast.success("Assessment created successfully");
+      auditLog("test_created", "tests", savedTest.id, { title: form.title });
 
       // Send email notifications
       try {
         const displayDate = formatToIST12hr(scheduledISO);
         await supabase.functions.invoke("send-test-notification", {
-          body: { testId: newTest.id, testTitle: form.title, scheduledDate: displayDate },
+          body: { testId: savedTest.id, testTitle: form.title, scheduledDate: displayDate },
         });
         toast.success("Email notifications sent to students");
       } catch {
         toast.info("Test created but notifications could not be sent");
       }
     }
+
+    if (removedColumns.length > 0) {
+      toast.warning(
+        `Assessment saved! Note: Database 'tests' table is missing column(s): ${removedColumns.join(", ")}. Please run the SQL migration in Supabase SQL editor to enable all proctoring configurations.`,
+        { duration: 8000 }
+      );
+    }
+
     setOpen(false);
     resetForm();
     fetchTests();
@@ -390,6 +474,30 @@ export default function AdminTests() {
     fetchTests();
   };
 
+  const handleToggleRegistration = async (t: Test) => {
+    const isCurrentlyOpen = t.registration_deadline ? !isPast(new Date(t.registration_deadline)) : true;
+    const newDeadline = isCurrentlyOpen
+      ? new Date(Date.now() - 60000).toISOString()
+      : new Date(Date.now() + 7 * 86400000).toISOString();
+
+    const { error } = await (supabase.from("tests") as any)
+      .update({ registration_deadline: newDeadline })
+      .eq("id", t.id);
+
+    if (error) {
+      toast.error("Failed to update registration status: " + error.message);
+      return;
+    }
+
+    toast.success(
+      isCurrentlyOpen
+        ? `Registration closed for "${t.title}"`
+        : `Registration opened for "${t.title}" (closes in 7 days)`
+    );
+    auditLog(isCurrentlyOpen ? "registration_closed" : "registration_opened", "tests", t.id, { title: t.title });
+    fetchTests();
+  };
+
   const handleViewResults = async (t: Test) => {
     setViewingTest(t);
     const { data } = await supabase.from("test_attempts").select("*").eq("test_id", t.id).order("total_score", { ascending: false });
@@ -412,6 +520,9 @@ export default function AdminTests() {
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Test" : "Create Test"}</DialogTitle>
+              <DialogDescription>
+                Configure placement assessment parameters, question bank, and proctoring settings.
+              </DialogDescription>
             </DialogHeader>
             <Tabs defaultValue="details" className="mt-2">
               <TabsList className="w-full">
@@ -774,12 +885,14 @@ export default function AdminTests() {
                 <TableHead>Date (IST)</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Questions</TableHead>
+                <TableHead>Registration</TableHead>
                 <TableHead className="w-32">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t) => {
                 const qCount = ((t.question_bank as unknown as Question[]) ?? []).length;
+                const isRegOpen = !t.registration_deadline || !isPast(new Date(t.registration_deadline));
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">{t.title}</TableCell>
@@ -787,10 +900,31 @@ export default function AdminTests() {
                     <TableCell>{t.duration} min</TableCell>
                     <TableCell>{qCount} in bank / {t.questions_per_student ?? qCount} per student</TableCell>
                     <TableCell>
+                      <div className="flex items-center gap-2">
+                        {isRegOpen ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs font-semibold">
+                            Open
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-xs font-semibold">
+                            Closed
+                          </Badge>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[11px] px-2"
+                          onClick={() => handleToggleRegistration(t)}
+                        >
+                          {isRegOpen ? "Close Reg" : "Open Reg"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleViewResults(t)}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setTestToDelete(t)} title="Delete assessment"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -798,7 +932,7 @@ export default function AdminTests() {
               })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No tests found</TableCell>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No tests found</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -811,6 +945,9 @@ export default function AdminTests() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Results — {viewingTest?.title}</DialogTitle>
+            <DialogDescription>
+              Review student assessment performance and completion results.
+            </DialogDescription>
           </DialogHeader>
           <Table>
             <TableHeader>
@@ -845,6 +982,36 @@ export default function AdminTests() {
           </Table>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Assessment Confirmation Dialog */}
+      <AlertDialog open={!!testToDelete} onOpenChange={(isOpen) => !isOpen && setTestToDelete(null)}>
+        <AlertDialogContent className="max-w-md rounded-2xl border border-border/80 bg-card p-6 text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg font-bold text-foreground">
+              Delete Assessment?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-foreground font-semibold">"{testToDelete?.title}"</strong>? All associated questions, retake banks, and scheduled registrations will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 mt-4">
+            <AlertDialogCancel onClick={() => setTestToDelete(null)} className="rounded-xl text-xs font-semibold">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (testToDelete) {
+                  handleDelete(testToDelete.id);
+                  setTestToDelete(null);
+                }
+              }}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-bold"
+            >
+              Delete Assessment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

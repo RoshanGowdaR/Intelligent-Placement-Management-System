@@ -24,7 +24,8 @@ interface Notification {
 }
 
 export function NotificationCenter() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const notifUrl = role === "admin" ? "/admin/notifications" : role === "company" ? "/company/notifications" : "/dashboard/notifications";
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -159,7 +160,7 @@ export function NotificationCenter() {
         </ScrollArea>
         <div className="p-2 border-t border-border/60 text-center bg-muted/20">
           <Link
-            to="/dashboard/notifications"
+            to={notifUrl}
             onClick={() => setOpen(false)}
             className="text-xs font-bold text-[#5b51d8] hover:underline inline-flex items-center gap-1"
           >

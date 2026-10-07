@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ClipboardList, Plus, Trash2, Clock, Calendar, CheckCircle2, AlertTriangle, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { isPast } from "date-fns";
@@ -17,6 +27,7 @@ export default function CompanyTests() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testToDelete, setTestToDelete] = useState<any | null>(null);
 
   // Form State with draft persistence
   const [title, setTitle] = useState(() => sessionStorage.getItem("company_test_title") || "");
@@ -129,26 +140,51 @@ export default function CompanyTests() {
         },
       ];
 
-      const { data: insertedTest, error } = await supabase
-        .from("tests")
-        .insert({
-          title: title.trim(),
-          scheduled_date: new Date(scheduledDate).toISOString(),
-          duration: Number(duration) || 60,
-          max_participants: Number(maxParticipants) || 100,
-          pass_criteria: { pass_percentage: Number(passPercentage) || 50 },
-          registration_start: new Date().toISOString(),
-          registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
-          created_by: user?.id,
-          created_by_role: "company" as any,
-          company_id: comp?.id || null,
-          question_bank: sampleQuestionBank,
-          questions_per_student: sampleQuestionBank.length,
-        })
-        .select()
-        .single();
+      let payload: Record<string, any> = {
+        title: title.trim(),
+        scheduled_date: new Date(scheduledDate).toISOString(),
+        duration: Number(duration) || 60,
+        max_participants: Number(maxParticipants) || 100,
+        pass_criteria: { pass_percentage: Number(passPercentage) || 50 },
+        registration_start: new Date().toISOString(),
+        registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
+        created_by: user?.id,
+        created_by_role: "company" as any,
+        company_id: comp?.id || null,
+        question_bank: sampleQuestionBank,
+        questions_per_student: sampleQuestionBank.length,
+      };
 
-      if (error) throw error;
+      let insertedTest: any = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data, error: insertError } = await supabase
+          .from("tests")
+          .insert(payload)
+          .select()
+          .single();
+
+        if (!insertError) {
+          insertedTest = data;
+          break;
+        }
+
+        const errText = `${insertError.message || ""} ${(insertError as any).details || ""} ${(insertError as any).hint || ""}`;
+        const missingColMatch =
+          errText.match(/Could not find the '([^']+)' column of '(?:public\.)?tests'/i) ||
+          errText.match(/column "?([^"\s.]+)"? of relation "tests" does not exist/i) ||
+          errText.match(/column tests\.([a-zA-Z0-9_]+) does not exist/i);
+
+        if (missingColMatch && missingColMatch[1] && missingColMatch[1] in payload) {
+          delete payload[missingColMatch[1]];
+          continue;
+        }
+
+        throw insertError;
+      }
+
+      if (!insertedTest) {
+        throw new Error("Failed creating assessment after retrying with compatible columns.");
+      }
 
       // Broadcast notification to students
       try {
@@ -180,15 +216,39 @@ export default function CompanyTests() {
   };
 
   const handleDeleteTest = async (testId: string) => {
-    if (!confirm("Are you sure you want to delete this assessment?")) return;
-
     try {
+      await supabase.from("schedules").delete().eq("test_id", testId);
       const { error } = await supabase.from("tests").delete().eq("id", testId);
       if (error) throw error;
       toast.success("Assessment deleted");
       fetchCompanyTests();
     } catch (err: any) {
       toast.error(err?.message || "Could not delete test");
+    } finally {
+      setTestToDelete(null);
+    }
+  };
+
+  const handleToggleRegistration = async (testId: string, isCurrentlyClosed: boolean, title: string) => {
+    try {
+      const newDeadline = isCurrentlyClosed
+        ? new Date(Date.now() + 7 * 86400000).toISOString()
+        : new Date(Date.now() - 60000).toISOString();
+
+      const { error } = await supabase
+        .from("tests")
+        .update({ registration_deadline: newDeadline })
+        .eq("id", testId);
+
+      if (error) throw error;
+      toast.success(
+        isCurrentlyClosed
+          ? `Registration reopened for "${title}" (open for 7 days)`
+          : `Registration closed for "${title}"`
+      );
+      fetchCompanyTests();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update registration status");
     }
   };
 
@@ -285,9 +345,17 @@ export default function CompanyTests() {
 
                   <div className="flex items-center gap-2">
                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleRegistration(test.id, deadlinePast, test.title)}
+                      className="h-9 px-3 rounded-xl text-xs font-semibold"
+                    >
+                      {deadlinePast ? "Re-open Registration" : "Close Registration"}
+                    </Button>
+                    <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteTest(test.id)}
+                      onClick={() => setTestToDelete(test)}
                       className="h-10 w-10 rounded-xl text-destructive hover:bg-destructive/10"
                       title="Delete assessment"
                     >
@@ -398,6 +466,34 @@ export default function CompanyTests() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Assessment Confirmation Dialog */}
+      <AlertDialog open={!!testToDelete} onOpenChange={(isOpen) => !isOpen && setTestToDelete(null)}>
+        <AlertDialogContent className="max-w-md rounded-2xl border border-border/80 bg-card p-6 text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg font-bold text-foreground">
+              Delete Assessment?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-foreground font-semibold">"{testToDelete?.title}"</strong>? All student registrations and scheduled sessions will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 mt-4">
+            <AlertDialogCancel onClick={() => setTestToDelete(null)} className="rounded-xl text-xs font-semibold">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (testToDelete) {
+                  handleDeleteTest(testToDelete.id);
+                }
+              }}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-bold"
+            >
+              Delete Assessment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
