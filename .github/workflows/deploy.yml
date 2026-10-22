@@ -1,0 +1,45 @@
+name: Continuous Deployment (CD)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  pre-deploy-check:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Full Vitest Test Suite
+        run: npm test -- --run
+
+      - name: Verify Production Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://xvkswalqrepcdwkanxaz.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_185TMklN9X-lL4Ds2wv2IA_F4J_VFJE' }}
+
+  deploy:
+    name: Deploy to Production
+    needs: pre-deploy-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Deployment Notification
+        run: |
+          echo "Production validation passed successfully."
+          echo "Triggering Vercel deployment pipeline via Git integration..."

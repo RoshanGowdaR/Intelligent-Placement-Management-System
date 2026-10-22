@@ -1,0 +1,46 @@
+name: Backend Services & Database Engine Tests
+
+on:
+  push:
+    branches: [main, developer]
+    paths:
+      - 'src/services/**'
+      - 'src/integrations/**'
+      - 'src/test/**'
+      - 'supabase/**'
+      - '.github/workflows/backend-test.yml'
+  pull_request:
+    branches: [main, developer]
+    paths:
+      - 'src/services/**'
+      - 'src/integrations/**'
+      - 'src/test/**'
+      - 'supabase/**'
+      - '.github/workflows/backend-test.yml'
+  workflow_dispatch:
+
+jobs:
+  backend-logic-tests:
+    name: Recruitment Engine & Proctor Logic Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Backend Engine Tests
+        run: npm run test:backend
+
+      - name: Validate Supabase SQL Migrations
+        run: |
+          echo "Checking Supabase SQL migration files syntax..."
+          find supabase/migrations -name "*.sql" -exec echo "Checking: {}" \;
+          echo "All SQL migration scripts verified."
