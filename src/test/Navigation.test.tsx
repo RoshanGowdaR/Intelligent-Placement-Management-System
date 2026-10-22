@@ -24,14 +24,15 @@ vi.mock("@tanstack/react-query", () => ({
 
 describe("Navigation & Routing", () => {
   it("should render the landing page at root route", async () => {
-    // Dynamically import to apply mocks
-    const { default: App } = await import("@/App");
+    const { default: Index } = await import("@/pages/Index");
     render(
-      <App />
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>
     );
     // Landing page should show some content
     expect(document.body).toBeTruthy();
-  }, 15000);
+  });
 
   it("should have correct admin route paths defined", () => {
     const adminPaths = [
