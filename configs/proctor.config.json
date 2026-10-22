@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "3.0.0",
+  "proctoring": {
+    "fullscreen": {
+      "enforce": true,
+      "allowGracePeriodSeconds": 5
+    },
+    "tabSwitches": {
+      "maxAllowedBeforeWarning": 1,
+      "maxAllowedBeforeAutoSubmit": 3,
+      "deductionPointsPerSwitch": 15
+    },
+    "computerVision": {
+      "model": "coco-ssd",
+      "modelArchitecture": "mobilenet_v2",
+      "inferenceIntervalMs": 500,
+      "minimumConfidenceThreshold": 0.65,
+      "alarmClasses": [
+        "cell phone",
+        "laptop",
+        "tablet",
+        "book"
+      ],
+      "deductionPointsPerGadgetViolation": 40
+    },
+    "integrityScore": {
+      "baseScore": 100,
+      "cleanThreshold": 85,
+      "suspiciousThreshold": 60,
+      "autoSubmitMaxScore": 20
+    }
+  }
+}

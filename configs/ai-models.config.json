@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "3.0.0",
+  "aiEngine": {
+    "primaryProvider": "groq",
+    "fallbackProvider": "gemini",
+    "providers": {
+      "groq": {
+        "model": "llama-3.3-70b-versatile",
+        "temperature": 0.2,
+        "maxTokens": 4096,
+        "topP": 0.95
+      },
+      "gemini": {
+        "model": "gemini-2.5-flash",
+        "temperature": 0.2,
+        "maxOutputTokens": 8192,
+        "topP": 0.95
+      }
+    },
+    "features": {
+      "questionGeneration": {
+        "defaultCount": 5,
+        "maxCount": 30,
+        "supportedTopics": [
+          "Quantitative Aptitude",
+          "Logical Reasoning",
+          "Verbal Ability",
+          "Data Structures & Algorithms",
+          "Database Management Systems",
+          "Operating Systems",
+          "Computer Networks"
+        ]
+      },
+      "placementOracle": {
+        "stream": false,
+        "enableRecharts": true,
+        "enableKpiCards": true,
+        "enableProctorGauge": true
+      }
+    }
+  }
+}
