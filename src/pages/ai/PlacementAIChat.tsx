@@ -4,6 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
 import { askGemini } from "@/lib/gemini";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
+  Cell
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -162,12 +167,13 @@ export default function PlacementAIChat({ forcedRole }: { forcedRole?: "admin" |
     try {
       if (role === "admin") {
         // Full database access for Placement Admin
-        const [profilesRes, companiesRes, testsRes, attemptsRes, roundsRes] = await Promise.all([
-          supabase.from("profiles").select("id, name, email, branch, cgpa, usn, skills"),
-          supabase.from("companies").select("id, name, job_role, salary_package, job_location, min_cgpa"),
-          supabase.from("tests").select("id, title, category, scheduled_date, duration, pass_criteria, company_id, companies(name)"),
-          supabase.from("test_attempts").select("id, score, passed, total_score, student_id, test_id, tests(title), profiles(name, branch, cgpa)"),
-          supabase.from("drive_rounds").select("id, round_name, round_number, round_type, company_id, passing_logic, is_published"),
+        const [profilesRes, companiesRes, testsRes, attemptsRes, roundsRes, roundPartsRes] = await Promise.all([
+          supabase.from("profiles").select("id, name, email, branch, cgpa, usn, backlogs, skills"),
+          supabase.from("companies").select("id, name, job_role, salary_package, job_location, eligibility_criteria, allowed_branches, max_backlogs"),
+          supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, company_id, pass_criteria, questions_per_student, companies(name)"),
+          supabase.from("test_attempts").select("id, student_id, test_id, total_score, passed, auto_submitted, tab_switches, proctor_events, started_at, completed_at, tests(id, title, company_id, pass_criteria, companies(name)), profiles(id, name, email, branch, cgpa, usn)"),
+          supabase.from("drive_rounds").select("id, round_name, round_number, round_type, company_id, passing_logic, passing_value, is_published, companies(name)"),
+          supabase.from("round_participants").select("id, drive_round_id, student_id, status, score, drive_rounds(company_id, round_number, round_name, round_type, companies(name)), profiles(id, name, email, branch, cgpa, usn)"),
         ]);
 
         const profiles = profilesRes.data ?? [];
@@ -175,9 +181,31 @@ export default function PlacementAIChat({ forcedRole }: { forcedRole?: "admin" |
         const tests = testsRes.data ?? [];
         const attempts = attemptsRes.data ?? [];
         const rounds = roundsRes.data ?? [];
+        const roundParts = roundPartsRes.data ?? [];
 
-        const totalPassed = attempts.filter((a) => a.passed).length;
-        const passRate = attempts.length > 0 ? Math.round((totalPassed / attempts.length) * 100) : 0;
+        // Compute institutional placement & assessment KPIs
+        const attempterIds = new Set(attempts.map((a) => a.student_id));
+        const totalAttended = attempterIds.size;
+
+        const passedAttempterIds = new Set(attempts.filter((a) => a.passed).map((a) => a.student_id));
+        const totalPassed = passedAttempterIds.size;
+
+        const failedAttempterIds = new Set(
+          attempts
+            .filter((a) => !a.passed)
+            .map((a) => a.student_id)
+            .filter((id) => !passedAttempterIds.has(id))
+        );
+        const totalFailed = failedAttempterIds.size;
+
+        // Placed candidates: qualified final round participants or qualified in drive rounds
+        const qualifiedParts = roundParts.filter((rp: any) => rp.status === "qualified");
+        const placedIds = new Set(qualifiedParts.map((rp: any) => rp.student_id));
+        const totalPlaced = placedIds.size;
+
+        const passRate = attempts.length > 0
+          ? Math.round((attempts.filter((a) => a.passed).length / attempts.length) * 100)
+          : 0;
 
         // Branch breakdown
         const branchCounts: Record<string, number> = {};
@@ -186,61 +214,217 @@ export default function PlacementAIChat({ forcedRole }: { forcedRole?: "admin" |
           branchCounts[b] = (branchCounts[b] || 0) + 1;
         });
 
-        // Top 5 students
-        const topStudents = [...profiles]
-          .filter((p) => p.cgpa !== null)
-          .sort((a, b) => (b.cgpa ?? 0) - (a.cgpa ?? 0))
-          .slice(0, 5)
-          .map((p) => `${p.name} (${p.branch}, CGPA: ${p.cgpa})`);
+        // Detailed student roster with company eligibility calculation
+        const studentRoster = profiles.map((p) => {
+          const eligibleCompanies = companies.filter((c) => {
+            let minCgpa = 0;
+            if (c.eligibility_criteria && typeof c.eligibility_criteria === "object") {
+              minCgpa = Number((c.eligibility_criteria as any).min_cgpa ?? (c.eligibility_criteria as any).cgpa ?? 0);
+            }
+            const studentCgpa = p.cgpa ?? 0;
+            const meetsCgpa = studentCgpa >= minCgpa;
+            const allowed = (c.allowed_branches as string[]) ?? [];
+            const meetsBranch = allowed.length === 0 || allowed.some((b) => !p.branch || b.toLowerCase().includes(p.branch.toLowerCase()));
+            const meetsBacklogs = c.max_backlogs == null || (p.backlogs ?? 0) <= c.max_backlogs;
+            return meetsCgpa && meetsBranch && meetsBacklogs;
+          }).map((c) => c.name);
+
+          return {
+            name: p.name || "Student",
+            usn: p.usn || "N/A",
+            branch: p.branch || "General",
+            cgpa: p.cgpa != null ? p.cgpa : "Not specified",
+            backlogs: p.backlogs ?? 0,
+            skills: (p.skills || []).join(", ") || "General",
+            eligibleCompanies: eligibleCompanies.length > 0 ? eligibleCompanies : ["None (Criteria not met)"],
+          };
+        });
+
+        // Detailed candidate attempts with Proctor Integrity breakdown
+        const attemptsDetails = attempts.map((a) => {
+          const p = a.profiles as any;
+          const t = a.tests as any;
+          const tabSwitches = a.tab_switches || 0;
+          let gadgetDetected = false;
+          const violationList: string[] = [];
+          if (tabSwitches > 0) {
+            violationList.push(`${tabSwitches} tab switches`);
+          }
+          if (Array.isArray(a.proctor_events)) {
+            a.proctor_events.forEach((evt: any) => {
+              const typeStr = (evt.type || evt.event || "").toLowerCase();
+              if (typeStr.includes("device") || typeStr.includes("gadget") || typeStr.includes("phone") || evt.device_detected) {
+                gadgetDetected = true;
+                violationList.push("Digital gadget / phone detected");
+              }
+            });
+          }
+          if (a.auto_submitted) {
+            violationList.push("Auto-submitted due to cheat violation threshold");
+          }
+
+          // Calculate Proctor Integrity Score (out of 100)
+          let proctorScore = 100 - (tabSwitches * 15) - (gadgetDetected ? 40 : 0);
+          if (a.auto_submitted) proctorScore = Math.min(proctorScore, 20);
+          proctorScore = Math.max(0, Math.min(100, proctorScore));
+
+          const proctorStatus = proctorScore >= 85 ? "Clean / Valid" : proctorScore >= 60 ? "Warning / Suspicious" : "Flagged Cheat / High Risk";
+
+          return {
+            candidateName: p?.name || "Candidate",
+            usn: p?.usn || "N/A",
+            branch: p?.branch || "General",
+            cgpa: p?.cgpa != null ? p.cgpa : "N/A",
+            testTitle: t?.title || "Assessment",
+            company: t?.companies?.name || "Campus",
+            scoreObtained: a.total_score ?? 0,
+            passed: a.passed ? "Passed" : "Failed",
+            tabSwitches,
+            gadgetDetected,
+            autoSubmitted: a.auto_submitted,
+            proctorScore: `${proctorScore}/100`,
+            proctorScoreNumeric: proctorScore,
+            proctorStatus,
+            violations: violationList.length > 0 ? violationList.join("; ") : "Clean (No violations)",
+            completedAt: a.completed_at,
+          };
+        });
+
+        // Placed candidates list
+        const placedCandidates = qualifiedParts.map((rp: any) => ({
+          name: (rp.profiles as any)?.name || "Candidate",
+          usn: (rp.profiles as any)?.usn || "N/A",
+          branch: (rp.profiles as any)?.branch || "General",
+          company: (rp.drive_rounds as any)?.companies?.name || "Company",
+          round: `R${(rp.drive_rounds as any)?.round_number || 1}: ${(rp.drive_rounds as any)?.round_name || "Round"}`,
+          status: "Qualified / Placed",
+        }));
 
         return `
 ROLE: PLACEMENT ADMINISTRATION (FULL DATABASE ACCESS GRANTED)
 You have verified, unredacted forensic access to the entire institution placement database:
 - Total Registered Students: ${profiles.length}
-- Branches: ${JSON.stringify(branchCounts)}
-- Top Academic Rankers: ${topStudents.join("; ")}
+- Students Attended Assessments: ${totalAttended}
+- Students Passed Assessments: ${totalPassed}
+- Students Failed Assessments: ${totalFailed}
+- Students Placed: ${totalPlaced}
+- Overall Test Submissions: ${attempts.length} (Overall Pass Rate: ${passRate}%)
 - Registered Companies (${companies.length}): ${companies.map((c) => `${c.name} (${c.job_role || "Engineering"}, CTC: ${c.salary_package || "N/A"})`).join("; ")}
 - Total Placement Tests Conducted: ${tests.length}
-- Test List: ${tests.map((t) => `"${t.title}" (${(t.companies as any)?.name || "General"}, Scheduled: ${t.scheduled_date})`).join("; ")}
-- Total Attempt Submissions: ${attempts.length} (Overall Pass Rate: ${passRate}%)
-- Recruitment Drive Rounds: ${rounds.length} rounds configured across companies.
+- Test List: ${tests.map((t) => `"${t.title}" (${(t.companies as any)?.name || "Campus"}, Scheduled: ${t.scheduled_date})`).join("; ")}
+- Recruitment Drive Rounds: ${rounds.length} configured across companies.
+- Branch Distribution: ${JSON.stringify(branchCounts)}
 
-INSTRUCTIONS:
-Provide authoritative, comprehensive, and data-backed answers. You can generate formatted placement reports, analyze test performances, calculate pass percentages, compare company packages, audit candidate qualifications, and answer any historical question about tests conducted. Use markdown tables, bold highlights, and clean bulleted sections.
+LIVE CANDIDATE ATTEMPTS & PROCTOR SCORES:
+${JSON.stringify(attemptsDetails, null, 2)}
+
+STUDENT ROSTER & COMPANY ELIGIBILITY:
+${JSON.stringify(studentRoster, null, 2)}
+
+REGISTERED COMPANIES & HIRING CRITERIA:
+${JSON.stringify(companies.map(c => ({ name: c.name, role: c.job_role, ctc: c.salary_package, location: c.job_location, criteria: c.eligibility_criteria })), null, 2)}
+
+PLACED CANDIDATES:
+${JSON.stringify(placedCandidates, null, 2)}
+
+CRITICAL RESPONSE & FORMATTING INSTRUCTIONS:
+1. ALWAYS USE VISUAL KPI CARDS & CHARTS:
+Whenever the user asks about:
+- Placement summary or overview
+- Attended students, passed, failed, or placed counts
+- Exam results or candidates performance
+You MUST include:
+A) A visual \`\`\`kpi block:
+\`\`\`kpi
+[
+  { "label": "Registered", "value": ${profiles.length}, "sub": "Total Students", "color": "#3b82f6" },
+  { "label": "Attended", "value": ${totalAttended}, "sub": "Exam Takers", "color": "#6366f1" },
+  { "label": "Passed", "value": ${totalPassed}, "sub": "${passRate}% Pass Rate", "color": "#10b981" },
+  { "label": "Failed", "value": ${totalFailed}, "sub": "Failed", "color": "#ef4444" },
+  { "label": "Placed", "value": ${totalPlaced}, "sub": "Placed Offers", "color": "#8b5cf6" }
+]
+\`\`\`
+B) A visual comparative Bar Chart using \`\`\`chart:
+\`\`\`chart
+{
+  "type": "bar",
+  "title": "Institutional Placement & Exam Performance Metrics",
+  "data": [
+    { "name": "Registered", "value": ${profiles.length}, "color": "#3b82f6" },
+    { "name": "Attended", "value": ${totalAttended}, "color": "#6366f1" },
+    { "name": "Passed", "value": ${totalPassed}, "color": "#10b981" },
+    { "name": "Failed", "value": ${totalFailed}, "color": "#ef4444" },
+    { "name": "Placed", "value": ${totalPlaced}, "color": "#8b5cf6" }
+  ]
+}
+\`\`\`
+C) When specific candidate attempts are referenced (e.g. Hemanth), include their individual Proctor Score Card using \`\`\`proctor:
+\`\`\`proctor
+{
+  "candidate": "Candidate Name",
+  "score": 70,
+  "tab_switches": 2,
+  "violations": ["2 Tab Switches Detected"]
+}
+\`\`\`
+
+2. COMPREHENSIVE MARKDOWN TABLES:
+- When asked for candidates who attended exams or test results:
+  Provide a complete Markdown table with columns:
+  | Candidate Name | USN | Branch | CGPA | Test Title | Score | Result | Proctor Score | Proctor Notes / Integrity |
+- When asked for eligible students:
+  Provide a complete Markdown table using candidate profiles from the roster:
+  | Candidate Name | USN | Branch | CGPA | Eligible Companies | Academic Status |
+- When asked about placed students or companies:
+  Provide clear Markdown tables. Always ensure tables have clean markdown headers (|---|---|).
+
+3. ABSOLUTE DATA FIDELITY:
+- NEVER claim that student profiles or companies are missing. All data is right here in your live context.
+- Name candidates specifically (e.g. Hemanth, etc.) and state their exact test scores, tab switches, and pass/fail results.
+- Keep the language clear, professional, executive, and encouraging.
         `.trim();
       } else if (role === "company") {
         // Scoped to Recruiter's Company
         const { data: companyRecord } = await supabase
           .from("companies")
-          .select("id, name, job_role, salary_package")
+          .select("id, name, job_role, salary_package, eligibility_criteria, allowed_branches")
           .eq("user_id", user?.id || "")
           .maybeSingle();
 
         const compId = companyRecord?.id;
         const [testsRes, attemptsRes, roundsRes] = await Promise.all([
-          compId ? supabase.from("tests").select("*").eq("company_id", compId) : { data: [] },
-          compId ? supabase.from("test_attempts").select("*, tests(title), profiles(name, branch, cgpa, usn)").eq("tests.company_id", compId) : { data: [] },
-          compId ? supabase.from("drive_rounds").select("*").eq("company_id", compId) : { data: [] },
+          compId ? supabase.from("tests").select("id, title, duration, scheduled_date, pass_criteria").eq("company_id", compId) : { data: [] },
+          compId ? supabase.from("test_attempts").select("id, student_id, test_id, total_score, passed, auto_submitted, tab_switches, proctor_events, completed_at, tests(title, company_id), profiles(id, name, branch, cgpa, usn)").order("completed_at", { ascending: false }) : { data: [] },
+          compId ? supabase.from("drive_rounds").select("id, round_name, round_number, round_type, passing_logic, is_published, round_participants(id, student_id, status, score, profiles(name, usn, branch, cgpa))").eq("company_id", compId) : { data: [] },
         ]);
+
+        const compTests = testsRes.data ?? [];
+        const compTestIds = new Set(compTests.map((t) => t.id));
+        const compAttempts = (attemptsRes.data ?? []).filter((a) => compTestIds.has(a.test_id));
+        const rounds = roundsRes.data ?? [];
 
         return `
 ROLE: ENTERPRISE RECRUITER (${companyRecord?.name || "Company Partner"})
 Scoped exclusively to this company's hiring pipeline:
 - Company Name: ${companyRecord?.name || "Your Company"}
 - Hiring Role: ${companyRecord?.job_role || "Software Engineer"}
-- Assessments Created: ${(testsRes.data ?? []).length}
-- Candidate Submissions: ${(attemptsRes.data ?? []).length}
-- Active Drive Rounds: ${(roundsRes.data ?? []).length}
+- CTC: ${companyRecord?.salary_package || "Competitive"}
+- Assessments Created: ${compTests.length}
+- Candidate Submissions: ${compAttempts.length}
+- Active Drive Rounds: ${rounds.length}
+
+CANDIDATE ATTEMPTS & PROCTOR LOGS:
+${JSON.stringify(compAttempts, null, 2)}
 
 INSTRUCTIONS:
-Assist this recruiter in managing their candidate evaluations, setting test cutoffs, reviewing applicant submissions, and structuring multi-round placement drives. Do not disclose private metrics of rival companies.
+Assist this recruiter in managing candidate evaluations, scoring, proctoring integrity audits, and multi-round recruitment drives. Format answers using markdown tables, bullet points, and visual KPI cards.
         `.trim();
       } else {
         // Student Assistant
         const [profileRes, myAttemptsRes, upcomingTestsRes] = await Promise.all([
-          supabase.from("profiles").select("*").eq("id", user?.id || "").maybeSingle(),
-          supabase.from("test_attempts").select("*, tests(title, category)").eq("student_id", user?.id || ""),
-          supabase.from("tests").select("title, category, scheduled_date, companies(name)").order("scheduled_date", { ascending: true }).limit(5),
+          supabase.from("profiles").select("id, name, email, branch, cgpa, usn, backlogs, skills").eq("id", user?.id || "").maybeSingle(),
+          supabase.from("test_attempts").select("id, total_score, passed, tab_switches, auto_submitted, completed_at, tests(id, title, scheduled_date, companies(name))").eq("student_id", user?.id || ""),
+          supabase.from("tests").select("id, title, scheduled_date, duration, companies(name)").order("scheduled_date", { ascending: true }).limit(5),
         ]);
 
         const profile = profileRes.data;
@@ -256,7 +440,7 @@ Mentoring student: ${profile?.name || user?.email || "Student"}
 - Upcoming Drives: ${upcoming.map((u) => `${u.title} (${(u.companies as any)?.name || "Campus"})`).join("; ")}
 
 INSTRUCTIONS:
-Act as an expert placement tutor and interview coach. Help this student master technical and aptitude MCQs, practice coding challenges, optimize their resume, and build confidence for upcoming campus drives.
+Act as an expert placement tutor and interview coach. Help this student master technical and aptitude MCQs, practice coding challenges, optimize their resume, and build confidence for upcoming campus drives. Format responses cleanly with tables and code blocks.
         `.trim();
       }
     } catch (err) {
@@ -265,7 +449,7 @@ Act as an expert placement tutor and interview coach. Help this student master t
     }
   };
 
-  // Submit Prompt to Gemini AI
+    // Submit Prompt to Gemini AI
   const handleSendMessage = async (textToSend?: string) => {
     const messageText = (textToSend || input).trim();
     if (!messageText || isProcessing) return;
@@ -768,9 +952,10 @@ Act as an expert placement tutor and interview coach. Help this student master t
                   >
                     <div className="prose dark:prose-invert max-w-none w-full text-[15px] leading-7 break-words text-foreground font-normal selection:bg-primary/30">
                       <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
                         components={{
                           h1: ({ children }) => (
-                            <h1 className="text-xl font-bold text-foreground mt-5 mb-2.5 tracking-tight">
+                            <h1 className="text-xl font-bold text-foreground mt-5 mb-2.5 tracking-tight border-b border-border pb-1">
                               {children}
                             </h1>
                           ),
@@ -810,31 +995,163 @@ Act as an expert placement tutor and interview coach. Help this student master t
                             </strong>
                           ),
                           table: ({ node, ...props }) => (
-                            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-sm">
-                              <table className="min-w-full divide-y divide-border text-xs" {...props} />
+                            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-sm not-prose bg-card">
+                              <table className="min-w-full divide-y divide-border text-xs text-left" {...props} />
                             </div>
                           ),
                           th: ({ node, ...props }) => (
-                            <th className="bg-muted/60 px-4 py-2.5 text-left font-bold text-foreground text-xs uppercase" {...props} />
+                            <th className="bg-muted/80 px-4 py-3 font-bold text-foreground text-xs uppercase tracking-wider text-left border-b border-border" {...props} />
                           ),
                           td: ({ node, ...props }) => (
-                            <td className="px-4 py-2.5 border-t border-border text-foreground/90 text-xs" {...props} />
+                            <td className="px-4 py-2.5 border-t border-border/60 text-foreground/90 text-xs whitespace-normal leading-relaxed" {...props} />
                           ),
                           code: ({ node, inline, className, children, ...props }: any) => {
+                            const match = /language-(\w+)/.exec(className || "");
+                            const lang = match ? match[1] : "";
+                            const codeContent = String(children).replace(/\n$/, "");
+
                             if (inline) {
                               return (
-                                <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-primary font-semibold" {...props}>
+                                <code className="bg-muted/80 text-foreground px-1.5 py-0.5 rounded text-xs font-mono border border-border/40 font-semibold" {...props}>
                                   {children}
                                 </code>
                               );
                             }
+
+                            // Interactive KPI Metric Cards
+                            if (lang === "kpi") {
+                              try {
+                                const kpis = JSON.parse(codeContent);
+                                if (Array.isArray(kpis)) {
+                                  return (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-4 w-full not-prose">
+                                      {kpis.map((kpi: any, idx: number) => (
+                                        <div
+                                          key={idx}
+                                          className="p-3.5 rounded-xl bg-card border border-border/80 shadow-sm flex flex-col justify-between hover:border-primary/50 transition-all"
+                                        >
+                                          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                                            {kpi.label}
+                                          </div>
+                                          <div className="text-2xl font-black mt-1 font-mono tracking-tight" style={{ color: kpi.color || "inherit" }}>
+                                            {kpi.value}
+                                          </div>
+                                          {kpi.sub && (
+                                            <div className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                                              {kpi.sub}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                              } catch {
+                                // Fallback
+                              }
+                            }
+
+                            // Interactive Telemetry Bar Chart
+                            if (lang === "chart") {
+                              try {
+                                const chartConfig = JSON.parse(codeContent);
+                                const data = chartConfig.data || [];
+                                const title = chartConfig.title || "Institutional Placement Telemetry Chart";
+                                return (
+                                  <div className="my-4 p-4 rounded-2xl bg-card border border-border/80 shadow-sm w-full not-prose">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <BarChart3 className="h-4 w-4 text-primary" />
+                                        <h4 className="text-sm font-semibold text-foreground tracking-tight">{title}</h4>
+                                      </div>
+                                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Live Chart</span>
+                                    </div>
+                                    <div className="h-56 w-full pt-2">
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                          <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                                          <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                                          <RechartsTooltip
+                                            contentStyle={{
+                                              backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                              borderColor: "rgba(255, 255, 255, 0.1)",
+                                              borderRadius: "8px",
+                                              color: "#fff",
+                                              fontSize: "12px",
+                                            }}
+                                            itemStyle={{ color: "#fff" }}
+                                          />
+                                          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                                            {data.map((entry: any, index: number) => (
+                                              <Cell
+                                                key={`cell-${index}`}
+                                                fill={entry.color || (index === 0 ? "#3b82f6" : index === 1 ? "#6366f1" : index === 2 ? "#10b981" : index === 3 ? "#ef4444" : "#8b5cf6")}
+                                              />
+                                            ))}
+                                          </Bar>
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                  </div>
+                                );
+                              } catch {
+                                // Fallback
+                              }
+                            }
+
+                            // Interactive Proctor Integrity Gauge Card
+                            if (lang === "proctor") {
+                              try {
+                                const pData = JSON.parse(codeContent);
+                                const score = Number(pData.score ?? 100);
+                                const candidate = pData.candidate || "Candidate";
+                                const tabSwitches = pData.tab_switches ?? 0;
+                                const violations = Array.isArray(pData.violations) ? pData.violations : [];
+                                const status = score >= 85 ? "Clean / Valid" : score >= 60 ? "Warning / Suspicious" : "Flagged Cheat / High Risk";
+                                const badgeColor = score >= 85 ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : score >= 60 ? "text-amber-500 bg-amber-500/10 border-amber-500/20" : "text-rose-500 bg-rose-500/10 border-rose-500/20";
+
+                                return (
+                                  <div className="my-4 p-4 rounded-2xl bg-card border border-border shadow-sm w-full not-prose">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <ShieldCheck className="h-4 w-4 text-primary" />
+                                        <span className="font-semibold text-sm text-foreground">Proctor Integrity Report: {candidate}</span>
+                                      </div>
+                                      <span className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${badgeColor}`}>
+                                        {status}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-3">
+                                      <div className="text-3xl font-extrabold font-mono text-foreground">
+                                        {score}<span className="text-sm text-muted-foreground font-normal">/100</span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full transition-all duration-500 ${score >= 85 ? "bg-emerald-500" : score >= 60 ? "bg-amber-500" : "bg-rose-500"}`}
+                                            style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+                                          />
+                                        </div>
+                                        <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+                                          <span>Tab switches: {tabSwitches}</span>
+                                          <span>Violations: {violations.length > 0 ? violations.join(", ") : "None detected"}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              } catch {
+                                // Fallback
+                              }
+                            }
+
                             return (
                               <div className="relative my-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-md">
                                 <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 text-[11px] text-zinc-400 font-mono">
-                                  <span>Code</span>
+                                  <span>{lang || "Code"}</span>
                                   <button
                                     onClick={() => {
-                                      navigator.clipboard.writeText(String(children));
+                                      navigator.clipboard.writeText(codeContent);
                                       toast.success("Code copied to clipboard!");
                                     }}
                                     className="flex items-center gap-1.5 hover:text-white transition-colors"

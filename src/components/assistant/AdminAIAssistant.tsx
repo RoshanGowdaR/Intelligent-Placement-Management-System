@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
 import { askGemini } from "@/lib/gemini";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -82,41 +83,118 @@ export function AdminAIAssistant({ open, onOpenChange }: { open: boolean; onOpen
         companiesRes,
         testsRes,
         attemptsRes,
-        flaggedRes,
+        roundPartsRes,
         statsRes
       ] = await Promise.all([
         supabase.from("profiles").select("id, name, email, usn, branch, cgpa, backlogs, skills").order("cgpa", { ascending: false }).limit(50),
-        supabase.from("companies").select("id, name, hr_name, job_role, salary_package, job_location, min_cgpa, max_backlogs, allowed_branches, website").order("created_at", { ascending: false }).limit(25),
-        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, pass_percentage").order("scheduled_date", { ascending: true }).limit(25),
-        supabase.from("test_attempts").select("id, student_id, total_score, passed, tab_switches, auto_submitted, completed_at, tests(title)").order("completed_at", { ascending: false }).limit(30),
-        supabase.from("test_attempts").select("id, student_id, total_score, tab_switches, auto_submitted, completed_at, tests(title)").or("tab_switches.gt.0,auto_submitted.eq.true").limit(20),
+        supabase.from("companies").select("id, name, job_role, salary_package, job_location, max_backlogs, allowed_branches, eligibility_criteria, contact_info").order("created_at", { ascending: false }).limit(25),
+        supabase.from("tests").select("id, title, scheduled_date, duration, registration_deadline, pass_criteria, company_id, companies(name)").order("scheduled_date", { ascending: true }).limit(25),
+        supabase.from("test_attempts").select("id, student_id, total_score, passed, tab_switches, auto_submitted, proctor_events, completed_at, tests(title), profiles(name, usn, branch, cgpa)").order("completed_at", { ascending: false }).limit(30),
+        supabase.from("round_participants").select("id, status, student_id, score, drive_rounds(company_id, round_number, round_name, round_type, companies(name)), profiles(name, usn, branch, cgpa)").limit(50),
         supabase.from("profiles").select("id", { count: "exact", head: true }),
       ]);
 
-      const passedAttempts = (attemptsRes.data || []).filter((a: any) => a.passed);
-      const passRate = attemptsRes.data && attemptsRes.data.length > 0 
-        ? Math.round((passedAttempts.length / attemptsRes.data.length) * 100) 
+      const profiles = studentsRes.data ?? [];
+      const companies = companiesRes.data ?? [];
+      const tests = testsRes.data ?? [];
+      const attempts = attemptsRes.data ?? [];
+      const roundParts = roundPartsRes.data ?? [];
+
+      const attempterIds = new Set(attempts.map((a: any) => a.student_id));
+      const totalAttended = attempterIds.size;
+
+      const passedAttempts = attempts.filter((a: any) => a.passed);
+      const passedAttempterIds = new Set(passedAttempts.map((a: any) => a.student_id));
+      const totalPassed = passedAttempterIds.size;
+
+      const failedAttempterIds = new Set(
+        attempts.filter((a: any) => !a.passed).map((a: any) => a.student_id).filter((id: string) => !passedAttempterIds.has(id))
+      );
+      const totalFailed = failedAttempterIds.size;
+
+      const qualifiedParts = roundParts.filter((rp: any) => rp.status === "qualified");
+      const totalPlaced = new Set(qualifiedParts.map((rp: any) => rp.student_id)).size;
+
+      const passRate = attempts.length > 0
+        ? Math.round((passedAttempts.length / attempts.length) * 100)
         : 0;
 
+      // Candidate attempt details with Proctor Integrity Scores
+      const attemptsWithProctor = attempts.map((a: any) => {
+        const tabSwitches = a.tab_switches || 0;
+        let gadgetDetected = false;
+        if (Array.isArray(a.proctor_events)) {
+          gadgetDetected = a.proctor_events.some((e: any) => {
+            const t = (e.type || e.event || "").toLowerCase();
+            return t.includes("device") || t.includes("gadget") || t.includes("phone") || e.device_detected;
+          });
+        }
+        let pScore = 100 - (tabSwitches * 15) - (gadgetDetected ? 40 : 0);
+        if (a.auto_submitted) pScore = Math.min(pScore, 20);
+        pScore = Math.max(0, Math.min(100, pScore));
+
+        return {
+          candidate: a.profiles?.name || "Candidate",
+          usn: a.profiles?.usn || "N/A",
+          branch: a.profiles?.branch || "General",
+          cgpa: a.profiles?.cgpa ?? "N/A",
+          test: a.tests?.title || "Assessment",
+          score: a.total_score ?? 0,
+          passed: a.passed ? "Passed" : "Failed",
+          tab_switches: tabSwitches,
+          gadgetDetected,
+          auto_submitted: a.auto_submitted,
+          proctor_score: pScore + "/100",
+          proctor_status: pScore >= 85 ? "Clean" : pScore >= 60 ? "Warning / Suspicious" : "Flagged Cheat",
+        };
+      });
+
       const dbContext = {
-        totalRegisteredStudents: statsRes.count ?? (studentsRes.data?.length ?? 0),
-        candidateProfiles: studentsRes.data ?? [],
-        visitingRecruiters: companiesRes.data ?? [],
-        scheduledAssessments: testsRes.data ?? [],
-        recentTestAttempts: attemptsRes.data ?? [],
-        proctoringIntegrityFlags: flaggedRes.data ?? [],
-        platformPassRate: `${passRate}%`,
+        totalRegisteredStudents: statsRes.count ?? profiles.length,
+        totalStudentsAttended: totalAttended,
+        totalStudentsPassed: totalPassed,
+        totalStudentsFailed: totalFailed,
+        totalStudentsPlaced: totalPlaced,
+        platformPassRate: passRate + "%",
+        candidateProfiles: profiles.map((p: any) => ({
+          name: p.name || "Student",
+          usn: p.usn || "N/A",
+          branch: p.branch || "General",
+          cgpa: p.cgpa,
+          backlogs: p.backlogs ?? 0,
+          skills: p.skills || [],
+        })),
+        visitingRecruiters: companies.map((c: any) => ({
+          name: c.name,
+          role: c.job_role,
+          ctc: c.salary_package,
+          location: c.job_location,
+          criteria: c.eligibility_criteria,
+          allowed_branches: c.allowed_branches,
+        })),
+        scheduledAssessments: tests,
+        candidateAttemptsAndProctor: attemptsWithProctor,
+        qualifiedDriveParticipants: qualifiedParts.map((rp: any) => ({
+          name: rp.profiles?.name,
+          usn: rp.profiles?.usn,
+          company: rp.drive_rounds?.companies?.name,
+          status: "Qualified",
+        })),
       };
 
-      const systemPrompt = `You are the "Placement Oracle AI", the high-level executive recruitment intelligence system for university administrators.
-You have administrative-level read access to the complete placement and assessment database:
-${JSON.stringify(dbContext, null, 2)}
-
-Instructions:
-1. Provide precise, executive-level insights, candidate statistics, company drive statuses, and proctoring audit summaries.
-2. Specifically name candidates, their USN, CGPA, or branch when answering about top performers, unplaced students, or specific questions.
-3. Detail proctoring anomalies (tab switches, auto-submissions) when answering about exam integrity.
-4. Format responses cleanly using bold headers, bullet points, and emojis.`;
+      const systemPrompt = "You are the 'Placement Oracle AI', the high-level executive recruitment intelligence system for university administrators.\n" +
+"You have administrative-level read access to the complete placement and assessment database:\n" +
+JSON.stringify(dbContext, null, 2) + "\n\n" +
+"Instructions:\n" +
+"1. Provide precise, executive-level insights, candidate statistics, company drive statuses, and proctoring audit summaries.\n" +
+"2. When asked about placement summary, student attendance, pass/fail counts, or eligible candidates:\n" +
+"   - Provide summary numbers: Registered, Attended, Passed, Failed, Placed.\n" +
+"   - Output structured Markdown tables with clear columns:\n" +
+"     Candidate Attendance & Results: | Candidate Name | USN | Branch | CGPA | Test Title | Score | Result | Proctor Score | Proctor Notes |\n" +
+"     Eligible Candidates: | Candidate Name | USN | Branch | CGPA | Eligible Companies |\n" +
+"3. Specifically name candidates (e.g. Hemanth, etc.), their USN, CGPA, branch, and proctor score (e.g. 70/100 for 2 tab switches).\n" +
+"4. Detail proctoring anomalies (tab switches, auto-submissions, gadgets) when answering about exam integrity.\n" +
+"5. Format responses cleanly using bold headers, bullet points, and markdown tables.";
 
       // Call Google Gemini AI
       const geminiResponse = await askGemini(queryText, systemPrompt);
@@ -125,14 +203,14 @@ Instructions:
     } catch (err: any) {
       console.warn("Gemini AI API fallback triggered:", err);
       return {
-        text: `🤖 **Placement Oracle AI Analysis** for *"${queryText}"*:\n\n` +
-          `• **Database Snapshot**: Active campus recruitment cycle with registered candidate profiles and scheduled technical drives.\n` +
-          `• **AI Guidance**: Filter candidates by minimum CGPA cutoffs and monitor live proctoring integrity streams during active tests.`,
+        text: '🤖 **Placement Oracle AI Analysis** for *"' + queryText + '"*:\n\n' +
+          '• **Database Snapshot**: Active campus recruitment cycle with registered candidate profiles and scheduled technical drives.\n' +
+          '• **AI Guidance**: Filter candidates by minimum CGPA cutoffs and monitor live proctoring integrity streams during active tests.',
       };
     }
   };
 
-  const handleSend = async (textToSend?: string) => {
+    const handleSend = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
     if (!query || isProcessing) return;
 
@@ -262,7 +340,19 @@ Instructions:
                 {msg.sender === "assistant" ? (
                   <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed space-y-2">
                     <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
                       components={{
+                        table: ({ node, ...props }) => (
+                          <div className="overflow-x-auto my-3 rounded-lg border border-border shadow-sm bg-card not-prose">
+                            <table className="min-w-full divide-y divide-border text-xs text-left" {...props} />
+                          </div>
+                        ),
+                        th: ({ node, ...props }) => (
+                          <th className="bg-muted px-3 py-2 font-bold text-foreground text-[11px] uppercase tracking-wider text-left border-b border-border" {...props} />
+                        ),
+                        td: ({ node, ...props }) => (
+                          <td className="px-3 py-2 border-t border-border/50 text-foreground/90 text-[11px]" {...props} />
+                        ),
                         p: ({ children }) => <p className="mb-2 leading-relaxed text-[13px] text-foreground last:mb-0">{children}</p>,
                         strong: ({ children }) => <strong className="font-bold text-foreground bg-primary/15 px-1.5 py-0.5 rounded text-[12.5px] border border-primary/30">{children}</strong>,
                         h1: ({ children }) => <h1 className="font-display text-base font-bold text-foreground mb-2 mt-3 border-b border-border pb-1">{children}</h1>,
