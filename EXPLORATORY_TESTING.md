@@ -166,3 +166,106 @@ Exploratory testing was conducted following timeboxed session charters to examin
 - **Fix Implemented**:
   Removed device selection checkboxes. Configured proctoring engine to trigger universal alarms for all digital gadgets automatically.
 - **Verification**: Verified universal gadget detection in webcam stream. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-007: Fullscreen API Execution Fails on Asynchronous Gate
+- **Severity**: S1 - Critical
+- **Component**: `src/pages/student/StudentTests.tsx`
+- **Symptom**: Clicking "Start Test" resulted in browser security exception: `Failed to execute 'requestFullscreen' on 'Element': API can only be initiated by a user gesture.`.
+- **Root Cause**: An asynchronous `await getUserMedia()` preceded `requestFullscreen()`, consuming the transient user gesture token before calling the Fullscreen API.
+- **Fix Implemented**:
+  Engineered dedicated `ProctorGateModal` that verifies camera connectivity first, then provides a dedicated "Grant Fullscreen & Begin Assessment" button where `requestFullscreen()` is the synchronous first operation in the user click event.
+- **Verification**: Verified fullscreen mode transitions smoothly on all major browsers without permission errors. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-008: Candidate Test Started Without Mandatory Camera & Fullscreen Gating
+- **Severity**: S1 - Critical
+- **Component**: `src/pages/student/StudentTests.tsx`
+- **Symptom**: Candidates could bypass camera access or fullscreen requirements by dismissing browser dialogs and taking assessments unmonitored.
+- **Root Cause**: Lack of a pre-flight modal gate intercepting test session instantiation.
+- **Fix Implemented**:
+  1. Mandatory `ProctorGateModal` enforces active video streaming before start button is unlocked.
+  2. In-test `isFullscreenLocked` overlay obscures questions and freezes exam interactions if fullscreen is exited mid-exam until re-entered.
+  3. Floating AI assistant is completely unmounted on `/dashboard/tests` to prevent candidate cheating.
+- **Verification**: Verified tests cannot start without active camera stream and fullscreen. Exiting fullscreen immediately displays security lockout overlay. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-009: PostgREST HTTP 400 Bad Request on Test Attempt Updates
+- **Severity**: S1 - Critical
+- **Component**: `src/pages/student/StudentTests.tsx`
+- **Symptom**: Submitting test attempts generated HTTP 400 Bad Request in browser console, failing to record final score and completion status.
+- **Root Cause**: Code invoked `.update({ ... }).order("started_at", { ascending: false }).limit(1)`, which is invalid SQL grammar in PostgREST.
+- **Fix Implemented**:
+  Captured the exact attempt primary key (`insertedAttemptId`) upon session creation and targeted `.eq("id", insertedAttemptId)` directly on update.
+- **Verification**: Verified test score, pass/fail status, and timestamp update with HTTP 200/204. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-010: Filter & Search State Reset on Route Navigation
+- **Severity**: S2 - High
+- **Component**: `src/pages/admin/AdminReports.tsx` & `src/pages/admin/AdminAnalytics.tsx`
+- **Symptom**: Navigating between portal sections (e.g. Reports ➔ Students ➔ Reports) reset all applied filters, search terms, and selected tests.
+- **Root Cause**: Filter state was held only in standard React memory state (`useState`).
+- **Fix Implemented**:
+  Engineered `usePersistentState.ts` hook backed by `sessionStorage`, persisting filter selections across component unmounts and route switches.
+- **Verification**: Verified filter selections persist across route changes and survive browser tab switches within session. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-011: Placement AI Assistant Spontaneously Producing Unsolicited Charts
+- **Severity**: S3 - Medium
+- **Component**: `src/pages/ai/PlacementAIChat.tsx` & `src/components/assistant/AdminAIAssistant.tsx`
+- **Symptom**: AI Assistant generated full Recharts bar charts for simple text or table queries where no chart was requested.
+- **Root Cause**: System prompt instructed model to always output a ` ```chart ` block for placement overview questions.
+- **Fix Implemented**:
+  Enforced strict Charts-on-Demand policy: AI is strictly prohibited from generating charts unless the user explicitly requests one (e.g. "show a chart", "graph the results").
+- **Verification**: Verified summary questions return clean markdown tables and KPI cards without unsolicited charts. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-012: Student AI Assistant Bold Words Rendered as Green Pill Badges & Missing Tables
+- **Severity**: S3 - Medium
+- **Component**: `src/components/assistant/StudentAIAssistant.tsx`
+- **Symptom**: Every bold word in student assistant messages rendered as an opaque green badge pill; markdown tables collapsed into raw pipe text.
+- **Root Cause**: Aggressive custom `strong` tag CSS override and missing `remark-gfm` plugin.
+- **Fix Implemented**:
+  Restored clean `font-semibold text-foreground` styling for `strong` tags, passed `remarkPlugins={[remarkGfm]}`, and styled `table`, `thead`, `tbody`, `tr`, `th`, `td` with Tailwind border classes.
+- **Verification**: Verified clean, comfortable typography and responsive HTML tables in mentor responses. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-013: Unauthorized Data Access Risk in Student AI Assistant
+- **Severity**: S1 - Critical (Security / Privacy)
+- **Component**: `src/components/assistant/StudentAIAssistant.tsx`
+- **Symptom**: Student could prompt mentor assistant to reveal class-wide rank lists, topper names, or other students' exam scores.
+- **Root Cause**: Inadequate client-side filtering and prompt boundary enforcement for student role.
+- **Fix Implemented**:
+  1. Added client-side regex query guard blocking questions referencing other candidates, class ranks, or database records.
+  2. Injected strict privacy instructions into Gemini system prompt explicitly disallowing cross-candidate disclosures.
+- **Verification**: Prompts like "who got highest score" or "show other students" are intercepted and blocked with privacy security notice. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-014: Broken Team Member Photos on Landing Page Team Section
+- **Severity**: S3 - Medium
+- **Component**: `src/components/landing/LandingTeam.tsx`
+- **Symptom**: If team portrait URLs failed or experienced network delays, a broken image icon rendered.
+- **Root Cause**: Missing `onError` fallback on avatar `<img>` tags.
+- **Fix Implemented**:
+  Added `onError` fallback handler that smoothly renders a stylized gradient avatar with the member's initials.
+- **Verification**: Simulated 404 network image failure; avatar initials fallback rendered seamlessly. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-015: Remote Supabase Edge Functions CORS / 400 Failures
+- **Severity**: S2 - High
+- **Component**: `src/pages/student/StudentTests.tsx`
+- **Symptom**: Test completion failed with CORS preflight errors in browser console targeting `generate-feedback` and `send-result-notification` edge functions.
+- **Root Cause**: Edge functions either missing or CORS headers misconfigured on remote instance.
+- **Fix Implemented**:
+  Replaced `generate-feedback` with client-side Gemini AI generation via `askGemini()`, and replaced `send-result-notification` with direct insert into `notifications` table.
+- **Verification**: Verified test submissions generate feedback and notifications cleanly with zero console errors. Status: **RESOLVED**.
+

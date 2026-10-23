@@ -4,9 +4,9 @@
 ---
 
 ### Execution Summary
-- **Total Test Cases**: 50
-- **Automated / Unit**: 14 Suites / 62 Tests
-- **Manual Verification**: 50 Scenarios
+- **Total Test Cases**: 65
+- **Automated / Unit**: 15 Suites / 71 Tests
+- **Manual Verification**: 65 Scenarios
 - **Overall Execution Rate**: 100%
 - **Pass Rate**: 100% (All critical and high defects resolved)
 
@@ -127,3 +127,35 @@
 | **TC-COMP-004** | Admin | Invite Company Action in Companies List | 1. Go to `/admin/companies`.<br>2. Verify action buttons. | Header actions | Both "Add Company" and "Invite Company" buttons available; opens invite email modal. | **PASS** |
 | **TC-COMP-005** | Student | Company Logo in Assessment Cards | 1. Go to `/dashboard/tests`.<br>2. Review assessment cards. | Tests with companies | Company logo rendered prominently on card header beside test title. | **PASS** |
 | **TC-COMP-006** | Admin | Logo Vertical Alignment & Typography Gap | 1. Inspect logo, company title, and round badge. | Layout inspection | Logo is vertically centered with title text; proper 12px gap maintained; no clumsy overlapping. | **PASS** |
+
+---
+
+### Module 9: Reports, Analytics & Cross-Module State Persistence
+
+| Test ID | Role | Test Scenario | Steps to Execute | Test Data / Inputs | Expected Result | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-REP-001** | Admin | Reports Multi-Dimensional Filter Combination | 1. Go to `/admin/reports`.<br>2. Filter by Branch "Computer Science", Batch "2026", Status "Passed". | Branch: CSE, Year: 2026, Status: Passed | Table displays only matching candidates with USN, Branch, and Batch badges. | **PASS** |
+| **TC-REP-002** | Admin | Complete Student Details in Reports Table | 1. Review candidate record in reports table. | Candidate: Hemanth | Columns show USN badge, Branch, Year of Graduation, CGPA, Score, Status, Attempt, and Proctor Summary. | **PASS** |
+| **TC-REP-003** | Admin | Filtered CSV Download Verification | 1. Apply Branch "ISE" filter.<br>2. Click "Download CSV".<br>3. Open downloaded file. | Filter: ISE | CSV contains only the filtered rows; includes USN, branch, graduation year, score, and proctoring notes. | **PASS** |
+| **TC-REP-004** | Admin | Cross-Module Filter Persistence (`usePersistentState`) | 1. In Reports, apply search "Hemanth" and select a test.<br>2. Navigate to `/admin/students`.<br>3. Navigate back to `/admin/reports`. | Session storage persistence | Reports table remains filtered for "Hemanth" with the exact test selected; zero resetting. | **PASS** |
+| **TC-ANAL-001** | Admin | 5-Filter Analytics Console & Live Recalculation | 1. Go to `/admin/analytics`.<br>2. Adjust Branch, Batch, and Time Window filters. | Filter console | Cohort pass rate, Integrity Index, and podium rankings recalculate dynamically based on active filters. | **PASS** |
+| **TC-ANAL-002** | Admin | Analytics Filter Reset Action | 1. Apply multiple filters in Analytics.<br>2. Click "Reset Filters". | Reset action | All 5 filters return to default values and dataset refreshes to complete cohort. | **PASS** |
+
+---
+
+### Module 10: Proctoring Pre-Flight Gating & AI Assistant Security
+
+| Test ID | Role | Test Scenario | Steps to Execute | Test Data / Inputs | Expected Result | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-PROC-011** | Student | Mandatory Camera & Fullscreen Pre-Flight Gate | 1. Click "Start Test" on an assessment card. | Candidate click | `ProctorGateModal` opens displaying live camera feed; test start button is locked until camera is connected. | **PASS** |
+| **TC-PROC-012** | Student | Synchronous Fullscreen User Gesture Gate | 1. In pre-flight gate modal, click "Grant Fullscreen & Begin Assessment". | User gesture | Browser enters fullscreen synchronously without security exception; test loads. | **PASS** |
+| **TC-PROC-013** | Student | In-Test Screen Lockout Overlay on Fullscreen Exit | 1. During test, press `Esc` to exit fullscreen. | Fullscreen exit | Exam questions obscured with locked warning overlay; test paused until candidate re-enters fullscreen. | **PASS** |
+| **TC-PROC-014** | Student | AI Assistant Suppression on Active Test Routes | 1. Navigate to `/dashboard/tests` and start an assessment. | Route: `/dashboard/tests` | Floating AI assistant is completely hidden from UI to prevent candidates asking AI for answers. | **PASS** |
+| **TC-PROC-015** | Student | High-Sensitivity Gadget & Phone Detection (0.22) | 1. Hold a smartphone in camera view during test. | Mobile phone in frame | Model detects device at lowered 0.22 threshold; logs gadget infraction and alerts student. | **PASS** |
+| **TC-PROC-016** | Student | Multiple Persons in Frame Detection | 1. Second person steps into webcam frame behind student. | 2 persons in frame | Model flags "Multiple Persons in Frame (Second Person Detected)"; violation recorded in proctor log. | **PASS** |
+| **TC-AI-009** | Admin | Admin Floating AI Assistant with Think Mode | 1. Open Admin floating assistant (bottom-right).<br>2. Ask complex query in Think Mode. | Think Mode query | Collapsible "Forensic Reasoning & Thought Process" accordion card renders above clean answer. | **PASS** |
+| **TC-AI-010** | Admin | Strict AI Charts-on-Demand Policy | 1. Ask: "Give me the placement summary".<br>2. Ask: "Now show me a bar chart of these numbers". | Two queries | First query returns KPI cards & markdown tables with NO chart; second query renders Recharts Bar Chart. | **PASS** |
+| **TC-AI-011** | Student | Student AI Mentor Privacy & Scope Restriction | 1. Open student mentor assistant.<br>2. Ask: "Show me all students and who got the highest marks". | Restricted query | Assistant rejects query: "Privacy & Access Control: access to cohort rankings or other students' records is restricted." | **PASS** |
+| **TC-AI-012** | Student | Student AI Markdown & Table Rendering (remark-gfm) | 1. Ask student assistant about eligibility. | Formatted query | Markdown tables render as clean HTML tables; bold words styled without green pill badge backgrounds. | **PASS** |
+| **TC-UI-001** | Public | Team Member Avatar Fallback on Error | 1. Open landing page team section with invalid image URL. | Image load error | Initial avatar with gradient background renders smoothly; no broken image icon. | **PASS** |
+

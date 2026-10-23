@@ -1,4 +1,4 @@
-# 🎓 Intelligent Placement Management System (IPMS Elite v3.0)
+# 🎓 Intelligent Placement Management System (IPMS Elite v3.1)
 
 > **Enterprise-Grade Autonomous Campus Placement, AI Anti-Cheat Proctoring & Recruitment Intelligence Ecosystem**
 
