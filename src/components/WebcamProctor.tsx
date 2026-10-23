@@ -114,9 +114,9 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
     if (!active || !cameraReady) return;
 
     const watchedSet = new Set((cfg.watched_classes && cfg.watched_classes.length ? cfg.watched_classes : DEFAULT_GADGET_CLASSES));
-    // High-sensitivity detection for mobile phones and digital gadgets
-    const threshold = Math.min(0.95, Math.max(0.1, cfg.confidence_threshold ?? 0.35));
-    const requiredHits = Math.max(1, Math.min(10, cfg.consecutive_frames ?? 1));
+    // High-sensitivity threshold for mobile phones and digital gadgets
+    const phoneThreshold = 0.22;
+    const gadgetThreshold = 0.25;
 
     const runDetection = async () => {
       if (!modelRef.current || !videoRef.current || videoRef.current.readyState < 2) return;
@@ -124,29 +124,36 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       try {
         const preds = await modelRef.current.detect(videoRef.current);
         
-        // Find any gadget match with phone sensitivity threshold
+        // 1. Detect digital gadgets (phones, laptops, remotes, tablets, keyboards, books)
         let foundGadget = preds.find((p) => {
-          const reqScore = p.class === "cell phone" ? Math.min(0.32, threshold) : threshold;
-          return p.score >= reqScore && (watchedSet.has(p.class) || p.class === "cell phone");
+          const isPhone = p.class === "cell phone";
+          const threshold = isPhone ? phoneThreshold : gadgetThreshold;
+          return p.score >= threshold && (watchedSet.has(p.class) || isPhone);
         });
 
-        // Also detect multiple people in frame
+        // 2. Detect multiple persons in camera frame
         if (!foundGadget) {
-          const people = preds.filter((p) => p.class === "person" && p.score > 0.45);
+          const people = preds.filter((p) => p.class === "person" && p.score >= 0.38);
           if (people.length > 1) {
-            foundGadget = { class: "multiple persons detected", score: people[1].score } as any;
+            foundGadget = { class: "Multiple Persons in Frame (Second Person Detected)", score: people[1].score } as any;
           }
         }
 
         if (foundGadget) {
-          const gadgetName = foundGadget.class === "cell phone" ? "Mobile Phone / Cell Phone" : foundGadget.class;
+          const gadgetName = foundGadget.class === "cell phone" 
+            ? "Mobile Phone / Cell Phone" 
+            : foundGadget.class === "laptop" 
+            ? "Secondary Laptop / Screen"
+            : foundGadget.class;
+
           consecutiveHitsRef.current += 1;
-          if (consecutiveHitsRef.current < requiredHits) return;
+          if (consecutiveHitsRef.current < 1) return;
+
           if (warnedOnceRef.current && !detectedGadgetRef.current) {
             if (cfg.second_offense_action === "submit" && !submittedRef.current) {
               submittedRef.current = true;
               onEventRef.current?.({ timestamp: new Date().toISOString(), gadget: gadgetName, action: "auto_submit" });
-              toast.error(`🚫 Prohibited gadget detected again (${gadgetName}). Auto-submitting assessment.`);
+              toast.error(`🚫 Prohibited gadget or secondary person detected again (${gadgetName}). Auto-submitting assessment.`);
               onAutoSubmit();
             } else {
               setDetectedGadget((curr) => curr ?? gadgetName);
@@ -161,7 +168,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       } catch { /* ignore */ }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, cfg.detection_interval_ms || 800);
+    detectIntervalRef.current = setInterval(runDetection, cfg.detection_interval_ms || 600);
     return () => { if (detectIntervalRef.current) clearInterval(detectIntervalRef.current); };
   }, [active, cameraReady, onAutoSubmit, cfg.detection_interval_ms, cfg.second_offense_action, cfg.confidence_threshold, cfg.consecutive_frames, cfg.watched_classes]);
 

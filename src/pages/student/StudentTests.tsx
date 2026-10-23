@@ -16,6 +16,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import WebcamProctor, { type ProctorEvent, type ProctorConfig } from "@/components/WebcamProctor";
 import CompanyLogo from "@/components/CompanyLogo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { askGemini } from "@/lib/gemini";
 
 type Test = Tables<"tests">;
 
@@ -428,6 +429,18 @@ export default function StudentTests() {
   // Camera permission state
   const [cameraDeniedTest, setCameraDeniedTest] = useState<Test | null>(null);
 
+  // Pre-flight Proctoring Verification Gate states
+  const [gateModalTest, setGateModalTest] = useState<Test | null>(null);
+  const [isRetakeGate, setIsRetakeGate] = useState(false);
+  const [cameraVerified, setCameraVerified] = useState(false);
+  const [cameraChecking, setCameraChecking] = useState(false);
+  const [gateCameraError, setGateCameraError] = useState<string | null>(null);
+  const [isFullscreenLocked, setIsFullscreenLocked] = useState(false);
+  const gateVideoRef = useRef<HTMLVideoElement>(null);
+  const gateStreamRef = useRef<MediaStream | null>(null);
+  const lastViolationRef = useRef<number>(0);
+  const insertedAttemptIdRef = useRef<string | null>(null);
+
   // Persistence key for in-progress test state (survives refresh)
   const progressKey = user ? `stp:${user.id}` : null;
 
@@ -554,57 +567,53 @@ export default function StudentTests() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [activeTest, submitted]);
 
-  // Anti-cheat: detect tab switching / visibility changes / fullscreen exit
+  // Anti-cheat: detect tab switching / window blur / visibility changes / fullscreen exit
   useEffect(() => {
     if (!activeTest || submitted) return;
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        tabSwitchRef.current += 1;
-        setTabSwitchCount(tabSwitchRef.current);
+    const registerViolation = (type: string) => {
+      const now = Date.now();
+      // Coalesce multiple browser events occurring within 1200ms into 1 single infraction
+      if (now - lastViolationRef.current < 1200) return;
+      lastViolationRef.current = now;
 
-        const isFatal = tabSwitchRef.current >= 2;
-        const ev: ProctorEvent = {
-          timestamp: new Date().toISOString(),
-          gadget: "Tab Switch / Window Inactive",
-          action: isFatal ? "auto_submit" : "warning",
-        };
-        proctorEventsRef.current.push(ev);
+      tabSwitchRef.current += 1;
+      setTabSwitchCount(tabSwitchRef.current);
 
-        if (tabSwitchRef.current === 1) {
-          setShowTabWarning(true);
-          toast.warning("⚠️ Tab switch detected! One more and your test will be auto-submitted.", { duration: 5000 });
-        } else if (tabSwitchRef.current >= 2) {
-          toast.error("🚫 Multiple tab switches detected. Auto-submitting your test.", { duration: 5000 });
-          handleSubmit(true);
-        }
+      const isFatal = tabSwitchRef.current >= 2;
+      const ev: ProctorEvent = {
+        timestamp: new Date().toISOString(),
+        gadget: type,
+        action: isFatal ? "auto_submit" : "warning",
+      };
+      proctorEventsRef.current.push(ev);
+
+      if (tabSwitchRef.current === 1) {
+        setShowTabWarning(true);
+        toast.warning(`⚠️ Warning: ${type} detected! (Violation 1 of 2). One more infraction will auto-submit your test.`, { duration: 6000 });
+      } else if (tabSwitchRef.current >= 2) {
+        toast.error("🚫 Maximum integrity violations reached (2 of 2). Auto-submitting assessment.", { duration: 6000 });
+        handleSubmit(true);
       }
     };
 
-    // Detect fullscreen exit as a violation
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        registerViolation("Tab Switched / Document Hidden");
+      }
+    };
+
+    const handleBlur = () => {
+      registerViolation("Window Focus Lost / Switched Application");
+    };
+
+    // Detect fullscreen exit as a violation and show lockout
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && !submitted) {
-        fullscreenExitRef.current += 1;
-        tabSwitchRef.current += 1;
-        setTabSwitchCount(tabSwitchRef.current);
-
-        const isFatal = tabSwitchRef.current >= 2;
-        const ev: ProctorEvent = {
-          timestamp: new Date().toISOString(),
-          gadget: "Fullscreen Exit",
-          action: isFatal ? "auto_submit" : "warning",
-        };
-        proctorEventsRef.current.push(ev);
-
-        if (fullscreenExitRef.current === 1) {
-          setShowTabWarning(true);
-          toast.warning("⚠️ Exiting fullscreen is not allowed! Re-entering fullscreen. One more violation and your test will be auto-submitted.", { duration: 5000 });
-          // Re-enter fullscreen
-          document.documentElement.requestFullscreen?.().catch(() => {});
-        } else {
-          toast.error("🚫 Multiple fullscreen exit attempts. Auto-submitting your test.", { duration: 5000 });
-          handleSubmit(true);
-        }
+        setIsFullscreenLocked(true);
+        registerViolation("Fullscreen Exited");
+      } else if (document.fullscreenElement) {
+        setIsFullscreenLocked(false);
       }
     };
 
@@ -644,6 +653,7 @@ export default function StudentTests() {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("copy", handleCopy);
@@ -652,6 +662,7 @@ export default function StudentTests() {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("copy", handleCopy);
@@ -660,13 +671,77 @@ export default function StudentTests() {
     };
   }, [activeTest, submitted]);
 
-  const startTest = async (test: Test, isRetake = false) => {
-    // Determine which bank to use
+  // Camera stream helper for Pre-flight Gate
+  const startCameraCheck = async () => {
+    setCameraChecking(true);
+    setGateCameraError(null);
+    try {
+      if (gateStreamRef.current) {
+        gateStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+        audio: false,
+      });
+      gateStreamRef.current = stream;
+      if (gateVideoRef.current) {
+        gateVideoRef.current.srcObject = stream;
+        await gateVideoRef.current.play().catch(() => {});
+      }
+      setCameraVerified(true);
+    } catch (err: any) {
+      setCameraVerified(false);
+      setGateCameraError(err?.message || "Webcam access denied. Camera is mandatory for proctored tests.");
+      toast.error("Camera access required for proctored assessment.");
+    } finally {
+      setCameraChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (gateModalTest) {
+      startCameraCheck();
+    } else {
+      if (gateStreamRef.current) {
+        gateStreamRef.current.getTracks().forEach((t) => t.stop());
+        gateStreamRef.current = null;
+      }
+      setCameraVerified(false);
+      setGateCameraError(null);
+    }
+  }, [gateModalTest]);
+
+  // Actual test session launch (ONLY called after Fullscreen & Camera are 100% verified)
+  const startActiveTestSession = (test: Test, isRetake = false) => {
     const mainBank = (test.question_bank as unknown as Question[]) ?? [];
     const retakeBank = ((test as unknown as { retake_question_bank?: Question[] }).retake_question_bank) ?? [];
     const bank = isRetake && retakeBank.length > 0 ? retakeBank : mainBank;
     if (bank.length === 0) { toast.error("This test has no questions"); return; }
 
+    const count = test.questions_per_student ?? bank.length;
+    const selected = shuffle(bank).slice(0, count);
+    setQuestions(selected);
+    setAnswers({});
+    setCurrentIdx(0);
+    setTimeLeft(test.duration * 60);
+    setSubmitted(false);
+    setResult(null);
+    setAiFeedback(null);
+    setShowReview(false);
+    setExplanations({});
+    setTabSwitchCount(0);
+    setShowTabWarning(false);
+    setIsFullscreenLocked(false);
+    tabSwitchRef.current = 0;
+    fullscreenExitRef.current = 0;
+    proctorEventsRef.current = [];
+    retakeReasonRef.current = isRetake ? retakeReason : null;
+    insertedAttemptIdRef.current = null;
+    setActiveTest(test);
+    submittingRef.current = false;
+  };
+
+  const handleStartClick = async (test: Test) => {
     // Multi-Round Recruitment Drive Gating
     if (user) {
       const { data: driveRound } = await supabase
@@ -695,51 +770,14 @@ export default function StudentTests() {
       }
     }
 
-    // Request webcam permission BEFORE starting the test
-    let webcamStream: MediaStream | null = null;
-    try {
-      webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      webcamStream.getTracks().forEach((t) => t.stop());
-    } catch {
-      setCameraDeniedTest(test);
-      return;
-    }
-
-    const count = test.questions_per_student ?? bank.length;
-    const selected = shuffle(bank).slice(0, count);
-    setQuestions(selected);
-    setAnswers({});
-    setCurrentIdx(0);
-    setTimeLeft(test.duration * 60);
-    setSubmitted(false);
-    setResult(null);
-    setAiFeedback(null);
-    setShowReview(false);
-    setExplanations({});
-    setTabSwitchCount(0);
-    setShowTabWarning(false);
-    tabSwitchRef.current = 0;
-    fullscreenExitRef.current = 0;
-    proctorEventsRef.current = [];
-    retakeReasonRef.current = isRetake ? retakeReason : null;
-    setActiveTest(test);
-    submittingRef.current = false;
-
-    try {
-      await document.documentElement.requestFullscreen();
-    } catch {
-      toast.warning("Could not enter fullscreen mode. Please allow fullscreen for the best test experience.");
-    }
-  };
-
-  const handleStartClick = (test: Test) => {
     const attempts = attemptCounts[test.id] ?? 0;
     if (attempts > 0) {
       // Retake — require reason
       setRetakeReason("");
       setRetakeDialogTest(test);
     } else {
-      startTest(test, false);
+      setIsRetakeGate(false);
+      setGateModalTest(test);
     }
   };
 
@@ -751,7 +789,8 @@ export default function StudentTests() {
     const test = retakeDialogTest;
     if (!test) return;
     setRetakeDialogTest(null);
-    await startTest(test, true);
+    setIsRetakeGate(true);
+    setGateModalTest(test);
   };
 
   const generateExplanations = async (qs: Question[], ans: Record<string, string>) => {
@@ -764,51 +803,58 @@ export default function StudentTests() {
     setLoadingExplanations(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-feedback", {
-        body: {
-          mode: "explanations",
-          questions: wrongQs.map((q) => ({
-            id: q.id,
-            text: q.text,
-            options: q.options,
-            correct_answer: q.correct_answer,
-            user_answer: ans[q.id] ?? "Not answered",
-            subject: q.subject,
-          })),
-        },
-      });
-      if (error) throw error;
-      if (data?.explanations) {
-        setExplanations(data.explanations);
-      }
-    } catch {
-      // silently fail
+      const prompt = `For each question below that a student answered incorrectly, provide a concise explanation formatted strictly as a JSON object:
+{
+  "explanations": {
+    "QUESTION_ID": {
+      "why_wrong": "Explanation of why the selected option was incorrect",
+      "why_right": "Explanation of why the correct answer is right"
     }
-    setLoadingExplanations(false);
+  }
+}
+
+Questions to explain:
+${JSON.stringify(wrongQs.map((q) => ({
+  id: q.id,
+  text: q.text,
+  options: q.options,
+  correct_answer: q.correct_answer,
+  user_answer: ans[q.id] ?? "Not answered",
+  subject: q.subject,
+})), null, 2)}`;
+
+      const response = await askGemini(prompt, "You are a senior computer science and placement exam tutor. Return ONLY valid JSON.");
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.explanations) {
+          setExplanations(parsed.explanations);
+        }
+      }
+    } catch (e) {
+      console.warn("Explanations generation fallback:", e);
+    } finally {
+      setLoadingExplanations(false);
+    }
   };
 
-  const generateFeedback = async (testTitle: string, totalScore: number, passed: boolean, scores: Record<string, number>) => {
+  const generateFeedback = async (testTitle: string, totalScore: number, passed: boolean, scores: Record<string, number>, attemptId?: string) => {
     setLoadingFeedback(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-feedback", {
-        body: { testTitle, totalScore, passed, scores },
-      });
-      if (error) throw error;
-      const feedback = data?.feedback || "Unable to generate feedback.";
+      const prompt = `Provide 3 encouraging, highly actionable bullet points of placement exam feedback for a candidate in "${testTitle}". Score: ${totalScore}%. Status: ${passed ? "Passed" : "Did not qualify"}. Subject scores: ${JSON.stringify(scores)}. Emphasize strengths and areas for technical revision.`;
+      const feedback = await askGemini(prompt, "You are a supportive campus placement mentor.");
       setAiFeedback(feedback);
 
-      if (user && activeTest) {
+      if (user && attemptId && !attemptId.startsWith("test-")) {
         await supabase.from("test_attempts")
           .update({ feedback } as Record<string, unknown>)
-          .eq("student_id", user.id)
-          .eq("test_id", activeTest.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
+          .eq("id", attemptId);
       }
     } catch {
-      setAiFeedback("Could not generate AI feedback at this time.");
+      setAiFeedback("Great effort! Keep practicing core algorithmic concepts, problem solving, and aptitude fundamentals.");
+    } finally {
+      setLoadingFeedback(false);
     }
-    setLoadingFeedback(false);
   };
 
   const handleSubmit = async (autoSubmitted = false) => {
@@ -867,10 +913,17 @@ export default function StudentTests() {
     };
     let insertSuccess = false;
     let lastError: any = null;
+    let insertedAttemptId: string | null = null;
     for (let attempt = 0; attempt < 5; attempt++) {
-      const { error: insErr } = await (supabase.from("test_attempts") as any).insert(insertPayload);
+      const { data: insData, error: insErr } = await (supabase.from("test_attempts") as any)
+        .insert(insertPayload)
+        .select("id")
+        .maybeSingle();
+
       if (!insErr) {
         insertSuccess = true;
+        insertedAttemptId = insData?.id || null;
+        insertedAttemptIdRef.current = insertedAttemptId;
         break;
       }
       lastError = insErr;
@@ -898,18 +951,18 @@ export default function StudentTests() {
     if (progressKey) { try { localStorage.removeItem(progressKey); } catch { /* noop */ } }
     fetchData();
 
-    // Send result notification to the student
-    supabase.functions.invoke("send-result-notification", {
-      body: {
-        studentId: user.id,
-        testTitle: activeTest.title,
-        totalScore: scorePercent,
-        passed,
-      },
-    }).catch(() => { /* non-critical */ });
+    // Send direct in-app result notification to the student without failing CORS edge functions
+    if (user && activeTest) {
+      supabase.from("notifications").insert({
+        user_id: user.id,
+        title: `Assessment Completed: ${activeTest.title}`,
+        message: `You scored ${scorePercent}% (${totalScore}/${totalPoints} marks) in ${activeTest.title}. Result: ${passed ? "Passed" : "Below Cutoff"}. Attempt #${attemptNum}.`,
+        type: "result",
+      } as any).catch(() => {});
+    }
 
-    // Generate AI feedback and explanations in parallel
-    generateFeedback(activeTest.title, scorePercent, passed, scoresMap);
+    // Generate AI feedback and explanations in parallel using Gemini
+    generateFeedback(activeTest.title, scorePercent, passed, scoresMap, insertedAttemptId || undefined);
     generateExplanations(questions, answers);
   };
 
@@ -1023,6 +1076,39 @@ export default function StudentTests() {
           onEvent={(ev) => { proctorEventsRef.current.push(ev); }}
           config={proctorCfg}
         />
+
+        {/* Fullscreen Violation Lockout Overlay */}
+        {isFullscreenLocked && (
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 text-white p-6 text-center backdrop-blur-md">
+            <div className="h-20 w-20 rounded-full bg-destructive/20 border-2 border-destructive flex items-center justify-center mb-4 animate-pulse">
+              <ShieldAlert className="h-10 w-10 text-destructive" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">
+              Assessment Locked: Fullscreen Exited
+            </h2>
+            <p className="text-sm text-zinc-300 max-w-md mb-6 leading-relaxed">
+              You navigated away or exited fullscreen mode. This incident has been logged in your forensic integrity audit trail.
+            </p>
+            <div className="rounded-2xl bg-amber-500/15 border border-amber-500/30 p-3 mb-6 max-w-sm w-full text-xs text-amber-300 font-medium">
+              Integrity Infractions: <strong>{tabSwitchCount} / 2</strong> (Next infraction will auto-submit)
+            </div>
+            <Button
+              size="lg"
+              className="bg-primary hover:bg-primary/90 text-white font-bold px-8 py-3 rounded-2xl shadow-xl transition-all"
+              onClick={async () => {
+                try {
+                  await document.documentElement.requestFullscreen();
+                  setIsFullscreenLocked(false);
+                } catch {
+                  toast.error("Fullscreen permission is required to resume assessment.");
+                }
+              }}
+            >
+              Resume Fullscreen Assessment
+            </Button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between border-b px-6 py-3">
           <h2 className="font-semibold">{activeTest.title}</h2>
           <div className="flex items-center gap-4">
@@ -1429,6 +1515,151 @@ export default function StudentTests() {
               }}
             >
               <RefreshCw className="mr-2 h-4 w-4" /> Retry Permission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pre-Flight Mandatory Proctoring & Fullscreen Gate Modal */}
+      <Dialog
+        open={!!gateModalTest}
+        onOpenChange={(v) => {
+          if (!v) {
+            if (gateStreamRef.current) {
+              gateStreamRef.current.getTracks().forEach((t) => t.stop());
+              gateStreamRef.current = null;
+            }
+            setGateModalTest(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold font-display text-foreground">
+              <ShieldAlert className="h-5 w-5 text-primary" />
+              Proctoring Verification &amp; System Readiness
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Assessment: <strong className="text-foreground">{gateModalTest?.title}</strong> ({gateModalTest?.duration} mins)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Live Camera Feed Preview */}
+            <div className="relative rounded-2xl overflow-hidden border-2 border-border/80 bg-zinc-950 flex flex-col items-center justify-center">
+              <video
+                ref={gateVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="h-44 w-full object-cover"
+              />
+
+              {/* Status Pill overlay */}
+              <div className="absolute top-2.5 right-2.5">
+                {cameraVerified ? (
+                  <Badge className="bg-emerald-500 text-white border-0 shadow-md text-[11px] gap-1 px-2.5 py-0.5">
+                    <CheckCircle2 className="h-3 w-3" /> Camera Connected
+                  </Badge>
+                ) : cameraChecking ? (
+                  <Badge variant="outline" className="bg-background/90 text-foreground border-border text-[11px] gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Verifying Camera…
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-[11px] gap-1 px-2.5 py-0.5">
+                    <AlertTriangle className="h-3 w-3" /> Camera Access Required
+                  </Badge>
+                )}
+              </div>
+
+              {!cameraVerified && !cameraChecking && (
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 text-center">
+                  <Camera className="h-8 w-8 text-rose-500 mb-2" />
+                  <p className="text-xs text-zinc-300 mb-3 max-w-xs">{gateCameraError || "Camera permission is required to take this proctored assessment."}</p>
+                  <Button size="sm" onClick={startCameraCheck} className="font-bold text-xs h-8">
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" /> Grant Camera Access
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Anti-Cheating & System Readiness Checklist */}
+            <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/60 space-y-2 text-xs">
+              <div className="font-bold text-foreground text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Examination Integrity Rules
+              </div>
+              <ul className="space-y-1.5 text-muted-foreground text-[11px]">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span><strong>Fullscreen Enforcement:</strong> Exiting fullscreen or navigating tabs will trigger warnings.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span><strong>Candidate Face Visibility:</strong> You must remain in front of the camera alone.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span><strong>Prohibited Gadgets:</strong> Mobile phones, earphones, tablets, and secondary screens are flagged.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span><strong>Auto-Submission:</strong> Reaching 2 infractions will automatically submit your assessment.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (gateStreamRef.current) {
+                  gateStreamRef.current.getTracks().forEach((t) => t.stop());
+                  gateStreamRef.current = null;
+                }
+                setGateModalTest(null);
+              }}
+              className="w-full sm:w-auto text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!cameraVerified || cameraChecking}
+              onClick={async () => {
+                if (!cameraVerified) {
+                  toast.error("Camera access is mandatory before starting.");
+                  return;
+                }
+
+                try {
+                  await document.documentElement.requestFullscreen();
+                } catch {
+                  toast.error("Could not enter fullscreen mode. Please grant fullscreen access to begin.");
+                  return;
+                }
+
+                if (!document.fullscreenElement) {
+                  toast.error("Fullscreen mode required. Please allow fullscreen to proceed.");
+                  return;
+                }
+
+                // Stop the gate preview stream so WebcamProctor takes over
+                if (gateStreamRef.current) {
+                  gateStreamRef.current.getTracks().forEach((t) => t.stop());
+                  gateStreamRef.current = null;
+                }
+
+                const test = gateModalTest;
+                const isRetake = isRetakeGate;
+                setGateModalTest(null);
+                if (test) {
+                  startActiveTestSession(test, isRetake);
+                }
+              }}
+              className="w-full sm:flex-1 bg-primary hover:bg-primary/90 text-white font-bold text-xs h-10 rounded-2xl shadow-lg gap-2"
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Grant Fullscreen &amp; Begin Assessment
             </Button>
           </DialogFooter>
         </DialogContent>

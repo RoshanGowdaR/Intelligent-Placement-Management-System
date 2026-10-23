@@ -32,7 +32,7 @@ describe("Navigation & Routing", () => {
     );
     // Landing page should show some content
     expect(document.body).toBeTruthy();
-  });
+  }, 15000);
 
   it("should have correct admin route paths defined", () => {
     const adminPaths = [

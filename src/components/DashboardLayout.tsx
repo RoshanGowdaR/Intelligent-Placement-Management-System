@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 import { StudentAIAssistant } from "@/components/assistant/StudentAIAssistant";
+import { AdminAIAssistant } from "@/components/assistant/AdminAIAssistant";
 
 const adminLinks = [
   { title: "Overview", url: "/admin", icon: LayoutDashboard },
@@ -300,7 +301,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </header>
 
           <main className="flex-1 overflow-auto p-4 md:p-8">{children}</main>
-          {role === "student" && <StudentAIAssistant />}
+          {/* Floating AI Mentors: Hidden on /dashboard/tests so students cannot cheat */}
+          {role === "student" && location.pathname !== "/dashboard/tests" && <StudentAIAssistant />}
+          {role === "admin" && <AdminAIAssistant />}
         </div>
       </div>
 
