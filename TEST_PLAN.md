@@ -29,11 +29,11 @@ This Master Test Plan defines the formal testing strategy, execution methodology
 - **Authentication & RBAC**: GoTrue OAuth, Email/Password login, session timeout enforcement, role-based route gating (`ProtectedRoute`), and password reset OTP workflows.
 - **Student Profile Studio**: 100% completion metrics, document verification quotas (Resume ≤ 1 MB, Certificates ≤ 800 KB, Avatars ≤ 500 KB), LinkedIn/GitHub URL normalization, and lateral entry handling.
 - **Assessment Management**: Manual question authoring, Groq & Google Gemini AI question generation (JSON array formatting), DOCX/PDF syllabus parsing, question weighting, and scheduling.
-- **Computer Vision & Anti-Cheat Proctoring Engine**: Fullscreen enforcement, multi-display & window blur detection, tab-switch telemetry counter, TensorFlow.js (COCO-SSD) webcam device/cellphone detection, cheat threshold auto-submission, and proctor integrity score calculation (out of 100).
+- **Computer Vision & Anti-Cheat Proctoring Engine**: Mandatory pre-flight camera stream and fullscreen gating (`ProctorGateModal`), mid-test screen lockout on fullscreen exit, in-exam AI assistant suppression, multi-display & window blur detection, tab-switch telemetry counter, TensorFlow.js (COCO-SSD) device/cellphone detection (0.22 threshold), multiple persons in frame detection, cheat threshold auto-submission, and proctor integrity score calculation (out of 100).
 - **Multi-Round Recruitment Drive Engine**: Drive round sequencing (Round 1 to Round N), passing logic engines (`cutoff_score`, `top_n`, `top_percent`, `manual`), round participant gating, and automated qualification notifications.
-- **Placement AI Assistant (Oracle)**: Live forensic database context gathering (Supabase PostgREST), Remark-GFM Markdown rendering, interactive Recharts bar charts, KPI metric cards, and candidate proctoring audit cards.
+- **Placement AI Assistant (Oracle & Mentors)**: Live forensic database context gathering (Supabase PostgREST), Remark-GFM Markdown rendering, strict Charts-on-Demand policy, interactive Recharts bar charts, KPI metric cards, candidate proctoring audit cards, Admin Think Mode collapsible reasoning accordion, and student privacy boundaries preventing cross-student data leakage.
 - **Real-Time Notification System**: Persistent cross-role notification feeds, unread counters, category filtering, and bulk clearance.
-- **Institutional Analytics & Reports**: Live pass/fail ratios, company CTC comparisons, podium student rankings, and PDF report downloads.
+- **Institutional Analytics & Reports**: Multi-dimensional filtering console (Assessment, Recruiter, Branch, Batch, Time Window), cross-module session storage state persistence (`usePersistentState`), candidate USN/Branch/Batch details, live pass/fail ratios, podium student rankings, and filtered CSV export downloads.
 
 ### 2.2 Out-of-Scope
 - Physical hardware webcam hardware driver failures on client machines.

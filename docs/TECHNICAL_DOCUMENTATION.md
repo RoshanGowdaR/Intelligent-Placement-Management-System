@@ -5,7 +5,7 @@
 
 ### Document Information
 - **Title**: IPMS Elite Technical Architecture & System Blueprint
-- **Version**: 2.5 (Enterprise Campus Edition)
+- **Version**: 3.1.0 (Enterprise Campus Edition)
 - **Target Audience**: Software Engineers, DevOps, System Architects, QA Engineers
 - **Maintainers**: Core Platform Engineering Team
 
@@ -195,21 +195,56 @@ Before any student can access assessment or meeting links for Round $K > 1$:
 2. **Aggregation**: Computes unique registered students, exam attendees, passers, failers, and placed candidates.
 3. **Candidate Directory**: Maps every student's CGPA, branch, and backlogs to registered company cutoffs.
 4. **Proctor Logs**: Maps every attempt to its calculated Proctor Integrity Score and violation summary.
-5. **LLM Synthesis**: Submits prompt to Google Gemini / Groq with instructions to return:
-   - Visual ````kpi` metric blocks.
-   - Visual ````chart` bar chart payloads for Recharts.
-   - Individual candidate ````proctor` cards.
-   - Formatted Markdown tables using GitHub Flavored Markdown.
+5. **Charts-on-Demand Policy**: LLM system prompt mandates that Recharts bar charts are produced IF AND ONLY IF the user explicitly prompts for a chart, preventing unsolicited visual clutter.
 6. **Client-Side Rendering**: ReactMarkdown parses tables with `remark-gfm` and dynamically renders Recharts BarCharts and Proctor Gauge cards directly within the chat message.
+
+### 5.2 Think Mode Architecture & Collapsible Forensic Cards
+When Deep Thinking mode is enabled:
+1. The client prepends a directive commanding the LLM to output its architectural decomposition inside `<think>...</think>` tags.
+2. `parseThinkTags(raw)` decomposes the response into `{ thought: string | null, cleanText: string }`.
+3. `thought` is rendered inside an interactive collapsible `<Accordion>` labelled *"Forensic Reasoning & Thought Process"*, while `cleanText` renders directly in the main message stream.
+
+### 5.3 Student AI Mentor Privacy Isolation
+1. **Query Filter Interceptor**: Incoming queries on `StudentAIAssistant.tsx` pass through a regex pattern guard scanning for cross-candidate inquiries (e.g. `who else`, `highest score`, `class rank`, `database dump`).
+2. **Deterministic Security Rejection**: Flagged queries are halted before reaching the network with a privacy protection alert: *"As a student, you only have access to your personal assessment records and career eligibility."*
+3. **Scoped System Prompt**: The LLM prompt is strictly bounded to the authenticated student's record (`id = user.id`) and visiting recruiters, disallowing institutional table access.
 
 ---
 
-## 6. Continuous Integration & Deployment (CI/CD)
+## 6. Session-Scoped State Persistence Engine (`usePersistentState`)
 
-### 6.1 GitHub Actions Workflows
+To eliminate filter and pagination resets during cross-portal navigation:
+- Hook signature: `usePersistentState<T>(key: string, defaultValue: T): [T, (val: T | ((prev: T) => T)) => void]`
+- Utilizes browser `sessionStorage` with key namespaces (`ipms_reports_*`, `ipms_analytics_*`).
+- Automatically serializes JSON on write and safely hydrates on component mounting with memory fallback.
+
+---
+
+## 7. Assessment Pre-Flight Proctoring Gate (`ProctorGateModal`)
+
+### 7.1 Browser User-Gesture Security Compliance
+The HTML5 Fullscreen API (`Element.requestFullscreen()`) strictly requires a transient user gesture token. In previous implementations, invoking `await getUserMedia()` before `requestFullscreen()` consumed the activation window, throwing `SecurityError`.
+
+### 7.2 Two-Stage Pre-Flight Gate Architecture
+1. **Stage 1: Camera Streaming Verification**:
+   - `navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } })` streams to a live video canvas preview.
+   - Status badge transitions from `Verifying Camera…` to `Camera Connected`.
+2. **Stage 2: Synchronous Fullscreen Launch**:
+   - The "Grant Fullscreen & Begin Assessment" button synchronously calls `document.documentElement.requestFullscreen()` as the first statement in its `onClick` callback.
+   - Active stream is handed off to `WebcamProctor.tsx` and test timer initiates.
+
+### 7.3 In-Test Screen Lockout & Anti-Cheat Guard
+- If fullscreen exits during the exam (`fullscreenchange` event), `isFullscreenLocked = true` immediately overlays an opaque security lockout shield blocking all question cards.
+- During test taking (`/dashboard/tests`), the floating AI assistant widget is unmounted from `DashboardLayout.tsx` to prevent candidates from asking AI for answers.
+
+---
+
+## 8. Continuous Integration & Deployment (CI/CD)
+
+### 8.1 GitHub Actions Workflows
 - **`ci.yml`**:
   - Triggers on push and pull requests on `main` and `developer`.
-  - Runs `tsc --noEmit` typecheck, ESLint, Vitest test suite (62 tests), and production Vite build verification.
+  - Runs `tsc --noEmit` typecheck, ESLint, Vitest test suite (71 tests across 15 suites), and production Vite build verification.
 - **`backend-test.yml`**:
   - Triggers on changes to backend services and migrations.
   - Executes recruitment engine, proctor scoring, and eligibility test suite (`npm run test:backend`).

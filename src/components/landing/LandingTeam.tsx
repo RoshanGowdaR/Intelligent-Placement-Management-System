@@ -129,16 +129,28 @@ export function LandingTeam() {
                   className="rounded-3xl bg-card border border-slate-200/80 dark:border-border/70 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#5b51d8]/40 transition-all duration-300 flex flex-col group"
                 >
                   {/* Image Container */}
-                  <div className="relative h-72 md:h-80 w-full overflow-hidden bg-muted/40">
+                  <div className="relative h-72 md:h-80 w-full overflow-hidden bg-gradient-to-tr from-[#5b51d8]/30 via-primary/20 to-muted flex items-center justify-center">
                     <img
                       src={member.image}
                       alt={member.name}
+                      onError={(e) => {
+                        // Hide broken image and reveal gradient initials fallback
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
                       className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                     />
 
+                    {/* Initials Fallback if image fails or loading */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center -z-0 pointer-events-none">
+                      <div className="h-24 w-24 rounded-full bg-gradient-to-tr from-[#5b51d8] to-purple-600 text-white font-display text-3xl font-extrabold flex items-center justify-center shadow-lg">
+                        {member.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                      </div>
+                      <span className="text-xs font-semibold text-foreground/80 mt-3 font-display">{member.name}</span>
+                    </div>
+
                     {/* Floating description banner */}
                     {member.description && (
-                      <div className="absolute inset-x-3 bottom-3 p-3 rounded-2xl bg-black/80 backdrop-blur-md text-white text-[11px] leading-relaxed border border-white/15 shadow-md">
+                      <div className="absolute inset-x-3 bottom-3 p-3 rounded-2xl bg-black/85 backdrop-blur-md text-white text-[11px] leading-relaxed border border-white/15 shadow-md z-10">
                         {member.description}
                       </div>
                     )}

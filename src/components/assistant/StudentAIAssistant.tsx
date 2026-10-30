@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
-import { askGemini } from "@/lib/gemini";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -131,6 +131,38 @@ export function StudentAIAssistant() {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
+    // Student Privacy Guard: Disallow queries attempting to access other students' records or admin-level data
+    const lowerQuery = query.toLowerCase();
+    const isRestrictedQuery =
+      lowerQuery.includes("other student") ||
+      lowerQuery.includes("all student") ||
+      lowerQuery.includes("who else") ||
+      lowerQuery.includes("all candidate") ||
+      lowerQuery.includes("everyone's score") ||
+      lowerQuery.includes("highest score") ||
+      lowerQuery.includes("who cheated") ||
+      lowerQuery.includes("cheat list") ||
+      lowerQuery.includes("database dump") ||
+      lowerQuery.includes("admin records") ||
+      lowerQuery.includes("class rank") ||
+      lowerQuery.includes("batch rank") ||
+      lowerQuery.includes("rank list") ||
+      lowerQuery.includes("college topper") ||
+      lowerQuery.includes("other's score") ||
+      lowerQuery.includes("others score");
+
+    if (isRestrictedQuery) {
+      const restrictedMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: "assistant",
+        text: "🔒 **Privacy & Access Control**\n\nAs a student, you have access exclusively to your personal assessment history and job eligibility records.\n\nFor privacy compliance and academic integrity regulations, access to institutional records, other students' scores, or cohort rankings is strictly restricted.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, restrictedMsg]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // 1. Fetch strictly THIS student's data ONLY (scoped strictly by user.id)
       const [profileRes, attemptsRes, schedulesRes, companiesRes] = await Promise.all([
@@ -214,12 +246,18 @@ export function StudentAIAssistant() {
 You have access strictly to THIS student's academic profile and assessment records:
 ${JSON.stringify(studentContext, null, 2)}
 
+STRICT PRIVACY POLICY:
+- You are strictly an individual career coach for ${studentProfile.name || "this student"}.
+- You DO NOT have access to other students' names, USNs, scores, or rankings.
+- Under NO circumstances reveal or hallucinate information about other students, batch statistics, or institutional administrative data.
+- If asked about other candidates or administrative reports, inform the user that your access is strictly restricted to their personal profile.
+
 Instructions:
 1. Address the student warmly and directly.
 2. When answering about test performance, cite their exact scores, tests taken, pass/fail status, and whether any proctoring tab switches occurred.
 3. If their scores are low in any test, provide specific, encouraging advice on core topics to revise (Data Structures, Algorithms, Aptitude, Core CS concepts).
 4. When answering about company eligibility, clearly list the visiting companies they qualify for based on their CGPA (${studentProfile.cgpa || 0}) and backlogs.
-5. Format responses cleanly using bold headers, bullet points, and emojis.`;
+5. Format responses cleanly using bold headers, bullet points, and clean markdown tables when helpful. Do NOT wrap entire sentences in bold tags.`;
 
       // Call Google Gemini AI
       const aiResponse = await askGemini(query, systemPrompt);
@@ -391,6 +429,7 @@ Instructions:
                     {msg.sender === "assistant" ? (
                       <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed space-y-2">
                         <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
                           components={{
                             p: ({ children }) => (
                               <p className="mb-2 leading-relaxed text-[13px] text-foreground/90 last:mb-0">
@@ -398,7 +437,7 @@ Instructions:
                               </p>
                             ),
                             strong: ({ children }) => (
-                              <strong className="font-bold text-foreground bg-emerald-500/20 px-1.5 py-0.5 rounded text-[12.5px] border border-emerald-500/30">
+                              <strong className="font-semibold text-foreground">
                                 {children}
                               </strong>
                             ),
@@ -431,6 +470,38 @@ Instructions:
                               <li className="text-[12.5px] text-foreground/90 leading-normal pl-0.5">
                                 {children}
                               </li>
+                            ),
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto my-3 rounded-xl border border-border shadow-sm not-prose bg-card">
+                                <table className="min-w-full divide-y divide-border text-xs text-left">
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            thead: ({ children }) => (
+                              <thead className="bg-muted/80 text-foreground font-semibold border-b border-border">
+                                {children}
+                              </thead>
+                            ),
+                            tbody: ({ children }) => (
+                              <tbody className="divide-y divide-border">
+                                {children}
+                              </tbody>
+                            ),
+                            tr: ({ children }) => (
+                              <tr className="hover:bg-muted/40 transition-colors">
+                                {children}
+                              </tr>
+                            ),
+                            th: ({ children }) => (
+                              <th className="px-3 py-2 font-bold text-foreground text-xs uppercase tracking-wider text-left border-b border-border">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="px-3 py-2 border-t border-border/60 text-foreground/90 text-xs whitespace-normal leading-relaxed">
+                                {children}
+                              </td>
                             ),
                             code: ({ children }) => (
                               <code className="bg-muted text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-mono text-xs border border-border">

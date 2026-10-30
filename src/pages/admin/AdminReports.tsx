@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Download, FileText, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ShieldAlert, CheckCircle2, AlertTriangle, Monitor, Laptop, Smartphone } from "lucide-react";
+import { Download, FileText, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ShieldAlert, CheckCircle2, AlertTriangle, Monitor, Laptop, Smartphone, Search, X } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -31,6 +33,9 @@ interface ReportRow {
   companyId: string | null;
   studentName: string;
   email: string;
+  usn: string;
+  branch: string;
+  yearOfPassing: number | null;
   cgpa: number | null;
   totalScore: number | null;
   earnedMarks: number;
@@ -45,23 +50,26 @@ interface ReportRow {
   retakeReason: string | null;
 }
 
-type SortKey = "studentName" | "cgpa" | "totalScore" | "attemptNumber" | "completedAt";
+type SortKey = "studentName" | "usn" | "branch" | "yearOfPassing" | "cgpa" | "totalScore" | "attemptNumber" | "completedAt";
 type SortDir = "asc" | "desc";
 
 export default function AdminReports() {
   const [tests, setTests] = useState<Test[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
-  const [selectedTest, setSelectedTest] = useState("");
-  const [rows, setRows] = useState<ReportRow[]>([]);
+  const [selectedTest, setSelectedTest] = usePersistentState<string>("ipms_reports_selected_test", "");
+  const [rows, setRows] = usePersistentState<ReportRow[]>("ipms_reports_rows", []);
   const [loading, setLoading] = useState(false);
   const [selectedAuditRow, setSelectedAuditRow] = useState<ReportRow | null>(null);
 
-  // Filters
-  const [filterCompany, setFilterCompany] = useState("all");
-  const [filterTestId, setFilterTestId] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all"); // all | passed | failed
-  const [filterAutoSubmit, setFilterAutoSubmit] = useState("all"); // all | yes | no
-  const [filterRetake, setFilterRetake] = useState("all"); // all | yes | no
+  // Persistent Filters across page navigation
+  const [filterCompany, setFilterCompany] = usePersistentState<string>("ipms_reports_f_company", "all");
+  const [filterTestId, setFilterTestId] = usePersistentState<string>("ipms_reports_f_test", "all");
+  const [filterStatus, setFilterStatus] = usePersistentState<string>("ipms_reports_f_status", "all"); // all | passed | failed
+  const [filterAutoSubmit, setFilterAutoSubmit] = usePersistentState<string>("ipms_reports_f_autosubmit", "all"); // all | yes | no
+  const [filterRetake, setFilterRetake] = usePersistentState<string>("ipms_reports_f_retake", "all"); // all | yes | no
+  const [filterBranch, setFilterBranch] = usePersistentState<string>("ipms_reports_f_branch", "all");
+  const [filterBatch, setFilterBatch] = usePersistentState<string>("ipms_reports_f_batch", "all");
+  const [filterUsnSearch, setFilterUsnSearch] = usePersistentState<string>("ipms_reports_f_usn", "");
 
   // Sort
   const [sortKey, setSortKey] = useState<SortKey>("totalScore");
@@ -116,7 +124,7 @@ export default function AdminReports() {
     const studentIds = [...new Set(attempts.map((a) => a.student_id))];
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, email, cgpa, resume_url")
+      .select("id, name, email, cgpa, resume_url, usn, branch, year_of_passing")
       .in("id", studentIds);
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -138,6 +146,9 @@ export default function AdminReports() {
         companyId: t?.company_id ?? null,
         studentName: p?.name || "Unknown",
         email: p?.email || "—",
+        usn: p?.usn || "—",
+        branch: p?.branch || "General",
+        yearOfPassing: p?.year_of_passing ?? null,
         cgpa: p?.cgpa ?? null,
         totalScore: a.total_score,
         earnedMarks,
@@ -172,6 +183,19 @@ export default function AdminReports() {
     toast.success("All records for this test were deleted");
   };
 
+  // Distinct branches and batches from loaded rows
+  const availableBranches = useMemo(() => {
+    const branches = new Set<string>();
+    rows.forEach((r) => { if (r.branch && r.branch !== "—") branches.add(r.branch); });
+    return Array.from(branches).sort();
+  }, [rows]);
+
+  const availableBatches = useMemo(() => {
+    const batches = new Set<string>();
+    rows.forEach((r) => { if (r.yearOfPassing) batches.add(String(r.yearOfPassing)); });
+    return Array.from(batches).sort();
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     let out = rows.slice();
     if (filterCompany !== "all") out = out.filter((r) => r.companyId === filterCompany);
@@ -182,6 +206,12 @@ export default function AdminReports() {
     if (filterAutoSubmit === "no") out = out.filter((r) => !r.autoSubmitted);
     if (filterRetake === "yes") out = out.filter((r) => r.attemptNumber > 1);
     if (filterRetake === "no") out = out.filter((r) => r.attemptNumber === 1);
+    if (filterBranch !== "all") out = out.filter((r) => r.branch.toLowerCase() === filterBranch.toLowerCase());
+    if (filterBatch !== "all") out = out.filter((r) => String(r.yearOfPassing) === filterBatch);
+    if (filterUsnSearch.trim()) {
+      const q = filterUsnSearch.trim().toLowerCase();
+      out = out.filter((r) => r.usn.toLowerCase().includes(q) || r.studentName.toLowerCase().includes(q));
+    }
 
     const dir = sortDir === "asc" ? 1 : -1;
     out.sort((a, b) => {
@@ -194,7 +224,7 @@ export default function AdminReports() {
       return String(av).localeCompare(String(bv)) * dir;
     });
     return out;
-  }, [rows, filterCompany, filterTestId, filterStatus, filterAutoSubmit, filterRetake, sortKey, sortDir]);
+  }, [rows, filterCompany, filterTestId, filterStatus, filterAutoSubmit, filterRetake, filterBranch, filterBatch, filterUsnSearch, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -206,22 +236,48 @@ export default function AdminReports() {
     return sortDir === "asc" ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />;
   };
 
+  // CSV export respects all active filters and includes complete student profile
   const downloadCSV = () => {
     if (filteredRows.length === 0) { toast.error("No data to export"); return; }
     const test = tests.find((t) => t.id === selectedTest);
-    const headers = ["Name", "Email", "CGPA", "Score", "Status", "Attempt", "Completed At", "Auto-Submitted", "Proctor Warnings", "Gadgets Detected", "Retake Reason", "Resume URL"];
+    const headers = [
+      "Name",
+      "Email",
+      "USN",
+      "Branch",
+      "Year of Graduation",
+      "CGPA",
+      "Score (%)",
+      "Earned Marks",
+      "Total Marks",
+      "Status",
+      "Attempt",
+      "Completed At",
+      "Auto-Submitted",
+      "Tab Switches",
+      "Proctor Warnings",
+      "Gadgets Detected",
+      "Retake Reason",
+      "Resume URL"
+    ];
     const csvRows = filteredRows.map((r) => {
       const warnings = r.proctorEvents.filter((e) => e.action === "warning").length;
       const gadgets = [...new Set(r.proctorEvents.map((e) => e.gadget))].join("; ");
       return [
         r.studentName,
         r.email,
+        r.usn,
+        r.branch,
+        r.yearOfPassing ?? "—",
         r.cgpa ?? "",
         r.totalScore ?? "",
+        r.earnedMarks,
+        r.totalMarks,
         r.passed ? "Passed" : "Failed",
         r.attemptNumber,
         r.completedAt ? format(new Date(r.completedAt), "yyyy-MM-dd HH:mm") : "",
         r.autoSubmitted ? "Yes" : "No",
+        r.tabSwitches,
         warnings,
         gadgets,
         (r.retakeReason ?? "").replace(/"/g, "'"),
@@ -230,14 +286,14 @@ export default function AdminReports() {
     });
 
     const csv = [headers.join(","), ...csvRows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `report-${test?.title ?? "test"}-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.download = `placement-report-${test?.title ? test.title.toLowerCase().replace(/[^a-z0-9]/g, "-") : "filtered"}-${format(new Date(), "yyyy-MM-dd")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Report downloaded");
+    toast.success(`Downloaded CSV with ${filteredRows.length} filtered candidate records`);
   };
 
   const testsForFilter = useMemo(() => {
@@ -245,24 +301,39 @@ export default function AdminReports() {
     return tests.filter((t) => testIdsInRows.has(t.id));
   }, [tests, rows]);
 
+  const hasActiveFilters = filterCompany !== "all" || filterTestId !== "all" || filterStatus !== "all" ||
+    filterAutoSubmit !== "all" || filterRetake !== "all" || filterBranch !== "all" || filterBatch !== "all" || filterUsnSearch.trim() !== "";
+
+  const clearAllFilters = () => {
+    setFilterCompany("all");
+    setFilterTestId("all");
+    setFilterStatus("all");
+    setFilterAutoSubmit("all");
+    setFilterRetake("all");
+    setFilterBranch("all");
+    setFilterBatch("all");
+    setFilterUsnSearch("");
+    toast.info("Filters reset to default");
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="text-muted-foreground">Generate and download placement reports</p>
+        <p className="text-muted-foreground">Generate, filter, and export granular placement evaluation and forensic audit records.</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
-            <FileText className="h-4 w-4" /> Generate Report
+            <FileText className="h-4 w-4 text-primary" /> Generate Report
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-end gap-3">
-            <div className="flex-1 space-y-2">
+          <div className="flex items-end gap-3 flex-wrap sm:flex-nowrap">
+            <div className="flex-1 min-w-[240px] space-y-2">
               <Select value={selectedTest} onValueChange={setSelectedTest}>
-                <SelectTrigger><SelectValue placeholder="Select a test" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select an assessment to generate report" /></SelectTrigger>
                 <SelectContent>
                   {tests.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -272,26 +343,31 @@ export default function AdminReports() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={generateReport} disabled={loading}>
-              {loading ? "Generating…" : "Generate"}
+            <Button onClick={generateReport} disabled={loading} className="shrink-0 font-bold">
+              {loading ? "Generating…" : "Generate Report"}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {rows.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Results ({filteredRows.length} of {rows.length})
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={downloadCSV}>
-                <Download className="mr-2 h-4 w-4" /> Download CSV
+        <Card className="border border-border/80 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap border-b border-border/60 pb-4">
+            <div>
+              <CardTitle className="text-base font-bold text-foreground">
+                Candidate Assessment Results
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Showing {filteredRows.length} of {rows.length} records matching current filter criteria
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={downloadCSV} className="font-semibold text-xs h-9">
+                <Download className="mr-2 h-4 w-4 text-primary" /> Download CSV ({filteredRows.length})
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
+                  <Button variant="destructive" size="sm" className="font-semibold text-xs h-9">
                     <Trash2 className="mr-2 h-4 w-4" /> Delete All
                   </Button>
                 </AlertDialogTrigger>
@@ -311,83 +387,166 @@ export default function AdminReports() {
             </div>
           </CardHeader>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2 px-6 pb-4">
-            <Select value={filterCompany} onValueChange={setFilterCompany}>
-              <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue placeholder="Company" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All companies</SelectItem>
-                {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterTestId} onValueChange={setFilterTestId}>
-              <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue placeholder="Test" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All tests</SelectItem>
-                {testsForFilter.map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All results</SelectItem>
-                <SelectItem value="passed">Passed only</SelectItem>
-                <SelectItem value="failed">Failed only</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterAutoSubmit} onValueChange={setFilterAutoSubmit}>
-              <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any submission</SelectItem>
-                <SelectItem value="yes">Auto-submitted</SelectItem>
-                <SelectItem value="no">Manually submitted</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterRetake} onValueChange={setFilterRetake}>
-              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All attempts</SelectItem>
-                <SelectItem value="yes">Retakes only</SelectItem>
-                <SelectItem value="no">First attempt only</SelectItem>
-              </SelectContent>
-            </Select>
-            {(filterCompany !== "all" || filterTestId !== "all" || filterStatus !== "all" || filterAutoSubmit !== "all" || filterRetake !== "all") && (
-              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
-                setFilterCompany("all"); setFilterTestId("all"); setFilterStatus("all");
-                setFilterAutoSubmit("all"); setFilterRetake("all");
-              }}>Clear filters</Button>
-            )}
+          {/* Granular Filters Bar */}
+          <div className="p-4 bg-muted/20 border-b border-border/60 space-y-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              
+              {/* USN / Name Search */}
+              <div className="relative w-full sm:w-[200px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Filter by USN or Name..."
+                  value={filterUsnSearch}
+                  onChange={(e) => setFilterUsnSearch(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-background"
+                />
+                {filterUsnSearch && (
+                  <button
+                    onClick={() => setFilterUsnSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Branch Filter */}
+              <Select value={filterBranch} onValueChange={setFilterBranch}>
+                <SelectTrigger className="w-[140px] h-8 text-xs bg-background"><SelectValue placeholder="Branch" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {availableBranches.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              {/* Graduation Year / Batch Filter */}
+              <Select value={filterBatch} onValueChange={setFilterBatch}>
+                <SelectTrigger className="w-[130px] h-8 text-xs bg-background"><SelectValue placeholder="Graduation Year" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Batches</SelectItem>
+                  {availableBatches.length > 0 ? (
+                    availableBatches.map((batch) => <SelectItem key={batch} value={batch}>Class of {batch}</SelectItem>)
+                  ) : (
+                    <>
+                      <SelectItem value="2024">Class of 2024</SelectItem>
+                      <SelectItem value="2025">Class of 2025</SelectItem>
+                      <SelectItem value="2026">Class of 2026</SelectItem>
+                      <SelectItem value="2027">Class of 2027</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+
+              {/* Company Filter */}
+              <Select value={filterCompany} onValueChange={setFilterCompany}>
+                <SelectTrigger className="w-[150px] h-8 text-xs bg-background"><SelectValue placeholder="Company" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              {/* Status Filter */}
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[130px] h-8 text-xs bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Results</SelectItem>
+                  <SelectItem value="passed">Passed only</SelectItem>
+                  <SelectItem value="failed">Failed only</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Submission Mode Filter */}
+              <Select value={filterAutoSubmit} onValueChange={setFilterAutoSubmit}>
+                <SelectTrigger className="w-[140px] h-8 text-xs bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Submission</SelectItem>
+                  <SelectItem value="yes">Auto-submitted</SelectItem>
+                  <SelectItem value="no">Manually submitted</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Attempt Filter */}
+              <Select value={filterRetake} onValueChange={setFilterRetake}>
+                <SelectTrigger className="w-[130px] h-8 text-xs bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Attempts</SelectItem>
+                  <SelectItem value="no">1st Attempt</SelectItem>
+                  <SelectItem value="yes">Retakes</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10" onClick={clearAllFilters}>
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear filters
+                </Button>
+              )}
+            </div>
           </div>
 
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("studentName")}>Name<SortIcon k="studentName" /></TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("cgpa")}>CGPA<SortIcon k="cgpa" /></TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("totalScore")}>Score<SortIcon k="totalScore" /></TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("attemptNumber")}>Attempt<SortIcon k="attemptNumber" /></TableHead>
-                  <TableHead>Proctor Summary</TableHead>
+                <TableRow className="bg-muted/30">
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("studentName")}>
+                    Candidate Name<SortIcon k="studentName" />
+                  </TableHead>
+                  <TableHead className="font-bold">Email</TableHead>
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("usn")}>
+                    USN<SortIcon k="usn" />
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("branch")}>
+                    Branch<SortIcon k="branch" />
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("yearOfPassing")}>
+                    Graduation<SortIcon k="yearOfPassing" />
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("cgpa")}>
+                    CGPA<SortIcon k="cgpa" />
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("totalScore")}>
+                    Score / Marks<SortIcon k="totalScore" />
+                  </TableHead>
+                  <TableHead className="font-bold">Status</TableHead>
+                  <TableHead className="cursor-pointer select-none font-bold" onClick={() => toggleSort("attemptNumber")}>
+                    Attempt<SortIcon k="attemptNumber" />
+                  </TableHead>
+                  <TableHead className="font-bold">Proctor Summary</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No records match the current filters</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                      No candidate records match the active filter criteria.
+                    </TableCell>
+                  </TableRow>
                 ) : filteredRows.map((r) => (
-                  <TableRow key={r.attemptId}>
-                    <TableCell className="font-medium">{r.studentName}</TableCell>
-                    <TableCell>{r.email}</TableCell>
-                    <TableCell>{r.cgpa ?? "—"}</TableCell>
+                  <TableRow key={r.attemptId} className="hover:bg-muted/40 transition-colors">
+                    <TableCell className="font-semibold text-foreground">{r.studentName}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.email}</TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground font-semibold">
+                        {r.usn}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[11px] font-medium bg-primary/5 text-primary border-primary/20">
+                        {r.branch}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {r.yearOfPassing ? `Batch of ${r.yearOfPassing}` : "—"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs font-semibold">{r.cgpa ?? "—"}</TableCell>
                     <TableCell>
                       {r.totalScore != null ? (
                         <div className="flex flex-col">
-                          <span className="font-semibold text-foreground">
+                          <span className="font-bold text-foreground text-xs">
                             {r.earnedMarks} / {r.totalMarks}
                           </span>
-                          <span className="text-[11px] text-muted-foreground font-mono">
+                          <span className="text-[10px] text-muted-foreground font-mono">
                             ({r.totalScore}%)
                           </span>
                         </div>
@@ -396,13 +555,13 @@ export default function AdminReports() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={r.passed ? "default" : "destructive"}>
+                      <Badge variant={r.passed ? "default" : "destructive"} className="text-[11px]">
                         {r.passed ? "Passed" : "Failed"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {r.attemptNumber}
-                      {r.retakeReason && <span title={r.retakeReason} className="ml-1 text-xs text-muted-foreground">(retake)</span>}
+                    <TableCell className="text-xs font-semibold">
+                      #{r.attemptNumber}
+                      {r.retakeReason && <span title={r.retakeReason} className="ml-1 text-[10px] text-amber-500 font-normal">(retake)</span>}
                     </TableCell>
                     <TableCell>
                       {(() => {
@@ -448,181 +607,130 @@ export default function AdminReports() {
                       })()}
                     </TableCell>
                     <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete this record?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Permanently delete {r.studentName}'s attempt #{r.attemptNumber}.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteAttempt(r.attemptId)}>Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteAttempt(r.attemptId)}
+                        title="Delete attempt"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                )) }
               </TableBody>
             </Table>
           </CardContent>
         </Card>
       )}
 
-      {/* Proctoring & Integrity Detail Dialog */}
+      {/* Proctoring & Integrity Audit Modal */}
       <Dialog open={!!selectedAuditRow} onOpenChange={(open) => !open && setSelectedAuditRow(null)}>
-        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl rounded-3xl border border-border bg-card p-6 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <ShieldAlert className="h-5 w-5 text-primary" /> Proctoring & Integrity Audit
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+              <ShieldAlert className="h-5 w-5 text-primary" />
+              Proctoring &amp; Integrity Audit
             </DialogTitle>
-            <DialogDescription>
-              Candidate: <span className="font-semibold text-foreground">{selectedAuditRow?.studentName}</span> ({selectedAuditRow?.email}) · Attempt #{selectedAuditRow?.attemptNumber}
+            <DialogDescription className="text-xs text-muted-foreground">
+              Candidate: <strong className="text-foreground">{selectedAuditRow?.studentName}</strong> ({selectedAuditRow?.email}) · Attempt #{selectedAuditRow?.attemptNumber}
             </DialogDescription>
           </DialogHeader>
 
           {selectedAuditRow && (
             <div className="space-y-4 pt-2">
-              {/* Integrity Overview Banner */}
-              <div className={`p-3.5 rounded-lg border flex items-center justify-between ${
-                selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                  : "bg-destructive/10 border-destructive/30 text-destructive"
-              }`}>
-                <div className="flex items-center gap-2.5">
-                  {selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? (
-                    <>
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      <div>
-                        <div className="font-bold text-sm">Clean Integrity Record</div>
-                        <div className="text-xs text-muted-foreground">No tab switching or gadget detection flagged during session.</div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                      <div>
-                        <div className="font-bold text-sm">Integrity Infractions Detected</div>
-                        <div className="text-xs text-muted-foreground">Violations recorded during assessment session.</div>
-                      </div>
-                    </>
-                  )}
+              {/* Status Header */}
+              {selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? (
+                <div className="flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-6 w-6 shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-sm">Verified Clean Assessment Session</h4>
+                    <p className="text-xs text-muted-foreground">No tab switches, fullscreen violations, or prohibited gadgets detected during the entire session.</p>
+                  </div>
                 </div>
-                <Badge variant={selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? "default" : "destructive"}>
-                  {selectedAuditRow.tabSwitches === 0 && selectedAuditRow.proctorEvents.length === 0 && !selectedAuditRow.autoSubmitted ? "VERIFIED" : "FLAGGED"}
-                </Badge>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between rounded-2xl bg-destructive/10 border border-destructive/20 p-4 text-destructive">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-6 w-6 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-sm">Integrity Infractions Detected</h4>
+                      <p className="text-xs text-muted-foreground">Violations recorded during assessment session.</p>
+                    </div>
+                  </div>
+                  <Badge variant="destructive" className="font-bold">FLAGGED</Badge>
+                </div>
+              )}
 
-              {/* Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-lg border bg-muted/30">
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+              {/* Metrics Summary */}
+              <div className="grid grid-cols-4 gap-3 text-center">
+                <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                     <Monitor className="h-3.5 w-3.5" /> Tab Switches
                   </div>
-                  <div className="text-xl font-bold font-mono mt-1 text-foreground">
-                    {selectedAuditRow.tabSwitches}
-                  </div>
+                  <div className="text-xl font-bold mt-1">{selectedAuditRow.tabSwitches}</div>
                 </div>
-
-                <div className="p-3 rounded-lg border bg-muted/30">
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                     <Smartphone className="h-3.5 w-3.5" /> Gadgets Flagged
                   </div>
-                  <div className="text-xl font-bold font-mono mt-1 text-foreground">
-                    {[...new Set(selectedAuditRow.proctorEvents.filter(e => e.gadget !== "tab_switch").map(e => e.gadget))].length}
+                  <div className="text-xl font-bold mt-1">
+                    {selectedAuditRow.proctorEvents.filter((e) => e.gadget !== "tab_switch").length}
                   </div>
                 </div>
-
-                <div className="p-3 rounded-lg border bg-muted/30">
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
-                    Score Breakdown
-                  </div>
-                  <div className="text-sm font-bold font-mono mt-1 text-foreground">
-                    {selectedAuditRow.earnedMarks} / {selectedAuditRow.totalMarks}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">({selectedAuditRow.totalScore ?? 0}%)</div>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                  <div className="text-xs text-muted-foreground">Score Breakdown</div>
+                  <div className="text-sm font-bold mt-1">{selectedAuditRow.earnedMarks} / {selectedAuditRow.totalMarks}</div>
+                  <div className="text-[10px] text-muted-foreground">({selectedAuditRow.totalScore}%)</div>
                 </div>
-
-                <div className="p-3 rounded-lg border bg-muted/30">
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
-                    Auto-Submitted
-                  </div>
-                  <div className="text-base font-bold mt-1">
-                    {selectedAuditRow.autoSubmitted ? (
-                      <span className="text-destructive font-mono">YES</span>
-                    ) : (
-                      <span className="text-emerald-500 font-mono">NO</span>
-                    )}
+                <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                  <div className="text-xs text-muted-foreground">Auto-Submitted</div>
+                  <div className={`text-base font-bold mt-1 ${selectedAuditRow.autoSubmitted ? "text-destructive" : "text-emerald-500"}`}>
+                    {selectedAuditRow.autoSubmitted ? "YES" : "NO"}
                   </div>
                 </div>
               </div>
 
-              {/* Chronological Event Timeline */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Audit Timeline & Event Log
-                </h4>
-
+              {/* Forensic Event Log */}
+              <div>
+                <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Timeline &amp; Event Log</h5>
                 {selectedAuditRow.proctorEvents.length === 0 && selectedAuditRow.tabSwitches === 0 ? (
-                  <div className="p-4 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
-                    Candidate completed the assessment without any detected gadget infractions or tab switches.
+                  <div className="text-xs text-muted-foreground p-3 rounded-xl bg-muted/20 text-center">
+                    No proctoring violations recorded. Full session adhered to integrity guidelines.
                   </div>
                 ) : (
-                  <div className="rounded-lg border divide-y max-h-60 overflow-y-auto">
-                    {selectedAuditRow.tabSwitches > 0 && !selectedAuditRow.proctorEvents.some(e => e.gadget === "tab_switch") && (
-                      <div className="p-3 flex items-start gap-3 bg-amber-500/5">
-                        <Monitor className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                        <div className="flex-1 text-xs">
-                          <div className="font-semibold text-foreground flex items-center gap-2">
-                            <span>Window / Tab Focus Lost</span>
-                            <Badge variant="outline" className="text-[9px] text-amber-600 dark:text-amber-400 border-amber-500/30">
-                              {selectedAuditRow.tabSwitches} occurrence{selectedAuditRow.tabSwitches > 1 ? "s" : ""}
-                            </Badge>
-                          </div>
-                          <div className="text-muted-foreground mt-0.5">
-                            Candidate navigated away from the assessment window or switched tabs.
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {selectedAuditRow.tabSwitches > 0 && (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Monitor className="h-4 w-4 text-amber-500" />
+                          <div>
+                            <span className="font-semibold text-foreground">Window / Tab Focus Lost</span>
+                            <p className="text-[11px] text-muted-foreground">Candidate navigated away from the assessment window or switched tabs.</p>
                           </div>
                         </div>
+                        <Badge variant="outline" className="border-amber-500/30 text-amber-600 bg-amber-500/10">
+                          {selectedAuditRow.tabSwitches} occurrence{selectedAuditRow.tabSwitches > 1 ? "s" : ""}
+                        </Badge>
                       </div>
                     )}
-
-                    {selectedAuditRow.proctorEvents
-                      .slice()
-                      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                      .map((ev, i) => (
-                        <div key={i} className="p-3 flex items-start gap-3 hover:bg-muted/30">
-                          <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${ev.action === "auto_submit" ? "bg-destructive" : "bg-amber-500"}`} />
-                          <div className="flex-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <Badge variant={ev.action === "auto_submit" ? "destructive" : "secondary"} className="text-[10px]">
-                                {ev.action === "auto_submit" ? "Auto-submitted" : "AI Warning"}
-                              </Badge>
-                              <span className="font-semibold text-foreground">
-                                {ev.gadget === "tab_switch" ? "Tab Switch Detected" : `Gadget Flagged: ${ev.gadget}`}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1 font-mono">
-                              {format(new Date(ev.timestamp), "yyyy-MM-dd HH:mm:ss")}
-                            </p>
+                    {selectedAuditRow.proctorEvents.map((e, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="h-4 w-4 text-destructive" />
+                          <div>
+                            <span className="font-semibold text-foreground">{e.gadget}</span>
+                            <p className="text-[11px] text-muted-foreground">Action taken: {e.action}</p>
                           </div>
                         </div>
-                      ))}
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          {format(new Date(e.timestamp), "HH:mm:ss")}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-
-              {selectedAuditRow.retakeReason && (
-                <div className="p-3 rounded-lg border bg-muted/40 text-xs">
-                  <span className="font-semibold text-foreground">Retake Justification:</span> {selectedAuditRow.retakeReason}
-                </div>
-              )}
             </div>
           )}
         </DialogContent>

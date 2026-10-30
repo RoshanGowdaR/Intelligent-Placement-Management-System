@@ -16,7 +16,7 @@ import {
   Bot, Mic, MicOff, Volume2, VolumeX, Send, Sparkles, Loader2,
   PanelLeftClose, PanelLeftOpen, Plus, MessageSquare, Trash2,
   Copy, Check, User, ArrowUp, Lightbulb, BarChart3, Building2,
-  GraduationCap, ClipboardList, ShieldCheck, ChevronRight, CornerDownLeft, RotateCw
+  GraduationCap, ClipboardList, ShieldCheck, ChevronRight, ChevronDown, CornerDownLeft, RotateCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -27,6 +27,18 @@ interface ChatMessage {
   text: string;
   timestamp: string;
   isDeepThought?: boolean;
+  thought?: string | null;
+}
+
+// Parses <think>...</think> tags if Think mode was active
+function parseThinkTags(raw: string): { thought: string | null; cleanText: string } {
+  const match = raw.match(/<think>([\s\S]*?)<\/think>/i);
+  if (match) {
+    const thought = match[1].trim();
+    const cleanText = raw.replace(/<think>[\s\S]*?<\/think>/i, "").trim();
+    return { thought, cleanText };
+  }
+  return { thought: null, cleanText: raw };
 }
 
 interface ChatSession {
@@ -54,6 +66,7 @@ export default function PlacementAIChat({ forcedRole }: { forcedRole?: "admin" |
   const [isDeepThinking, setIsDeepThinking] = useState(false);
   const [ttsActiveId, setTtsActiveId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedThoughtId, setExpandedThoughtId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -328,13 +341,10 @@ PLACED CANDIDATES:
 ${JSON.stringify(placedCandidates, null, 2)}
 
 CRITICAL RESPONSE & FORMATTING INSTRUCTIONS:
-1. ALWAYS USE VISUAL KPI CARDS & CHARTS:
-Whenever the user asks about:
-- Placement summary or overview
-- Attended students, passed, failed, or placed counts
-- Exam results or candidates performance
-You MUST include:
-A) A visual \`\`\`kpi block:
+1. CHARTS & GRAPHS POLICY (CRITICAL):
+- ONLY output a \`\`\`chart block IF AND ONLY IF the user explicitly asks for a chart, graph, diagram, plot, or visual representation (e.g., 'show a chart', 'graph the results', 'plot scores', 'visualize').
+- DO NOT produce \`\`\`chart blocks for regular text queries, student lookups, eligibility questions, or summaries unless specifically requested.
+- For placement summary or overview queries, you MAY include a visual \`\`\`kpi block to summarize high-level totals cleanly:
 \`\`\`kpi
 [
   { "label": "Registered", "value": ${profiles.length}, "sub": "Total Students", "color": "#3b82f6" },
@@ -344,7 +354,7 @@ A) A visual \`\`\`kpi block:
   { "label": "Placed", "value": ${totalPlaced}, "sub": "Placed Offers", "color": "#8b5cf6" }
 ]
 \`\`\`
-B) A visual comparative Bar Chart using \`\`\`chart:
+- If the user explicitly asks for a chart, you may output:
 \`\`\`chart
 {
   "type": "bar",
@@ -358,7 +368,8 @@ B) A visual comparative Bar Chart using \`\`\`chart:
   ]
 }
 \`\`\`
-C) When specific candidate attempts are referenced (e.g. Hemanth), include their individual Proctor Score Card using \`\`\`proctor:
+2. PROCTORING & CANDIDATE DETAILS:
+When specific candidate attempts are referenced (e.g. Hemanth), include their individual Proctor Score Card using \`\`\`proctor:
 \`\`\`proctor
 {
   "candidate": "Candidate Name",
@@ -490,18 +501,21 @@ Act as an expert placement tutor and interview coach. Help this student master t
     try {
       const systemContext = await gatherRoleDatabaseContext();
       const thinkingPrefix = isDeepThinking
-        ? "Perform step-by-step deep architectural reasoning before presenting your final structured answer.\n"
+        ? "CRITICAL: You are in DEEP THINK MODE. Encapsulate your comprehensive step-by-step reasoning, query decomposition, and forensic database cross-referencing inside <think>...</think> tags. After </think>, output your clean, final response.\n\n"
         : "";
 
-      const aiResponseText = await askGemini(
+      const rawAiResponse = await askGemini(
         `${thinkingPrefix}${messageText}`,
         systemContext
       );
 
+      const { thought, cleanText } = parseThinkTags(rawAiResponse);
+
       const assistantMsg: ChatMessage = {
         id: "msg_" + (Date.now() + 1),
         sender: "assistant",
-        text: aiResponseText,
+        text: cleanText,
+        thought: thought,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         isDeepThought: isDeepThinking,
       };
@@ -587,16 +601,18 @@ Act as an expert placement tutor and interview coach. Help this student master t
     try {
       const systemContext = await gatherRoleDatabaseContext();
       const thinkingPrefix = isDeepThinking
-        ? "Perform step-by-step deep architectural reasoning before presenting your final structured answer.\n"
+        ? "CRITICAL: You are in DEEP THINK MODE. Encapsulate your comprehensive step-by-step reasoning, query decomposition, and forensic database cross-referencing inside <think>...</think> tags. After </think>, output your clean, final response.\n\n"
         : "";
-      const aiResponseText = await askGemini(
+      const rawAiResponse = await askGemini(
         `${thinkingPrefix}${lastUserMsg.text}`,
         systemContext
       );
+      const { thought, cleanText } = parseThinkTags(rawAiResponse);
       const assistantMsg: ChatMessage = {
         id: "msg_" + Date.now(),
         sender: "assistant",
-        text: aiResponseText,
+        text: cleanText,
+        thought: thought,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         isDeepThought: isDeepThinking,
       };
@@ -950,6 +966,27 @@ Act as an expert placement tutor and interview coach. Help this student master t
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col items-start w-full group"
                   >
+                    {/* Collapsible Deep Thought Accordion if present */}
+                    {msg.thought && (
+                      <div className="w-full mb-3 rounded-2xl border border-primary/20 bg-primary/5 overflow-hidden not-prose">
+                        <button
+                          onClick={() => setExpandedThoughtId(expandedThoughtId === msg.id ? null : msg.id)}
+                          className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                            Forensic Reasoning &amp; Thought Process
+                          </span>
+                          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${expandedThoughtId === msg.id ? "rotate-180" : ""}`} />
+                        </button>
+                        {expandedThoughtId === msg.id && (
+                          <div className="px-4 pb-3 pt-1 text-xs text-muted-foreground font-mono whitespace-pre-wrap border-t border-primary/10 leading-relaxed max-h-60 overflow-y-auto">
+                            {msg.thought}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="prose dark:prose-invert max-w-none w-full text-[15px] leading-7 break-words text-foreground font-normal selection:bg-primary/30">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
