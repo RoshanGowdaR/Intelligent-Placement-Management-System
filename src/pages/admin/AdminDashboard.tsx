@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/3d/GlassCard";
-import { AdminAIAssistant } from "@/components/assistant/AdminAIAssistant";
 import { InviteCompanyDialog } from "@/components/admin/InviteCompanyDialog";
 import CompanyLogo from "@/components/CompanyLogo";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Assistant & Invite Modals
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
@@ -411,18 +409,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Floating Quick Trigger for Placement Assistant */}
-      <Link
-        to="/admin/ai"
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_35px_rgba(108,92,231,0.5)] border border-white/20 hover:scale-105 transition-transform"
-      >
-        <Bot className="h-4 w-4" />
-        <span>Placement Oracle AI</span>
-        <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-      </Link>
-
       {/* Modals */}
-      <AdminAIAssistant open={assistantOpen} onOpenChange={setAssistantOpen} />
       <InviteCompanyDialog open={inviteOpen} onOpenChange={setInviteOpen} onInvited={fetchDashboardData} />
 
     </div>

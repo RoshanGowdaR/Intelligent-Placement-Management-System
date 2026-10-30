@@ -396,6 +396,20 @@ export default function StudentTests() {
   const [profileCompletion, setProfileCompletion] = useState(0);
 
   const [activeTest, setActiveTest] = useState<Test | null>(null);
+
+  useEffect(() => {
+    if (activeTest) {
+      document.body.classList.add("in-test-active");
+      sessionStorage.setItem("in_test_active", "true");
+    } else {
+      document.body.classList.remove("in-test-active");
+      sessionStorage.removeItem("in_test_active");
+    }
+    return () => {
+      document.body.classList.remove("in-test-active");
+      sessionStorage.removeItem("in_test_active");
+    };
+  }, [activeTest]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -487,7 +501,7 @@ export default function StudentTests() {
 
     setSchedules(schedMap);
 
-    // Auto-resume in-progress test after refresh
+    // Auto-resume in-progress test after refresh: strictly gate with camera & fullscreen
     if (progressKey && !activeTest) {
       try {
         const raw = localStorage.getItem(progressKey);
@@ -504,16 +518,12 @@ export default function StudentTests() {
             setAnswers(saved.answers ?? {});
             setCurrentIdx(saved.currentIdx ?? 0);
             setTimeLeft(remaining);
-            setSubmitted(false);
-            setResult(null);
             tabSwitchRef.current = saved.tabSwitches ?? 0;
             setTabSwitchCount(tabSwitchRef.current);
             proctorEventsRef.current = saved.proctorEvents ?? [];
             retakeReasonRef.current = saved.retakeReason ?? null;
-            setActiveTest(test);
-            submittingRef.current = false;
-            document.documentElement.requestFullscreen?.().catch(() => {});
-            toast.info("Resumed your in-progress test");
+            setGateModalTest(test);
+            toast.info("Resuming assessment: Fullscreen and camera verification required.");
           } else if (remaining <= 0) {
             localStorage.removeItem(progressKey);
           }
@@ -713,6 +723,23 @@ export default function StudentTests() {
 
   // Actual test session launch (ONLY called after Fullscreen & Camera are 100% verified)
   const startActiveTestSession = (test: Test, isRetake = false) => {
+    // Suppress AI assistant globally
+    document.body.classList.add("in-test-active");
+    sessionStorage.setItem("in_test_active", "true");
+
+    // If resuming from saved session
+    if (questions.length > 0 && Object.keys(answers).length > 0) {
+      setSubmitted(false);
+      setResult(null);
+      setAiFeedback(null);
+      setShowReview(false);
+      setExplanations({});
+      setIsFullscreenLocked(false);
+      setActiveTest(test);
+      submittingRef.current = false;
+      return;
+    }
+
     const mainBank = (test.question_bank as unknown as Question[]) ?? [];
     const retakeBank = ((test as unknown as { retake_question_bank?: Question[] }).retake_question_bank) ?? [];
     const bank = isRetake && retakeBank.length > 0 ? retakeBank : mainBank;
@@ -953,12 +980,16 @@ ${JSON.stringify(wrongQs.map((q) => ({
 
     // Send direct in-app result notification to the student without failing CORS edge functions
     if (user && activeTest) {
-      supabase.from("notifications").insert({
-        user_id: user.id,
-        title: `Assessment Completed: ${activeTest.title}`,
-        message: `You scored ${scorePercent}% (${totalScore}/${totalPoints} marks) in ${activeTest.title}. Result: ${passed ? "Passed" : "Below Cutoff"}. Attempt #${attemptNum}.`,
-        type: "result",
-      } as any).catch(() => {});
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          title: `Assessment Completed: ${activeTest.title}`,
+          message: `You scored ${scorePercent}% (${totalScore}/${totalPoints} marks) in ${activeTest.title}. Result: ${passed ? "Passed" : "Below Cutoff"}. Attempt #${attemptNum}.`,
+          type: "result",
+        } as any);
+      } catch {
+        // silent fail
+      }
     }
 
     // Generate AI feedback and explanations in parallel using Gemini
@@ -967,6 +998,8 @@ ${JSON.stringify(wrongQs.map((q) => ({
   };
 
   const exitTest = () => {
+    document.body.classList.remove("in-test-active");
+    sessionStorage.removeItem("in_test_active");
     // Exit fullscreen
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});

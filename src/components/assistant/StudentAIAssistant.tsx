@@ -103,9 +103,14 @@ export function StudentAIAssistant() {
     window.addEventListener("mouseup", handleMouseUp);
   };
 
-  // Don't render for non-students
-  // Don't render for non-students or on tests pages (prevents cheating during exams)
-  if (role !== "student" || !user || location.pathname.includes("/tests")) return null;
+  // Don't render for non-students or during active test sessions (strictly prevents cheating during exams)
+  const isInTestSession =
+    location.pathname.includes("/tests") ||
+    location.pathname.includes("/test") ||
+    (typeof document !== "undefined" && document.body.classList.contains("in-test-active")) ||
+    (typeof sessionStorage !== "undefined" && sessionStorage.getItem("in_test_active") === "true");
+
+  if (role !== "student" || !user || isInTestSession) return null;
 
   const quickPrompts = [
     "📈 Analyze my test performance & scores",

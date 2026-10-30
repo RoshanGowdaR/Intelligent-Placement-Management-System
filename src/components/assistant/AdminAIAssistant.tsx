@@ -224,9 +224,10 @@ export function AdminAIAssistant() {
         ? "CRITICAL: You are in DEEP THINK MODE. Encapsulate your comprehensive step-by-step reasoning, query decomposition, and forensic database cross-referencing inside <think>...</think> tags. After </think>, output your clean, final executive response.\n\n"
         : "Output your clean, executive response directly without <think> tags.\n\n";
 
-      const chartDirective = "CRITICAL CHARTS POLICY:\n" +
-        "- ONLY output a ```chart block IF AND ONLY IF the user explicitly asks for a chart, graph, diagram, plot, or visual representation (e.g. 'show a chart', 'graph the results', 'plot scores').\n" +
-        "- DO NOT produce ```chart blocks for regular text questions, tables, eligibility lookups, or summaries unless specifically requested.\n\n";
+      const userWantsChart = /\b(chart|graph|plot|visual|diagram|visualize|bar chart|pie chart|histogram)\b/i.test(queryText);
+      const chartDirective = userWantsChart
+        ? "The user has explicitly asked for a visual chart or graph. Include a ```chart { \"title\": \"...\", \"data\": [ { \"name\": \"...\", \"value\": 10 } ] } ``` block alongside your explanation.\n\n"
+        : "CRITICAL MANDATE: The user DID NOT request a chart or graph. Under NO CIRCUMSTANCES should you output any ```chart code block. Present all statistical breakdowns and comparisons strictly through clean Markdown tables, lists, and bold summary metrics.\n\n";
 
       const systemPrompt = `You are the 'Placement Intelligence Oracle', the high-level executive recruitment intelligence system for university administrators.
 You have administrative-level read access to the complete placement and assessment database:
@@ -523,6 +524,11 @@ Instructions:
                                 // Interactive Telemetry Bar Chart (ONLY if user asked)
                                 if (lang === "chart") {
                                   try {
+                                    const lastUserMsg = messages.filter((m) => m.sender === "user").slice(-1)[0]?.text || "";
+                                    const explicitChart = /\b(chart|graph|plot|visual|diagram|visualize)\b/i.test(lastUserMsg);
+                                    if (!explicitChart) {
+                                      return null;
+                                    }
                                     const chartConfig = JSON.parse(codeContent);
                                     const data = chartConfig.data || [];
                                     const title = chartConfig.title || "Placement Telemetry";
