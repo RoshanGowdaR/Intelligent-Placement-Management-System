@@ -302,7 +302,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
           <main className="flex-1 overflow-auto p-4 md:p-8">{children}</main>
           {/* Floating AI Mentors: Hidden on /dashboard/tests so students cannot cheat */}
-          {role === "student" && location.pathname !== "/dashboard/tests" && <StudentAIAssistant />}
+          {role === "student" && !location.pathname.includes("/tests") && <StudentAIAssistant />}
           {role === "admin" && <AdminAIAssistant />}
         </div>
       </div>

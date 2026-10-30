@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ interface Message {
 
 export function StudentAIAssistant() {
   const { user, role } = useAuth();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 440, height: 600 });
@@ -103,7 +104,8 @@ export function StudentAIAssistant() {
   };
 
   // Don't render for non-students
-  if (role !== "student" || !user) return null;
+  // Don't render for non-students or on tests pages (prevents cheating during exams)
+  if (role !== "student" || !user || location.pathname.includes("/tests")) return null;
 
   const quickPrompts = [
     "📈 Analyze my test performance & scores",

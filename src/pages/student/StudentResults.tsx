@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Trophy, TrendingUp, Sparkles, Loader2, Eye, CheckCircle2, XCircle } from "lucide-react";
 import CompanyLogo from "@/components/CompanyLogo";
+import { askGemini } from "@/lib/gemini";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Attempt = Tables<"test_attempts">;
@@ -41,20 +42,31 @@ function ReviewModal({ attempt, questions, onClose }: {
     if (wrongQuestions.length === 0) { setLoading(false); return; }
     const load = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("generate-feedback", {
-          body: {
-            mode: "explanations",
-            questions: wrongQuestions.map((q) => ({
-              id: q.id,
-              text: q.text,
-              options: q.options,
-              correct_answer: q.correct_answer,
-              user_answer: userAnswers[q.id] ?? "Not answered",
-              subject: q.subject,
-            })),
-          },
-        });
-        if (!error && data?.explanations) setExplanations(data.explanations);
+        const prompt = `Analyze these incorrectly answered questions and generate concise explanations.
+Return a valid JSON object where keys are question IDs and values have "why_wrong" and "why_right".
+Format:
+{
+  "q_id": {
+    "why_wrong": "Explanation of why user answer is incorrect",
+    "why_right": "Explanation of why correct answer is correct"
+  }
+}
+Questions:
+${JSON.stringify(wrongQuestions.map((q) => ({
+  id: q.id,
+  text: q.text,
+  options: q.options,
+  correct_answer: q.correct_answer,
+  user_answer: userAnswers[q.id] ?? "Not answered",
+  subject: q.subject,
+})))}
+`;
+        const resText = await askGemini(prompt, "You are an automated tutor. Output ONLY a valid JSON object without markdown fences.");
+        const jsonMatch = resText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          setExplanations(parsed);
+        }
       } catch { /* ignore */ }
       setLoading(false);
     };
@@ -201,16 +213,8 @@ export default function StudentResults() {
   const generateFeedback = async (attempt: Attempt & { test_title: string }) => {
     setGeneratingFor(attempt.id);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-feedback", {
-        body: {
-          testTitle: attempt.test_title,
-          totalScore: attempt.total_score,
-          passed: attempt.passed,
-          scores: attempt.scores as Record<string, number>,
-        },
-      });
-      if (error) throw error;
-      const feedback = data?.feedback || "Unable to generate feedback.";
+      const prompt = `Provide 2-3 constructive feedback bullet points for a student who scored ${attempt.total_score}% (${attempt.passed ? "Passed" : "Failed"}) on assessment "${attempt.test_title}". Highlight strengths and topics to revise.`;
+      const feedback = await askGemini(prompt, "You are a professional university placement coach. Keep response under 3 concise bullet points.");
       await supabase.from("test_attempts").update({ feedback } as Record<string, unknown>).eq("id", attempt.id);
       setAttempts((prev) => prev.map((a) => a.id === attempt.id ? { ...a, feedback } : a));
     } catch { /* silently fail */ }
