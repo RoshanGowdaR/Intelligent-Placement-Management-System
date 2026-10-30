@@ -269,3 +269,33 @@ Exploratory testing was conducted following timeboxed session charters to examin
   Replaced `generate-feedback` with client-side Gemini AI generation via `askGemini()`, and replaced `send-result-notification` with direct insert into `notifications` table.
 - **Verification**: Verified test submissions generate feedback and notifications cleanly with zero console errors. Status: **RESOLVED**.
 
+
+---
+
+### 🐛 BUG-016: Dual-Model Loading Failure Paralyzing Proctor Detection & Masking Multiple People / Mobile Devices
+- **Severity**: S1 - Critical
+- **Component**: `src/components/WebcamProctor.tsx`
+- **Symptom**: Holding mobile phone in camera view or having multiple people in camera view failed to trigger warnings; status badge remained permanently stuck on "Solo & Focused".
+- **Root Cause**: `Promise.all([cocoSsd.load(), blazeface.load()])` failed because BlazeFace fetches weights from deprecated `tfhub.dev` domain, throwing `fetch failed`. The detection loop required both models (`if (!cocoModelRef.current || !blazeModelRef.current) return;`), which caused detection to silently abort on every frame.
+- **Fix Implemented**:
+  1. **Independent Model Loading**: COCO-SSD loads independently with `mobilenet_v2` and `lite_mobilenet_v2` fallback.
+  2. **Native Chromium FaceDetector**: Integrated `window.FaceDetector` as an instant, hardware-accelerated, zero-network face and gaze detector.
+  3. **BlazeFace Isolation**: BlazeFace is loaded independently without blocking COCO-SSD inference.
+  4. **Multi-Person Vision Detection**: Combines COCO-SSD person counts (`score >= 0.14`) + Native FaceDetector + BlazeFace.
+  5. **Mobile Phone Sensitivity**: Calibrated low-threshold (`0.08` for `cell phone`, `0.10` for `remote`) detection to immediately catch dark or held smartphones.
+  6. **Real-Time Bounding Box Canvas**: Renders real-time bounding box overlays on top of the webcam feed (green for candidate, red for 2nd person, red for prohibited gadgets).
+- **Verification**: Multi-person and mobile phone detection verified; status updates to red warning badge, triggers auditory beep, and logs forensic events. Status: **RESOLVED**.
+
+---
+
+### 🐛 BUG-017: PostgREST Notification Insert TypeError & In-Test AI Assistant Presence
+- **Severity**: S2 - High
+- **Component**: `src/pages/student/StudentTests.tsx` & `src/components/assistant/StudentAIAssistant.tsx`
+- **Symptom**: `TypeError: de.from(...).insert(...).catch is not a function` in console, and AI Career Mentor floating trigger appeared during exams.
+- **Root Cause**: `.insert(...).catch(...)` called directly on PostgrestBuilder which does not implement `.catch()`; AI assistant lacked body-class and multi-route active test suppression.
+- **Fix Implemented**:
+  1. Wrapped `await supabase.from("notifications").insert(...)` in standard `try / catch` block.
+  2. Added global `in-test-active` body class, `in_test_active` session flag, route check, and CSS `!important` display suppression disallowing AI mentor during assessments.
+  3. Mandatory fullscreen and camera verification added for resuming in-progress tests after browser refresh.
+  4. Enforced strict chart policy on Admin AI Assistant so charts/graphs are only output when explicitly requested.
+- **Verification**: Zero console errors on exam submission; AI Career Mentor is 100% hidden during active tests; test cannot start without verified camera and fullscreen access. Status: **RESOLVED**.
