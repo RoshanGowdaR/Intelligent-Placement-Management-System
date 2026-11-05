@@ -41,8 +41,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       family: 4,
     } as any);
 
-    let mailSubject = subject || `🏢 Campus Placement Drive Invitation — ${companyName || "Recruiter"}`;
-    let mailHtml = html || `
+    const isAdminInvite = action === "admin_invite" || companyName === "Placement Admin";
+
+    const mailSubject = subject || (isAdminInvite
+      ? `🎓 Placement Administrator Invitation — Intelligent Placement Management System`
+      : `🏢 Campus Placement Drive Invitation — ${companyName || "Recruiter"}`);
+
+    const mailHtml = html || (isAdminInvite ? `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 580px; margin: 0 auto; padding: 36px; background-color: #0b0b10; color: #ffffff; border-radius: 20px; border: 1px solid #232336;">
+        <div style="text-align: center; margin-bottom: 28px;">
+          <div style="display: inline-block; background: #6c5ce7; width: 48px; height: 48px; line-height: 48px; border-radius: 14px; font-size: 24px; text-align: center;">🛡️</div>
+          <h1 style="color: #ffffff; font-size: 22px; margin: 12px 0 4px 0; font-weight: 800;">Intelligent Placement Management System</h1>
+          <p style="color: #6c5ce7; font-size: 13px; font-weight: 600; margin: 0; letter-spacing: 0.5px;">ADMINISTRATION ACCESS INVITATION</p>
+        </div>
+
+        <div style="background: linear-gradient(180deg, #141420 0%, #10101a 100%); padding: 28px; border-radius: 16px; border: 1px solid #28283f; margin-bottom: 28px;">
+          <h2 style="color: #ffffff; font-size: 18px; margin-top: 0; font-weight: 700;">
+            Welcome to the Placement Administration Team!
+          </h2>
+          <p style="color: #d1d1e0; line-height: 1.6; font-size: 14px;">
+            You have been invited by the Senior Placement Office to join as an <strong>Administrator</strong> on the Intelligent Placement Management System.
+          </p>
+          <p style="color: #d1d1e0; line-height: 1.6; font-size: 14px;">
+            With your administrative credentials, you will have access to:
+          </p>
+          <ul style="color: #a8a8c0; font-size: 13px; line-height: 1.8; padding-left: 20px;">
+            <li>📋 Comprehensive candidate database & student records</li>
+            <li>🏢 Campus drive management & multi-round test gating</li>
+            <li>📊 Live AI proctoring surveillance & forensic audit logs</li>
+            <li>📈 Placement Oracle AI Assistant & executive analytics</li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; margin: 36px 0;">
+          <a href="${inviteLink}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #6c5ce7 0%, #5844e3 100%); color: #ffffff; font-weight: 700; text-decoration: none; padding: 15px 36px; border-radius: 12px; font-size: 15px; box-shadow: 0 4px 25px rgba(108, 92, 231, 0.5); letter-spacing: 0.3px;">
+            Accept Admin Invitation & Set Up Account →
+          </a>
+        </div>
+
+        <div style="border-top: 1px solid #1f1f2e; padding-top: 20px; text-align: center;">
+          <p style="color: #6e6e85; font-size: 12px; line-height: 1.5; margin: 0;">
+            This invitation link is valid for 7 days.<br/>
+            If the button above does not open, copy and paste this URL into your browser:<br/>
+            <span style="color: #6c5ce7; font-size: 11px; word-break: break-all;">${inviteLink}</span>
+          </p>
+        </div>
+      </div>
+    ` : `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 580px; margin: 0 auto; padding: 36px; background-color: #0b0b10; color: #ffffff; border-radius: 20px; border: 1px solid #232336;">
         <div style="text-align: center; margin-bottom: 28px;">
           <div style="display: inline-block; background: #6c5ce7; width: 48px; height: 48px; line-height: 48px; border-radius: 14px; font-size: 24px; text-align: center;">🎓</div>
@@ -82,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           </p>
         </div>
       </div>
-    `;
+    `);
 
     const info = await transporter.sendMail({
       from: `"Intelligent Placement Management System" <${gmailUser}>`,

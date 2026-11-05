@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { GraduationCap, Loader2, ArrowLeft } from "lucide-react";
+import { GraduationCap, Loader2, ArrowLeft, ShieldCheck } from "lucide-react";
 import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 import { GlassCard } from "@/components/3d/GlassCard";
 import { motion } from "framer-motion";
@@ -52,6 +52,20 @@ export default function Signup() {
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const { signUp, user, role, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const adminInviteToken = searchParams.get("admin_invite") || searchParams.get("invite");
+  const inviteEmail = searchParams.get("email");
+
+  useEffect(() => {
+    if (adminInviteToken) {
+      localStorage.setItem("pending_admin_invite", adminInviteToken);
+    }
+    if (inviteEmail) {
+      setEmail(inviteEmail);
+      localStorage.setItem("pending_admin_email", inviteEmail.toLowerCase());
+    }
+  }, [adminInviteToken, inviteEmail]);
 
   const handleOAuthSignIn = async (provider: "google" | "apple") => {
     if (provider === "google") setIsGoogleLoading(true);
@@ -107,9 +121,25 @@ export default function Signup() {
             >
               <GraduationCap className="h-8 w-8 text-foreground" />
             </motion.div>
-            <h2 className="font-display text-2xl font-bold text-foreground">Create an account</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Join the smart placement platform</p>
+            <h2 className="font-display text-2xl font-bold text-foreground">
+              {adminInviteToken ? "Set Up Administrator Account" : "Create an account"}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {adminInviteToken ? "Join the campus placement administration team" : "Join the smart placement platform"}
+            </p>
           </div>
+
+          {adminInviteToken && (
+            <div className="mt-6 rounded-2xl border-2 border-primary/50 bg-primary/10 p-4 shadow-sm text-left">
+              <div className="flex items-center gap-2 font-bold text-sm text-primary">
+                <ShieldCheck className="h-5 w-5 text-primary" /> Placement Admin Invitation
+              </div>
+              <p className="mt-1.5 text-xs text-foreground/90 leading-relaxed">
+                You have been invited to join the <strong>Placement Administration</strong> team.
+                {inviteEmail ? <> Setting up access for <strong>{inviteEmail}</strong>.</> : " Enter your details to activate your administrative privileges."}
+              </p>
+            </div>
+          )}
 
           {/* OAuth Sign Up */}
           <div className="mt-6 space-y-3">
@@ -146,12 +176,17 @@ export default function Signup() {
             </div>
             <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
               <Button type="submit" className="w-full h-12 font-bold" disabled={isLoading}>
-                {isLoading ? "Creating account…" : "Create account"}
+                {isLoading ? "Creating account…" : adminInviteToken ? "Activate Admin Account" : "Create account"}
               </Button>
             </motion.div>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link to="/login" className="font-medium text-foreground hover:underline transition-colors">Sign in</Link>
+              <Link
+                to={adminInviteToken ? `/login?admin_invite=${adminInviteToken}&email=${encodeURIComponent(email)}` : "/login"}
+                className="font-medium text-foreground hover:underline transition-colors"
+              >
+                Sign in {adminInviteToken ? "to accept invite" : ""}
+              </Link>
             </p>
           </form>
         </GlassCard>

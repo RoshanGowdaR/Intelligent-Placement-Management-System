@@ -3,7 +3,7 @@ import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import * as blazeface from "@tensorflow-models/blazeface";
 import "@tensorflow/tfjs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ShieldAlert, Video, VideoOff, Eye, Users, Smartphone } from "lucide-react";
+import { ShieldAlert, Video, VideoOff, Eye, Users, Smartphone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const DEFAULT_GADGET_CLASSES: string[] = [
@@ -16,6 +16,7 @@ export const DEFAULT_GADGET_CLASSES: string[] = [
   "camera",
   "keyboard",
   "mouse",
+  "clock",
 ];
 
 export interface ProctorEvent {
@@ -43,8 +44,8 @@ interface WebcamProctorProps {
 const DEFAULT_CONFIG: ProctorConfig = {
   warning_delay_seconds: 6,
   second_offense_action: "submit",
-  detection_interval_ms: 400,
-  confidence_threshold: 0.10,
+  detection_interval_ms: 350,
+  confidence_threshold: 0.06,
   consecutive_frames: 1,
   watched_classes: DEFAULT_GADGET_CLASSES,
 };
@@ -119,6 +120,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
   // Live status badge
   const [previewStatus, setPreviewStatus] = useState<"ok" | "gaze" | "multi" | "gadget" | "noface">("ok");
   const [personCount, setPersonCount] = useState<number>(1);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
 
   // 1. Initialize camera stream and load AI models with resilient independent fallbacks
   useEffect(() => {
@@ -152,27 +154,30 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
               fastMode: true,
               maxDetectedFaces: 10,
             });
+            setModelsLoaded(true);
             console.log("[WebcamProctor] Native FaceDetector initialized successfully");
           } catch (e) {
             console.warn("[WebcamProctor] Native FaceDetector error:", e);
           }
         }
 
-        // Tier 2: COCO-SSD Object & Gadget & Person Detector (Loaded independently)
-        cocoSsd.load({ base: "mobilenet_v2" })
+        // Tier 2: COCO-SSD Object & Gadget & Person Detector (Load lite_mobilenet_v2 first for instant 500ms startup)
+        cocoSsd.load({ base: "lite_mobilenet_v2" })
           .then((model) => {
             if (!cancelled) {
               cocoModelRef.current = model;
-              console.log("[WebcamProctor] COCO-SSD mobilenet_v2 loaded successfully");
+              setModelsLoaded(true);
+              console.log("[WebcamProctor] COCO-SSD lite_mobilenet_v2 loaded successfully");
             }
           })
           .catch((err) => {
-            console.warn("[WebcamProctor] mobilenet_v2 load failed, falling back to lite_mobilenet_v2...", err);
-            cocoSsd.load({ base: "lite_mobilenet_v2" })
-              .then((liteModel) => {
+            console.warn("[WebcamProctor] lite_mobilenet_v2 load failed, falling back to mobilenet_v2...", err);
+            cocoSsd.load({ base: "mobilenet_v2" })
+              .then((v2Model) => {
                 if (!cancelled) {
-                  cocoModelRef.current = liteModel;
-                  console.log("[WebcamProctor] COCO-SSD lite_mobilenet_v2 loaded successfully");
+                  cocoModelRef.current = v2Model;
+                  setModelsLoaded(true);
+                  console.log("[WebcamProctor] COCO-SSD mobilenet_v2 loaded successfully");
                 }
               })
               .catch((e2) => {
@@ -181,10 +186,11 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           });
 
         // Tier 3: BlazeFace Model (Loaded independently; non-blocking)
-        blazeface.load({ maxFaces: 10, scoreThreshold: 0.25 })
+        blazeface.load({ maxFaces: 10, scoreThreshold: 0.20 })
           .then((bModel) => {
             if (!cancelled) {
               blazeModelRef.current = bModel;
+              setModelsLoaded(true);
               console.log("[WebcamProctor] BlazeFace loaded successfully");
             }
           })
@@ -235,8 +241,8 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       ctx.strokeRect(x, y, w, h);
 
       // Label badge
-      ctx.fillStyle = b.isViolation ? "rgba(239, 68, 68, 0.88)" : "rgba(16, 185, 129, 0.88)";
-      ctx.fillRect(x, Math.max(0, y - 20), Math.min(w, 140), 20);
+      ctx.fillStyle = b.isViolation ? "rgba(239, 68, 68, 0.90)" : "rgba(16, 185, 129, 0.90)";
+      ctx.fillRect(x, Math.max(0, y - 20), Math.min(w, 150), 20);
 
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 11px sans-serif";
@@ -248,10 +254,10 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
   useEffect(() => {
     if (!active || !cameraReady) return;
 
-    // High sensitivity thresholds
-    const phoneThreshold = 0.08;
-    const remoteThreshold = 0.10;
-    const gadgetThreshold = 0.14;
+    // High sensitivity thresholds for immediate gadget detection
+    const phoneThreshold = 0.06;
+    const remoteThreshold = 0.08;
+    const gadgetThreshold = 0.10;
 
     const runDetection = async () => {
       const video = videoRef.current;
@@ -262,9 +268,10 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       const boxesToDraw: DetectedBox[] = [];
 
       try {
-        // Collect parallel detections from all available detectors
+        // CRITICAL FIX: Pass minScore = 0.05 and maxNumBoxes = 25 to detect()
+        // Default detect() without args drops everything below 0.50 confidence, causing phones to be missed!
         const cocoPromise = cocoModelRef.current
-          ? cocoModelRef.current.detect(video).catch(() => [])
+          ? (cocoModelRef.current as any).detect(video, 25, 0.05).catch(() => [])
           : Promise.resolve([]);
 
         const blazePromise = blazeModelRef.current
@@ -284,29 +291,35 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
         let detectedViol: ViolationState | null = null;
 
         // ---- CHECK 1: DIGITAL GADGETS & SMARTPHONES (COCO-SSD) ----
-        // Watched prohibited classes
-        const foundGadget = cocoPreds.find((p) => {
-          const cls = p.class.toLowerCase();
+        // Handheld mobile phones are classified by COCO-SSD as "cell phone" or "remote"
+        const foundGadget = cocoPreds.find((p: any) => {
+          const cls = (p.class || "").toLowerCase();
           const isPhone = cls === "cell phone";
-          const isRemote = cls === "remote"; // Handheld phones frequently classify as remote in COCO
+          const isRemote = cls === "remote"; // Handheld phones frequently classify as remote
           const isLaptop = cls === "laptop" || cls === "tv" || cls === "tablet";
-          const isBookOrOther = cls === "book" || cls === "camera";
+          const isMouseOrKb = cls === "mouse" || cls === "keyboard";
+          const isBookOrOther = cls === "book" || cls === "camera" || cls === "clock";
 
           if (isPhone && p.score >= phoneThreshold) return true;
           if (isRemote && p.score >= remoteThreshold) return true;
           if (isLaptop && p.score >= gadgetThreshold) return true;
-          if (isBookOrOther && p.score >= 0.18) return true;
+          if (isMouseOrKb && p.score >= 0.12) return true;
+          if (isBookOrOther && p.score >= 0.14) return true;
           return false;
         });
 
         if (foundGadget) {
-          const cls = foundGadget.class.toLowerCase();
+          const cls = (foundGadget.class || "").toLowerCase();
           const gadgetName = (cls === "cell phone" || cls === "remote")
             ? "Mobile Phone / Smartphone"
             : cls === "laptop"
             ? "Secondary Laptop / Screen"
             : cls === "tablet"
             ? "Tablet / Digital Device"
+            : cls === "tv"
+            ? "External Monitor / TV"
+            : cls === "mouse" || cls === "keyboard"
+            ? "External Input Device"
             : foundGadget.class;
 
           gadgetFramesRef.current += 1;
@@ -314,7 +327,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
             detectedViol = {
               type: "gadget",
               name: `Prohibited Device (${gadgetName})`,
-              description: `A prohibited device (${gadgetName}) was detected in your camera view. Please remove all mobile phones and digital gadgets immediately.`,
+              description: `A prohibited device (${gadgetName}) was detected in your camera view. Please put away all phones, secondary screens, and electronic gadgets immediately.`,
             };
             setPreviewStatus("gadget");
 
@@ -329,8 +342,8 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
         }
 
         // ---- CHECK 2: MULTIPLE PEOPLE IN CAMERA FRAME ----
-        // We cross-verify via COCO-SSD persons + Native FaceDetector + BlazeFace
-        const cocoPersons = cocoPreds.filter((p) => p.class === "person" && p.score >= 0.14);
+        // Cross-verified via COCO-SSD persons + BlazeFace faces + Native FaceDetector
+        const cocoPersons = cocoPreds.filter((p: any) => p.class === "person" && p.score >= 0.08);
         const personCountCoco = cocoPersons.length;
         const nativeFaceCount = nativeFaces.length;
         const blazeFaceCount = blazeFaces.length;
@@ -339,11 +352,11 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
         setPersonCount(Math.max(1, maxPersonsDetected));
 
         // Draw bounding boxes for persons
-        cocoPersons.forEach((p, idx) => {
+        cocoPersons.forEach((p: any, idx: number) => {
           const isCandidate = idx === 0 && maxPersonsDetected === 1;
           boxesToDraw.push({
             bbox: p.bbox,
-            label: isCandidate ? "Candidate" : `Person ${idx + 1}`,
+            label: isCandidate ? "Candidate (Verified)" : `Person ${idx + 1} (Unauthorized)`,
             isViolation: !isCandidate,
           });
         });
@@ -354,7 +367,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
             detectedViol = {
               type: "multiple_people",
               name: `Multiple People in Camera View (${maxPersonsDetected} people detected)`,
-              description: "The examination must be taken strictly alone in a quiet room. Please ensure no other persons are in your camera view.",
+              description: "The assessment must be taken strictly solo in a quiet room. Please ensure no other persons are beside you or in your camera view.",
             };
             setPreviewStatus("multi");
           }
@@ -379,7 +392,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           } else {
             noFaceFramesRef.current = 0;
 
-            // Analyze head pose / gaze direction via BlazeFace landmarks or Native FaceDetector landmarks
+            // Analyze head pose / gaze direction via BlazeFace landmarks or Native FaceDetector
             let isLookingAway = false;
             let awayDirection = "";
 
@@ -400,20 +413,19 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
                   const eyeToMouth = Math.abs(mouth[1] - midEyeY);
                   const pitchRatio = (nose[1] - midEyeY) / Math.max(1, eyeToMouth);
 
-                  if (yawOffset > 0.24) {
+                  if (yawOffset > 0.22) {
                     isLookingAway = true;
                     awayDirection = "Left";
-                  } else if (yawOffset < -0.24) {
+                  } else if (yawOffset < -0.22) {
                     isLookingAway = true;
                     awayDirection = "Right";
-                  } else if (pitchRatio > 0.80) {
+                  } else if (pitchRatio > 0.75) {
                     isLookingAway = true;
                     awayDirection = "Down";
                   }
                 }
               }
             } else if (nativeFaces.length > 0) {
-              // Native FaceDetector fallback
               const face = nativeFaces[0];
               const landmarks = face.landmarks || [];
               const eyeLeft = landmarks.find((l: any) => l.type === "eye" && l.location?.x < face.boundingBox.x + face.boundingBox.width / 2);
@@ -425,10 +437,10 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
                 if (eyeDist > 8) {
                   const midEyeX = (eyeRight.location.x + eyeLeft.location.x) / 2;
                   const yaw = (nose.location.x - midEyeX) / eyeDist;
-                  if (yaw > 0.24) {
+                  if (yaw > 0.22) {
                     isLookingAway = true;
                     awayDirection = "Left";
-                  } else if (yaw < -0.24) {
+                  } else if (yaw < -0.22) {
                     isLookingAway = true;
                     awayDirection = "Right";
                   }
@@ -479,12 +491,11 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           setPreviewStatus("ok");
         }
       } catch (err) {
-        // Safe frame drop handler
         console.warn("[WebcamProctor] Detection frame drop:", err);
       }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, cfg.detection_interval_ms || 400);
+    detectIntervalRef.current = setInterval(runDetection, cfg.detection_interval_ms || 350);
     return () => {
       if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
     };
@@ -537,7 +548,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
   return (
     <>
       {/* Floating webcam preview (bottom-left) */}
-      <div className="fixed bottom-4 left-4 z-[60] w-56 overflow-hidden rounded-2xl border-2 border-primary/50 bg-black/90 shadow-2xl backdrop-blur-md">
+      <div className="fixed bottom-4 left-4 z-[60] w-64 overflow-hidden rounded-2xl border-2 border-primary/50 bg-black/90 shadow-2xl backdrop-blur-md">
         <div className="flex items-center justify-between bg-zinc-900/90 px-3 py-1.5 text-xs border-b border-border/40">
           <span className="flex items-center gap-1.5 font-bold text-[11px] text-zinc-200">
             {cameraReady ? <Video className="h-3.5 w-3.5 text-emerald-400" /> : <VideoOff className="h-3.5 w-3.5 text-destructive" />}
@@ -547,29 +558,34 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           {/* Status Badge */}
           {cameraReady && (
             <span className="flex items-center gap-1 text-[10px] font-semibold">
-              {previewStatus === "ok" && (
+              {!modelsLoaded && (
+                <span className="inline-flex items-center gap-1 text-cyan-400">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" /> Calibrating AI...
+                </span>
+              )}
+              {modelsLoaded && previewStatus === "ok" && (
                 <span className="inline-flex items-center gap-1 text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Solo &amp; Focused
                 </span>
               )}
-              {previewStatus === "gaze" && (
+              {modelsLoaded && previewStatus === "gaze" && (
                 <span className="inline-flex items-center gap-1 text-amber-400 font-bold">
                   <Eye className="h-3 w-3" /> Focus Away
                 </span>
               )}
-              {previewStatus === "multi" && (
-                <span className="inline-flex items-center gap-1 text-rose-400 font-bold">
+              {modelsLoaded && previewStatus === "multi" && (
+                <span className="inline-flex items-center gap-1 text-rose-400 font-bold animate-pulse">
                   <Users className="h-3 w-3" /> {personCount} People
                 </span>
               )}
-              {previewStatus === "gadget" && (
-                <span className="inline-flex items-center gap-1 text-rose-400 font-bold">
-                  <Smartphone className="h-3 w-3" /> Gadget
+              {modelsLoaded && previewStatus === "gadget" && (
+                <span className="inline-flex items-center gap-1 text-rose-400 font-bold animate-pulse">
+                  <Smartphone className="h-3 w-3" /> Phone/Device
                 </span>
               )}
-              {previewStatus === "noface" && (
+              {modelsLoaded && previewStatus === "noface" && (
                 <span className="inline-flex items-center gap-1 text-amber-400 font-bold">
-                  No Face
+                  No Face Visible
                 </span>
               )}
             </span>

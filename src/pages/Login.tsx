@@ -54,8 +54,22 @@ export default function Login() {
   const [searchParams] = useSearchParams();
 
   const companyInviteToken = searchParams.get("company_invite") || searchParams.get("token");
+  const adminInviteToken = searchParams.get("admin_invite") || searchParams.get("invite");
+  const inviteEmail = searchParams.get("email");
   const requestedRole = searchParams.get("role");
   const [invitedCompanyName, setInvitedCompanyName] = useState<string | null>(null);
+  const [isAdminInvite, setIsAdminInvite] = useState(false);
+
+  useEffect(() => {
+    if (adminInviteToken) {
+      setIsAdminInvite(true);
+      localStorage.setItem("pending_admin_invite", adminInviteToken);
+      if (inviteEmail) {
+        setEmail(inviteEmail);
+        localStorage.setItem("pending_admin_email", inviteEmail.toLowerCase());
+      }
+    }
+  }, [adminInviteToken, inviteEmail]);
 
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
@@ -91,7 +105,12 @@ export default function Login() {
       .eq("user_id", userData.user.id);
       
     const roles = (rolesData ?? []).map((r) => r.role);
-    const isAdmin = roles.includes("admin") || userData.user.email === "gowdaroshan49@gmail.com";
+    const hasAdminInvite = Boolean(
+      localStorage.getItem("pending_admin_invite") ||
+      localStorage.getItem(`verified_role_${userData.user.id}`) === "admin" ||
+      localStorage.getItem("user_role") === "admin"
+    );
+    const isAdmin = roles.includes("admin") || userData.user.email === "gowdaroshan49@gmail.com" || hasAdminInvite;
     const isCompany = roles.includes("company") || localStorage.getItem("pending_company_role") === "company";
 
     if (isAdmin) {
@@ -433,6 +452,17 @@ export default function Login() {
               </Button>
             </motion.div>
           </div>
+
+          {isAdminInvite && (
+            <div className="mb-4 rounded-2xl border-2 border-primary/50 bg-primary/10 p-3.5 text-xs text-left shadow-sm">
+              <div className="flex items-center gap-2 font-bold text-sm text-primary">
+                <Shield className="h-4 w-4 text-primary" /> Placement Admin Invitation
+              </div>
+              <p className="mt-1 text-foreground/90 leading-relaxed text-[12px]">
+                You have an active Administrator invitation. Sign in to link your account and access the Admin Portal.
+              </p>
+            </div>
+          )}
 
           <Divider />
 

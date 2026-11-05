@@ -30,12 +30,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 1. Primary admin email auto-provisioning
       if (normalizedEmail === "gowdaroshan49@gmail.com") {
-        await supabase.from("user_roles").upsert(
-          { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
-          { onConflict: "user_id,role" }
-        );
+        try {
+          await supabase.from("user_roles").upsert(
+            { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
+            { onConflict: "user_id,role" }
+          );
+        } catch (_) {}
+        localStorage.setItem(`verified_role_${userId}`, "admin");
+        localStorage.setItem("user_role", "admin");
         setRole("admin");
         return "admin";
+      }
+
+      // 1a. Check if user came via verified admin invite link stored in localStorage
+      const pendingAdminInviteToken = localStorage.getItem("pending_admin_invite");
+      const pendingAdminEmail = (localStorage.getItem("pending_admin_email") || "").trim().toLowerCase();
+
+      if (pendingAdminInviteToken || (pendingAdminEmail && pendingAdminEmail === normalizedEmail)) {
+        let adminInviteVerified = false;
+        let adminInviteId: string | null = null;
+
+        if (pendingAdminInviteToken) {
+          const { data: inv } = await supabase
+            .from("company_invites" as any)
+            .select("id, company_name, email, accepted_at")
+            .eq("token", pendingAdminInviteToken)
+            .maybeSingle();
+
+          if (inv && inv.company_name === "Placement Admin") {
+            adminInviteVerified = true;
+            adminInviteId = inv.id;
+          }
+        }
+
+        if (!adminInviteVerified && normalizedEmail) {
+          const { data: invList } = await supabase
+            .from("company_invites" as any)
+            .select("id, company_name, accepted_at")
+            .ilike("email", normalizedEmail)
+            .eq("company_name", "Placement Admin")
+            .order("created_at", { ascending: false });
+
+          if (invList && invList.length > 0) {
+            adminInviteVerified = true;
+            adminInviteId = invList[0].id;
+          }
+        }
+
+        if (adminInviteVerified) {
+          try {
+            await supabase.from("user_roles").upsert(
+              { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
+              { onConflict: "user_id,role" }
+            );
+          } catch (_) {}
+
+          if (adminInviteId) {
+            try {
+              await supabase
+                .from("company_invites" as any)
+                .update({ accepted_at: new Date().toISOString() })
+                .eq("id", adminInviteId);
+            } catch (_) {}
+          }
+
+          localStorage.removeItem("pending_admin_invite");
+          localStorage.removeItem("pending_admin_email");
+          localStorage.setItem(`verified_role_${userId}`, "admin");
+          localStorage.setItem("user_role", "admin");
+          setRole("admin");
+          return "admin";
+        }
       }
 
       // 1b. Check if user came via verified company invite link stored in localStorage
@@ -101,8 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const existingRoles = (roleRecords ?? []).map((r) => r.role);
+      const cachedRole = localStorage.getItem(`verified_role_${userId}`) || localStorage.getItem("user_role");
 
-      if (existingRoles.includes("admin")) {
+      if (existingRoles.includes("admin") || cachedRole === "admin") {
         setRole("admin");
         return "admin";
       }
@@ -136,27 +202,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 3. Auto-detect Admin or Company Recruiter by checking email in company_invites
       if (normalizedEmail) {
-        const { data: invite } = await supabase
+        const { data: invitesList } = await supabase
           .from("company_invites" as any)
-          .select("id, company_name, accepted_at")
+          .select("id, company_name, accepted_at, token")
           .ilike("email", normalizedEmail)
-          .maybeSingle();
+          .order("created_at", { ascending: false });
+
+        const adminInvite = (invitesList || []).find((i: any) => i.company_name === "Placement Admin");
 
         // 3a. Admin invite auto-provisioning
-        if (invite && invite.company_name === "Placement Admin") {
-          await supabase.from("user_roles").upsert(
-            { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
-            { onConflict: "user_id,role" }
-          );
-          if (!invite.accepted_at) {
+        if (adminInvite) {
+          try {
+            await supabase.from("user_roles").upsert(
+              { user_id: userId, role: "admin" as AppRole, email: normalizedEmail },
+              { onConflict: "user_id,role" }
+            );
+          } catch (_) {}
+
+          try {
             await supabase
               .from("company_invites" as any)
               .update({ accepted_at: new Date().toISOString() })
-              .eq("id", invite.id);
-          }
+              .eq("id", adminInvite.id);
+          } catch (_) {}
+
+          localStorage.setItem(`verified_role_${userId}`, "admin");
+          localStorage.setItem("user_role", "admin");
           setRole("admin");
           return "admin";
         }
+
+        const invite = (invitesList || [])[0];
 
         const { data: matchedComp } = await supabase
           .from("companies")

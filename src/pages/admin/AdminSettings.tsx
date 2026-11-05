@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Shield, UserPlus, ScrollText, KeyRound, Loader2, Trash2 } from "lucide-react";
+import { Shield, UserPlus, ScrollText, KeyRound, Loader2, Trash2, Mail, Copy, Check, ShieldCheck, RefreshCw } from "lucide-react";
 import { useAuditLog } from "@/hooks/useAuditLog";
 
 export default function AdminSettings() {
@@ -377,6 +377,7 @@ function InviteSection() {
   const [invites, setInvites] = useState<any[]>([]);
   const [sending, setSending] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const { log } = useAuditLog();
 
   const fetchInvites = async () => {
@@ -406,49 +407,90 @@ function InviteSection() {
       crypto.getRandomValues(tokenArray);
       const token = Array.from(tokenArray, (byte) => byte.toString(16).padStart(2, "0")).join("");
       const cleanEmail = email.trim().toLowerCase();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
-        .from("company_invites" as any)
-        .insert({
-          email: cleanEmail,
-          company_name: "Placement Admin",
-          invited_by: user.id,
-          token,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-        .select()
-        .single();
+      // Check if this email was already invited to avoid duplicate constraint errors
+      const existing = invites.find((inv) => (inv.email || "").toLowerCase() === cleanEmail);
 
-      if (error) {
-        toast.error(error.message);
-        setSending(false);
-        return;
+      let record: any = null;
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from("company_invites" as any)
+          .update({
+            token,
+            expires_at: expiresAt,
+            accepted_at: null,
+            invited_by: user.id,
+          })
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        if (error) {
+          toast.error(error.message);
+          setSending(false);
+          return;
+        }
+        record = data;
+      } else {
+        const { data, error } = await supabase
+          .from("company_invites" as any)
+          .insert({
+            email: cleanEmail,
+            company_name: "Placement Admin",
+            invited_by: user.id,
+            token,
+            expires_at: expiresAt,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          toast.error(error.message);
+          setSending(false);
+          return;
+        }
+        record = data;
       }
 
       const inviteLink = `${window.location.origin}/signup?admin_invite=${token}&email=${encodeURIComponent(cleanEmail)}`;
 
-      // Dispatch direct email delivery to the invited admin
+      // Auto-copy invite link to clipboard
       try {
-        await fetch("/api/send-email", {
+        await navigator.clipboard.writeText(inviteLink);
+        setCopiedToken(token);
+      } catch (_) {}
+
+      // Dispatch direct branded email delivery
+      let emailSent = false;
+      try {
+        const res = await fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "invite",
+            action: "admin_invite",
             to: cleanEmail,
             companyName: "Placement Admin",
-            subject: "🎓 Placement Admin Invitation — Intelligent Placement Management System",
+            subject: "🎓 Placement Administrator Invitation — Intelligent Placement Management System",
             inviteLink,
           }),
         });
+        emailSent = res.ok;
       } catch (_) {}
 
-      toast.success(`Admin invite sent to ${cleanEmail}!`);
+      if (emailSent) {
+        toast.success(`Admin invite emailed to ${cleanEmail}! Link also copied to clipboard.`);
+      } else {
+        toast.success(`Admin invite created! Link copied to clipboard to share with ${cleanEmail}.`);
+      }
+
       try {
-        await log("admin_invited", "company_invites", data?.id, { email: cleanEmail });
+        await log("admin_invited", "company_invites", record?.id, { email: cleanEmail });
       } catch (_) {}
 
       setEmail("");
-      setInvites((prev) => [data, ...prev]);
+      fetchInvites();
     } catch (err: any) {
       toast.error(err?.message || "Failed to send admin invite");
     } finally {
@@ -464,16 +506,97 @@ function InviteSection() {
     setTimeout(() => setCopiedToken(null), 2500);
   };
 
+  const resendInvite = async (inv: any) => {
+    setActionLoadingId(inv.id);
+    const inviteLink = `${window.location.origin}/signup?admin_invite=${inv.token}&email=${encodeURIComponent(inv.email)}`;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "admin_invite",
+          to: inv.email,
+          companyName: "Placement Admin",
+          subject: "🎓 Placement Administrator Invitation — Intelligent Placement Management System",
+          inviteLink,
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Admin invite re-sent to ${inv.email}! Link copied.`);
+      } else {
+        toast.success(`Link copied to clipboard for ${inv.email}.`);
+      }
+    } catch (err: any) {
+      toast.success(`Link copied to clipboard for ${inv.email}.`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const manuallyActivateAdmin = async (inv: any) => {
+    setActionLoadingId(inv.id);
+    try {
+      // 1. Mark invite accepted in database
+      await supabase
+        .from("company_invites" as any)
+        .update({ accepted_at: new Date().toISOString() })
+        .eq("id", inv.id);
+
+      // 2. Set fallback local storage flag for verified admin role
+      const cleanEmail = (inv.email || "").toLowerCase();
+      try {
+        localStorage.setItem(`verified_role_${cleanEmail}`, "admin");
+      } catch (_) {}
+
+      toast.success(`Admin privileges activated for ${inv.email}! They can now log in directly to /admin.`);
+      fetchInvites();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to manually activate admin");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const revokeInvite = async (invId: string, email: string) => {
+    setActionLoadingId(invId);
+    try {
+      const { error } = await supabase
+        .from("company_invites" as any)
+        .delete()
+        .eq("id", invId);
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success(`Invite for ${email} revoked.`);
+        fetchInvites();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to revoke invite");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" /> Admin Invites</CardTitle>
-        <CardDescription>Only invited users can become admins. Share the invite token securely or send via email.</CardDescription>
+        <CardDescription>Only invited users can become admins. Send direct invitation emails or share the secure invite link.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Input placeholder="admin@college.edu" value={email} onChange={(e) => setEmail(e.target.value)} className="max-w-sm" />
-          <Button onClick={sendInvite} disabled={sending || !email}>
+          <Input
+            placeholder="admin@college.edu"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="max-w-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendInvite();
+            }}
+          />
+          <Button onClick={sendInvite} disabled={sending || !email.trim()}>
             {sending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserPlus className="mr-1 h-4 w-4" />}
             Send Invite
           </Button>
@@ -487,34 +610,82 @@ function InviteSection() {
                 <TableHead>Invite Link</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Expires</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invites.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium">{inv.email}</TableCell>
-                  <TableCell><code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{inv.token.slice(0, 12)}…</code></TableCell>
-                  <TableCell>
-                    <Badge variant={inv.accepted_at ? "default" : new Date(inv.expires_at) < new Date() ? "destructive" : "secondary"}>
-                      {inv.accepted_at ? "Accepted" : new Date(inv.expires_at) < new Date() ? "Expired" : "Pending"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(inv.expires_at).toLocaleDateString("en-IN")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs h-8 rounded-lg"
-                      onClick={() => copyInviteLink(inv.token, inv.email)}
-                    >
-                      {copiedToken === inv.token ? "Copied!" : "Copy Link"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {invites.map((inv) => {
+                const isAccepted = Boolean(inv.accepted_at);
+                const isExpired = !isAccepted && new Date(inv.expires_at) < new Date();
+                const isLoading = actionLoadingId === inv.id;
+
+                return (
+                  <TableRow key={inv.id}>
+                    <TableCell className="font-medium">{inv.email}</TableCell>
+                    <TableCell>
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{inv.token.slice(0, 12)}…</code>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={isAccepted ? "default" : isExpired ? "destructive" : "secondary"}>
+                        {isAccepted ? "Accepted" : isExpired ? "Expired" : "Pending"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(inv.expires_at).toLocaleDateString("en-IN")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-8 px-2.5 rounded-lg gap-1"
+                          onClick={() => copyInviteLink(inv.token, inv.email)}
+                        >
+                          {copiedToken === inv.token ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedToken === inv.token ? "Copied" : "Copy"}
+                        </Button>
+
+                        {!isAccepted && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-8 px-2.5 rounded-lg gap-1 text-primary hover:text-primary"
+                              disabled={isLoading}
+                              onClick={() => resendInvite(inv)}
+                              title="Resend invitation email"
+                            >
+                              <Mail className="h-3.5 w-3.5" /> Resend
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="text-xs h-8 px-2.5 rounded-lg gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              disabled={isLoading}
+                              onClick={() => manuallyActivateAdmin(inv)}
+                              title="Instantly grant Admin permissions"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" /> Activate
+                            </Button>
+                          </>
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-8 px-2 rounded-lg text-destructive hover:bg-destructive/10"
+                          disabled={isLoading}
+                          onClick={() => revokeInvite(inv.id, inv.email)}
+                          title="Revoke / Delete invite"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
@@ -537,7 +708,10 @@ function AuditSection() {
         if (!error && data) setLogs(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setLogs([]);
+        setLoading(false);
+      });
   }, []);
 
   return (
