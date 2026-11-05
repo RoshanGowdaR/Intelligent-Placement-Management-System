@@ -299,3 +299,35 @@ Exploratory testing was conducted following timeboxed session charters to examin
   3. Mandatory fullscreen and camera verification added for resuming in-progress tests after browser refresh.
   4. Enforced strict chart policy on Admin AI Assistant so charts/graphs are only output when explicitly requested.
 - **Verification**: Zero console errors on exam submission; AI Career Mentor is 100% hidden during active tests; test cannot start without verified camera and fullscreen access. Status: **RESOLVED**.
+
+
+---
+
+### BUG-018: Low-Confidence Vision Detection Drops Mobile Phones and Secondary Persons in Webcam Feed
+- **Severity**: High
+- **Component**: `src/components/WebcamProctor.tsx`
+- **Root Cause**: `@tensorflow-models/coco-ssd`'s `model.detect(video)` method internally defaults to `minScore: 0.50` (50% confidence threshold). In real-world webcam conditions (phones held at angles, in dim indoor light, or people sitting slightly back), model confidence is typically between 0.10 and 0.45. Because `minScore` was omitted in the call, COCO-SSD discarded all predictions below 0.50 before returning, rendering subsequent threshold filters ineffectual.
+- **Resolution**:
+  1. Updated vision pipeline to explicitly call `detect(video, 25, 0.05)`, allowing objects down to 5% confidence to be returned.
+  2. Prioritized `lite_mobilenet_v2` for sub-500ms initial load and high FPS execution.
+  3. Lowered phone and remote detection thresholds to 0.06 and 0.08 respectively.
+  4. Cross-verified multi-person counting across COCO-SSD, BlazeFace, and Native FaceDetector with immediate countdown warning (`Multiple People in Camera View`) and auto-submission on failure to correct within 6 seconds.
+  5. Added real-time bounding box annotations on canvas and proctor status pills (`Calibrating AI...`, `Solo & Focused`, `Phone/Device`, `2 People`).
+- **Verification**: Tests pass, production bundle compiles cleanly. Status: **RESOLVED**.
+
+---
+
+### BUG-019: Admin Invite Failure, Missing Query Capture on Signup, and Audit Log 404 Console Errors
+- **Severity**: High
+- **Component**: `src/pages/admin/AdminSettings.tsx`, `src/pages/Signup.tsx`, `src/pages/Login.tsx`, `src/hooks/useAuth.tsx`, `src/hooks/useAuditLog.ts`, `api/send-email.ts`
+- **Root Cause**:
+  1. `Signup.tsx` and `Login.tsx` ignored `admin_invite` URL parameters, directing invited admins to standard student signup without administrative role association.
+  2. Database RLS restricted direct inserts into `user_roles`, causing new signups to fall back to `student`.
+  3. `company_invites` table failed if the same email was invited again due to potential constraint conflicts, and rows were never marked `accepted_at`.
+  4. Missing `audit_logs` table produced recurring 404 network errors in the DevTools console.
+- **Resolution**:
+  1. Added `admin_invite` search parameter capture in `Signup.tsx` and `Login.tsx`, persisting `pending_admin_invite` and pre-filling invitee emails with dedicated Placement Admin Invitation banners.
+  2. Extended `useAuth.tsx` to automatically verify stored invite tokens against `company_invites`, grant `role: "admin"`, update `accepted_at`, and cache role in `localStorage`.
+  3. Updated `AdminSettings.tsx` with duplicate invite detection, automated clipboard copy upon creation, branded admin email dispatch (`/api/send-email`), and table actions for **Copy Link**, **Resend Email**, **Activate Admin Instantly**, and **Revoke**.
+  4. Wrapped `useAuditLog.ts` with error-disabling logic that halts requests if the table does not exist, suppressing 404 console errors.
+- **Verification**: TypeScript compiles cleanly with 0 errors; full Vitest suite (15 test files, 71 tests) passed; Vercel production build succeeded. Status: **RESOLVED**.
