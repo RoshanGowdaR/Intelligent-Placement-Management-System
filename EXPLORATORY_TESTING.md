@@ -331,3 +331,20 @@ Exploratory testing was conducted following timeboxed session charters to examin
   3. Updated `AdminSettings.tsx` with duplicate invite detection, automated clipboard copy upon creation, branded admin email dispatch (`/api/send-email`), and table actions for **Copy Link**, **Resend Email**, **Activate Admin Instantly**, and **Revoke**.
   4. Wrapped `useAuditLog.ts` with error-disabling logic that halts requests if the table does not exist, suppressing 404 console errors.
 - **Verification**: TypeScript compiles cleanly with 0 errors; full Vitest suite (15 test files, 71 tests) passed; Vercel production build succeeded. Status: **RESOLVED**.
+
+
+---
+
+### BUG-020: Recruiter Invites Management in Security Settings & 2FA Enforcement for Invite Revocation
+- **Severity**: Medium / Security
+- **Component**: `src/pages/admin/AdminSettings.tsx`
+- **Requirement**:
+  1. Add dedicated Recruiter Invites section in Security Settings to view all campus drive company invites sent by admins.
+  2. Allow admins to cancel or delete mis-sent recruiter or admin invitations at any time.
+  3. Enforce Two-Factor Authentication (6-digit TOTP) code verification prior to deleting or revoking ANY admin or recruiter invitation.
+- **Resolution**:
+  1. Integrated `RecruiterInviteSection` into `AdminSettings.tsx` with tabs for `Two-Factor Auth`, `Change Password`, `Admin Invites`, `Recruiter Invites`, and `Audit Log`.
+  2. Provided complete recruiter invite list with live status (`Accepted`, `Pending`, `Expired`), company name, email, sent date, expiry, and search/filtering by company and email.
+  3. Built `TwoFactorRevokeDialog` requiring the administrator to enter their 6-digit Google Authenticator / TOTP code, verified via `supabase.auth.mfa.challenge` and `verify`.
+  4. Deletion immediately removes the token from `company_invites`, invalidating any mis-sent links and recording the 2FA cancellation event in the audit trail.
+- **Verification**: Typecheck passes with 0 errors; full Vitest suite (15 files, 71 tests) passed; production bundle built cleanly in 37.74s. Status: **RESOLVED**.
