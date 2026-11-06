@@ -61,7 +61,7 @@
   }
 
   .dark {
-    /* Core dark tokens — v3 "Elite Edition" spec */
+    /* Core dark tokens */
     --background: 240 23% 5%;          /* #0a0a0f */
     --foreground: 264 20% 90%;         /* #e4e1e9 */
 

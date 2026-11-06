@@ -82,7 +82,7 @@ function AppSidebar({ role }: { role: "admin" | "company" | "student" | null }) 
             </div>
             <div className="leading-tight">
               <div className="font-display text-base font-extrabold tracking-tight text-foreground flex items-center gap-1.5">
-                IPMS <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[#5b51d8]/15 text-[#5b51d8]">ELITE</span>
+                IPMS
               </div>
               <span className="text-[11px] text-muted-foreground font-medium">Placement Management</span>
             </div>
