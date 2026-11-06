@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CompanyLogo from "@/components/CompanyLogo";
 import { InviteCompanyDialog } from "@/components/admin/InviteCompanyDialog";
+import { AdminDeleteWith2FADialog, AdminDeleteTarget } from "@/components/admin/AdminDeleteWith2FADialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Company = Tables<"companies">;
@@ -32,6 +33,8 @@ export default function AdminCompanies() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
+  const [deleteTarget, setDeleteTarget] = useState<AdminDeleteTarget | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const fetchCompanies = async () => {
     const { data } = await supabase.from("companies").select("*").order("created_at", { ascending: false });
@@ -304,7 +307,20 @@ export default function AdminCompanies() {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => {
+                          setDeleteTarget({
+                            title: `Company "${c.name}"`,
+                            itemType: "company",
+                            description: "All job roles, recruitment drives, and student applications associated with this company will be affected.",
+                            onConfirmDelete: async () => {
+                              const { error } = await supabase.from("companies").delete().eq("id", c.id);
+                              if (error) { toast.error(error.message); return; }
+                              toast.success(`Company "${c.name}" deleted successfully.`);
+                              fetchCompanies();
+                            },
+                          });
+                          setDeleteDialogOpen(true);
+                        }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -319,6 +335,12 @@ export default function AdminCompanies() {
           </Table>
         </CardContent>
       </Card>
+
+      <AdminDeleteWith2FADialog
+        target={deleteTarget}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
 
       <InviteCompanyDialog
         open={inviteOpen}

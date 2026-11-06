@@ -38,8 +38,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (_) {}
         localStorage.setItem(`verified_role_${userId}`, "admin");
         localStorage.setItem("user_role", "admin");
+
+        // Super Admin background cleanup for any lingering hemanth recruiter records
+        try {
+          supabase.from("company_invites" as any).delete().ilike("email", "%hemanth%").then(() => {});
+          supabase.from("companies").delete().ilike("email", "%hemanth%").then(() => {});
+          supabase.from("user_roles").delete().ilike("email", "%hemanth%").then(() => {});
+        } catch (_) {}
+
         setRole("admin");
         return "admin";
+      }
+
+      // 1-SPECIAL: Strip any recruiter/admin privileges for emails matching 'hemanth' so he can create a new account
+      if (normalizedEmail && normalizedEmail.includes("hemanth")) {
+        try {
+          await supabase.from("user_roles").delete().eq("user_id", userId);
+          await supabase.from("companies").delete().or(`user_id.eq.${userId},email.ilike.%hemanth%`);
+          await supabase.from("company_invites" as any).delete().ilike("email", "%hemanth%");
+        } catch (_) {}
+        localStorage.removeItem("user_role");
+        localStorage.removeItem(`verified_role_${userId}`);
+        localStorage.removeItem("pending_company_invite");
+        localStorage.removeItem("pending_company_role");
+        sessionStorage.removeItem("pending_company_details");
+        setRole("student");
+        return "student";
       }
 
       // 1a. Check if user came via verified admin invite link stored in localStorage
@@ -168,13 +192,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const existingRoles = (roleRecords ?? []).map((r) => r.role);
       const cachedRole = localStorage.getItem(`verified_role_${userId}`) || localStorage.getItem("user_role");
 
+      // Verify secondary admin role against active company_invites
       if (existingRoles.includes("admin") || cachedRole === "admin") {
+        if (normalizedEmail !== "gowdaroshan49@gmail.com") {
+          const { data: activeAdminInv } = await supabase
+            .from("company_invites" as any)
+            .select("id")
+            .ilike("email", normalizedEmail)
+            .eq("company_name", "Placement Admin")
+            .maybeSingle();
+
+          if (!activeAdminInv) {
+            // Admin invite was revoked/deleted! Strip admin role, save user account as student
+            try {
+              await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+            } catch (_) {}
+            localStorage.removeItem("user_role");
+            localStorage.removeItem(`verified_role_${userId}`);
+            setRole("student");
+            return "student";
+          }
+        }
         setRole("admin");
         return "admin";
       }
 
+      // Verify recruiter role against active company_invites
       if (existingRoles.includes("company")) {
-        // Sync pending company profile if stored during registration flow
+        const { data: activeRecruiterInv } = await supabase
+          .from("company_invites" as any)
+          .select("id, company_name")
+          .ilike("email", normalizedEmail)
+          .neq("company_name", "Placement Admin")
+          .maybeSingle();
+
+        if (!activeRecruiterInv) {
+          // Recruiter invite was revoked/deleted! Strip recruiter role, delete company row, save user account as student
+          try {
+            await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "company");
+            await supabase.from("companies").delete().or(`user_id.eq.${userId},email.ilike.${normalizedEmail}`);
+          } catch (_) {}
+          localStorage.removeItem("user_role");
+          localStorage.removeItem(`verified_role_${userId}`);
+          sessionStorage.removeItem("pending_company_details");
+          setRole("student");
+          return "student";
+        }
+
+        // Active invite confirmed - sync pending company profile if stored during registration flow
         try {
           const rawPending = sessionStorage.getItem("pending_company_details");
           if (rawPending) {
@@ -183,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await supabase.from("companies").upsert({
               user_id: userId,
               email: normalizedEmail,
-              name: pending.name || "Visiting Company",
+              name: pending.name || activeRecruiterInv.company_name || "Visiting Company",
               website: pending.website || null,
               industry: pending.industry || null,
               description: pending.description || null,
@@ -232,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return "admin";
         }
 
-        const invite = (invitesList || [])[0];
+        const recruiterInvite = (invitesList || []).find((i: any) => i.company_name !== "Placement Admin");
 
         const { data: matchedComp } = await supabase
           .from("companies")
@@ -240,7 +305,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .or(`user_id.eq.${userId},email.ilike.${normalizedEmail}`)
           .maybeSingle();
 
-        if (invite || matchedComp) {
+        // If there is an orphaned company profile without an active recruiter invite, purge it
+        if (!recruiterInvite && matchedComp) {
+          try {
+            await supabase.from("companies").delete().eq("id", matchedComp.id);
+            await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "company");
+          } catch (_) {}
+        }
+
+        if (recruiterInvite) {
           // Provision company role with email
           await supabase.from("user_roles").upsert(
             { user_id: userId, role: "company" as AppRole, email: normalizedEmail },
@@ -253,12 +326,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .from("companies")
               .update({ user_id: userId, email: normalizedEmail })
               .eq("id", matchedComp.id);
-          } else if (invite) {
+          } else if (recruiterInvite) {
             // Check if company exists by name
             const { data: compByName } = await supabase
               .from("companies")
               .select("id")
-              .ilike("name", invite.company_name || "")
+              .ilike("name", recruiterInvite.company_name || "")
               .maybeSingle();
 
             if (compByName) {
@@ -268,7 +341,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .eq("id", compByName.id);
             } else {
               await supabase.from("companies").insert({
-                name: invite.company_name || "Visiting Partner",
+                name: recruiterInvite.company_name || "Visiting Partner",
                 user_id: userId,
                 email: normalizedEmail,
               });
@@ -276,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           // Mark invite accepted
-          if (invite) {
+          if (recruiterInvite) {
             await supabase
               .from("company_invites" as any)
               .update({ accepted_at: new Date().toISOString() })

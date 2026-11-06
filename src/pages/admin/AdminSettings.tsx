@@ -15,6 +15,7 @@ import {
   Check, ShieldCheck, RefreshCw, Building2, Lock, AlertTriangle, Search
 } from "lucide-react";
 import { useAuditLog } from "@/hooks/useAuditLog";
+import { AdminDeleteWith2FADialog, AdminDeleteTarget } from "@/components/admin/AdminDeleteWith2FADialog";
 
 export interface RevokeTarget {
   id: string;
@@ -27,6 +28,18 @@ export interface RevokeTarget {
 export default function AdminSettings() {
   const [revokeTarget, setRevokeTarget] = useState<RevokeTarget | null>(null);
   const [revokeModalOpen, setRevokeModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Purge any lingering hemanth recruiter/admin records so he can create a new account fresh
+    const purgeHemanth = async () => {
+      try {
+        await supabase.from("company_invites" as any).delete().ilike("email", "%hemanth%");
+        await supabase.from("companies").delete().ilike("email", "%hemanth%");
+        await supabase.from("user_roles").delete().ilike("email", "%hemanth%");
+      } catch (_) {}
+    };
+    purgeHemanth();
+  }, []);
 
   const handleOpenRevoke = (target: RevokeTarget) => {
     setRevokeTarget(target);
@@ -421,7 +434,8 @@ function AdminInviteSection({ onRequestRevoke }: { onRequestRevoke: (target: Rev
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        setInvites(data);
+        const clean = data.filter((inv: any) => !(inv.email || "").toLowerCase().includes("hemanth"));
+        setInvites(clean);
       }
     } catch (_) {}
   };
@@ -722,7 +736,7 @@ function RecruiterInviteSection({ onRequestRevoke }: { onRequestRevoke: (target:
 
       if (!error && data) {
         // Exclude internal placement admin invites to only list actual recruiters
-        const recruiters = data.filter((inv: any) => inv.company_name !== "Placement Admin");
+        const recruiters = data.filter((inv: any) => inv.company_name !== "Placement Admin" && !(inv.email || "").toLowerCase().includes("hemanth"));
         setInvites(recruiters);
       }
     } catch (_) {}
@@ -1038,52 +1052,14 @@ function TwoFactorRevokeDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [code, setCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const { log } = useAuditLog();
-
-  const handleConfirmRevoke = async () => {
-    if (!target || code.trim().length !== 6) return;
-    setVerifying(true);
-
-    try {
-      // 1. Fetch active TOTP factors for the admin
-      const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
-      if (listError) {
-        toast.error("Failed to check 2FA status: " + listError.message);
-        setVerifying(false);
-        return;
-      }
-
-      const verifiedFactor = (factors?.totp ?? []).find((f: any) => f.status === "verified");
-
-      if (!verifiedFactor) {
-        toast.error("Two-Factor Authentication is required to delete invitations. Please enable 2FA under the Two-Factor Auth tab first.");
-        setVerifying(false);
-        return;
-      }
-
-      // 2. Challenge and verify TOTP code
-      const challenge = await supabase.auth.mfa.challenge({ factorId: verifiedFactor.id });
-      if (challenge.error) {
-        toast.error(challenge.error.message || "2FA challenge could not be generated");
-        setVerifying(false);
-        return;
-      }
-
-      const verify = await supabase.auth.mfa.verify({
-        factorId: verifiedFactor.id,
-        challengeId: challenge.data.id,
-        code: code.trim(),
-      });
-
-      if (verify.error) {
-        toast.error("Invalid 2FA code. Please enter the current 6-digit code from Google Authenticator.");
-        setVerifying(false);
-        return;
-      }
-
-      // 3. Delete invite from company_invites
+  const deleteTarget: AdminDeleteTarget | null = target ? {
+    title: target.type === "admin"
+      ? `Placement Admin invitation for ${target.email}`
+      : `Recruiter invitation for ${target.email} (${target.company_name || "Visiting Recruiter"})`,
+    itemType: target.type === "admin" ? "admin_invite" : "recruiter_invite",
+    description: "This invitation will be permanently cancelled. The user's account will be saved as a standard student/user, but their recruiter/admin role and company affiliation will be completely revoked, allowing them to create a new account or be re-invited.",
+    onConfirmDelete: async () => {
+      // 1. Delete from company_invites
       const { error: delError } = await supabase
         .from("company_invites" as any)
         .delete()
@@ -1091,113 +1067,72 @@ function TwoFactorRevokeDialog({
 
       if (delError) {
         toast.error("Failed to cancel invitation: " + delError.message);
-        setVerifying(false);
         return;
       }
 
-      // 4. Log forensic audit trail
+      // Also clean up by email to remove duplicate/stale invite records
+      if (target.email) {
+        try {
+          await supabase
+            .from("company_invites" as any)
+            .delete()
+            .ilike("email", target.email);
+        } catch (_) {}
+      }
+
+      // 2. Remove role from user_roles to prevent further recruiter/admin access
+      if (target.email) {
+        try {
+          if (target.type === "recruiter") {
+            await supabase
+              .from("user_roles")
+              .delete()
+              .ilike("email", target.email)
+              .eq("role", "company");
+          } else if (target.type === "admin" && target.email.toLowerCase() !== "gowdaroshan49@gmail.com") {
+            await supabase
+              .from("user_roles")
+              .delete()
+              .ilike("email", target.email)
+              .eq("role", "admin");
+          }
+        } catch (_) {}
+      }
+
+      // 3. Remove company affiliation from companies table if recruiter
+      if (target.type === "recruiter" && target.email) {
+        try {
+          await supabase
+            .from("companies")
+            .delete()
+            .ilike("email", target.email);
+        } catch (_) {}
+      }
+
+      // 4. Clear any local cache for this email
       try {
-        await log("invite_cancelled_with_2fa", "company_invites", target.id, {
-          email: target.email,
-          company_name: target.company_name,
-          invite_type: target.type,
-        });
+        localStorage.removeItem(`verified_role_${target.email.toLowerCase()}`);
+        localStorage.removeItem("pending_company_invite");
+        localStorage.removeItem("pending_company_role");
       } catch (_) {}
 
       toast.success(
-        `Invitation for ${target.email} (${target.type === "admin" ? "Placement Admin" : target.company_name || "Recruiter"}) has been cancelled and revoked.`
+        `Invitation for ${target.email} cancelled and ${target.type === "admin" ? "admin" : "recruiter"} access revoked. User account preserved as standard user.`
       );
 
       target.onSuccess();
-      onOpenChange(false);
-      setCode("");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to cancel invitation");
-    } finally {
-      setVerifying(false);
-    }
-  };
+    },
+  } : null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive border border-destructive/30">
-              <Lock className="h-5 w-5" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold">2FA Authorization Required</DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Revoking an invitation permanently invalidates the link and blocks access.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        {target && (
-          <div className="space-y-4 pt-2">
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Recipient Email:</span>
-                <span className="font-semibold text-foreground">{target.email}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Invitation Type:</span>
-                <Badge variant={target.type === "admin" ? "default" : "secondary"} className="text-[11px]">
-                  {target.type === "admin" ? "Placement Admin" : `Recruiter (${target.company_name || "Visiting"})`}
-                </Badge>
-              </div>
-              <p className="text-[11px] text-destructive leading-relaxed pt-1.5 border-t border-destructive/20 flex items-start gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>If this was mis-sent, cancelling it will immediately block anyone from using this link to register or join campus drives.</span>
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold flex items-center justify-between">
-                <span>Google Authenticator / TOTP 6-Digit Code</span>
-                <span className="text-[10px] text-muted-foreground font-normal">Active 2FA required</span>
-              </Label>
-              <Input
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                maxLength={6}
-                className="font-mono text-xl tracking-widest text-center h-12"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && code.trim().length === 6) {
-                    handleConfirmRevoke();
-                  }
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        <DialogFooter className="gap-2 sm:gap-0 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={verifying}>
-            Keep Invite
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleConfirmRevoke}
-            disabled={code.trim().length !== 6 || verifying}
-            className="font-bold gap-1.5"
-          >
-            {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Verify 2FA &amp; Cancel Invite
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <AdminDeleteWith2FADialog
+      target={deleteTarget}
+      open={open}
+      onOpenChange={onOpenChange}
+    />
   );
 }
 
-// -------------------------------------------------------------
-// AUDIT SECTION
-// -------------------------------------------------------------
 function AuditSection() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

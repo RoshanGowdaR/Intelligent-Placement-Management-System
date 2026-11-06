@@ -291,7 +291,26 @@ export default function AdminNotifications() {
           </Button>
           {notifications.length > 0 && (
             <Button
-              onClick={clearAllNotifications}
+              onClick={() => {
+              setDeleteTarget({
+                title: "All Notification History",
+                itemType: "notifications_batch",
+                description: "All notifications across campus drives, tests, and student alerts will be cleared from your history.",
+                onConfirmDelete: async () => {
+                  try {
+                    const allIds = notifications.map((n) => n.id);
+                    localStorage.setItem(dismissedKey, JSON.stringify(allIds));
+                    localStorage.setItem(storageKey, JSON.stringify([]));
+                  } catch {}
+                  if (user) {
+                    await supabase.from("notifications").delete().eq("user_id", user.id);
+                  }
+                  setNotifications([]);
+                  toast.success("Notification history cleared");
+                },
+              });
+              setDeleteDialogOpen(true);
+            }}
               variant="outline"
               className="rounded-xl border-destructive/30 hover:bg-destructive/10 text-destructive text-xs font-semibold h-9 px-3 gap-1.5"
             >
@@ -430,7 +449,17 @@ export default function AdminNotifications() {
 
               {/* Dismiss */}
               <button
-                onClick={() => deleteNotification(item.id)}
+                onClick={() => {
+                setDeleteTarget({
+                  title: `Notification "${item.title}"`,
+                  itemType: "notification",
+                  description: "This notification will be permanently removed from your history.",
+                  onConfirmDelete: async () => {
+                    await deleteNotification(item.id);
+                  },
+                });
+                setDeleteDialogOpen(true);
+              }}
                 className="text-muted-foreground hover:text-rose-500 transition-colors p-1"
                 title="Dismiss notification"
               >

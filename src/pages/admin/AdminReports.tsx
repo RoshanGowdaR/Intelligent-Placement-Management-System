@@ -365,25 +365,26 @@ export default function AdminReports() {
               <Button variant="outline" size="sm" onClick={downloadCSV} className="font-semibold text-xs h-9">
                 <Download className="mr-2 h-4 w-4 text-primary" /> Download CSV ({filteredRows.length})
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="font-semibold text-xs h-9">
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete All
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete all records for this test?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This permanently removes every attempt record for the selected test. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={deleteAllForTest}>Delete All</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="rounded-xl font-bold"
+                disabled={rows.length === 0}
+                onClick={() => {
+                  const testName = tests.find((t) => t.id === selectedTest)?.title || "Selected Assessment";
+                  setDeleteTarget({
+                    title: `All candidate records for "${testName}"`,
+                    itemType: "test_attempts_batch",
+                    description: `All ${rows.length} candidate attempts, scores, and proctoring audit logs for this assessment will be permanently wiped.`,
+                    onConfirmDelete: async () => {
+                      await deleteAllForTest();
+                    },
+                  });
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Delete All
+              </Button>
             </div>
           </CardHeader>
 
@@ -611,7 +612,17 @@ export default function AdminReports() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteAttempt(r.attemptId)}
+                        onClick={() => {
+                          setDeleteTarget({
+                            title: `Attempt for ${r.name} (${r.usn || r.email})`,
+                            itemType: "test_attempt",
+                            description: `Attempt #${r.attempt} score (${r.score} marks) and proctoring telemetry will be removed.`,
+                            onConfirmDelete: async () => {
+                              await deleteAttempt(r.attemptId);
+                            },
+                          });
+                          setDeleteDialogOpen(true);
+                        }}
                         title="Delete attempt"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -735,6 +746,11 @@ export default function AdminReports() {
           )}
         </DialogContent>
       </Dialog>
+      <AdminDeleteWith2FADialog
+        target={deleteTarget}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
     </div>
   );
 }

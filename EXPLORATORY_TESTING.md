@@ -348,3 +348,53 @@ Exploratory testing was conducted following timeboxed session charters to examin
   3. Built `TwoFactorRevokeDialog` requiring the administrator to enter their 6-digit Google Authenticator / TOTP code, verified via `supabase.auth.mfa.challenge` and `verify`.
   4. Deletion immediately removes the token from `company_invites`, invalidating any mis-sent links and recording the 2FA cancellation event in the audit trail.
 - **Verification**: Typecheck passes with 0 errors; full Vitest suite (15 files, 71 tests) passed; production bundle built cleanly in 37.74s. Status: **RESOLVED**.
+
+
+---
+
+### BUG-021: Portal-Wide Two-Factor Authentication (2FA) Enforcement & 2-Step Confirmation on Admin Deletions
+- **Severity**: High / Security & Integrity
+- **Component**: `src/components/admin/AdminDeleteWith2FADialog.tsx`, `src/pages/admin/AdminCompanies.tsx`, `src/pages/admin/AdminTests.tsx`, `src/pages/admin/AdminReports.tsx`, `src/pages/admin/AdminNotifications.tsx`, `src/pages/admin/AdminSettings.tsx`
+- **Requirement**:
+  1. Whenever an administrator clicks "Delete" on any item in the admin portal (companies, tests/assessments, candidate attempts/reports, notifications, or invites), prompt with a 2-step confirmation.
+  2. Step 1: "Confirm delete: Yes or No".
+  3. Step 2: If "Yes", require entry of their 6-digit Google Authenticator / TOTP 2-Factor Authentication code.
+  4. Step 3: Only delete the item upon successful 2FA authentication; if the code is invalid or cancelled, reject the deletion.
+- **Resolution**:
+  1. Created universal reusable component `AdminDeleteWith2FADialog` handling both the Step 1 (Yes/No confirmation with target details and irreversible action warning) and Step 2 (Google Authenticator 6-digit TOTP challenge and verification via `supabase.auth.mfa.challenge` and `supabase.auth.mfa.verify`).
+  2. Wired `AdminDeleteWith2FADialog` across all destructive actions in the Admin portal:
+     - Companies: Individual company deletion.
+     - Assessments: Individual assessment deletion.
+     - Reports: Individual candidate attempt deletion & "Delete All" records for an assessment.
+     - Notifications: Individual notification deletion & "Clear All History".
+     - Security Settings: Placement Admin and Recruiter invitation cancellations.
+  3. Successfully logged all 2FA-authorized deletions to the forensic audit log.
+- **Verification**: Typecheck passes with 0 errors; full Vitest suite (15 files, 71 tests) passed; production bundle built cleanly in 35.48s. Status: **RESOLVED**.
+
+
+---
+
+### BUG-022: Complete Recruiter/Admin Privileges Revocation on Invite Deletion & Super Admin 2FA Enforcement
+- **Severity**: High / Access Control & Security
+- **Components**: `src/hooks/useAuth.tsx`, `src/pages/admin/AdminSettings.tsx`, `src/components/admin/AdminDeleteWith2FADialog.tsx`, `supabase/migrations/20261106110000_revoke_role_enforcement_and_purge_hemanth.sql`
+- **Issue**:
+  - When an admin cancelled or deleted an invite (recruiter or admin), the member could still access the recruiter or admin account if they previously logged in or had an entry in `user_roles` or `companies`.
+  - Recruiter/Admin deletion was not stripping the role from `user_roles` or removing the company affiliation from `companies`.
+  - Additionally, deletion actions needed strict verification against Super Admin `gowdaroshan49@gmail.com`'s 2-Factor Authentication code, and all records matching `hemanth` (`gowdahemanth.com@gmail.com`) needed to be completely purged from recruiters so he can create a new account fresh.
+- **Resolution**:
+  1. Updated `TwoFactorRevokeDialog` in `AdminSettings.tsx`:
+     - When an invite is deleted, it permanently deletes the invite from `company_invites`.
+     - Completely strips `company` or `admin` role from `user_roles`.
+     - Deletes company entry from `companies`.
+     - Preserves the user's base account (`auth.users` / student profile) as a standard user.
+     - Clears local storage role caches.
+  2. Enhanced `useAuth.tsx` dynamic role enforcement (`fetchRole`):
+     - For any user claiming `company` role, dynamically verifies active existence in `company_invites`. If the invite was revoked/deleted, strips the `company` role from `user_roles`, deletes their company row, clears cache, and demotes them to `student`.
+     - For secondary `admin` roles, verifies active admin invite in `company_invites`. If revoked/deleted, strips the `admin` role and demotes to `student`.
+     - Specifically purges all recruiter and admin permissions for `hemanth` (`gowdahemanth.com@gmail.com`), demoting to student and allowing him to create a new account fresh.
+     - When Super Admin `gowdaroshan49@gmail.com` loads the dashboard, triggers background cleanup of any leftover `%hemanth%` recruiter/admin records.
+  3. Strict Super Admin 2FA Authorization in `AdminDeleteWith2FADialog.tsx`:
+     - Step 1: Confirmation prompt ("Yes, Proceed" / "No, Cancel").
+     - Step 2: Explicitly requires the 6-digit TOTP code from `gowdaroshan49@gmail.com`'s Google Authenticator app.
+     - Challenges and verifies via `supabase.auth.mfa.verify`. Rejects deletion with explicit feedback if the code is invalid or unverified.
+- **Verification**: Typecheck passes with 0 errors; full Vitest suite (15 files, 71 tests) passed; production bundle built cleanly in 42.15s. Status: **RESOLVED**.
