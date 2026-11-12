@@ -1194,19 +1194,20 @@ function AuditSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("audit_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100)
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("audit_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(100);
         if (!error && data) setLogs(data);
-        setLoading(false);
-      })
-      .catch(() => {
+      } catch {
         setLogs([]);
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, []);
 
   return (

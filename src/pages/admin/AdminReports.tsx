@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import CompanyLogo from "@/components/CompanyLogo";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
+import { AdminDeleteWith2FADialog, type AdminDeleteTarget } from "@/components/admin/AdminDeleteWith2FADialog";
 
 type Test = Tables<"tests">;
 
@@ -60,6 +61,8 @@ export default function AdminReports() {
   const [rows, setRows] = usePersistentState<ReportRow[]>("ipms_reports_rows", []);
   const [loading, setLoading] = useState(false);
   const [selectedAuditRow, setSelectedAuditRow] = useState<ReportRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminDeleteTarget | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Persistent Filters across page navigation
   const [filterCompany, setFilterCompany] = usePersistentState<string>("ipms_reports_f_company", "all");
@@ -614,9 +617,9 @@ export default function AdminReports() {
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={() => {
                           setDeleteTarget({
-                            title: `Attempt for ${r.name} (${r.usn || r.email})`,
+                            title: `Attempt for ${r.studentName} (${r.usn || r.email})`,
                             itemType: "test_attempt",
-                            description: `Attempt #${r.attempt} score (${r.score} marks) and proctoring telemetry will be removed.`,
+                            description: `Attempt #${r.attemptNumber} score (${r.totalScore ?? 0}% / ${r.earnedMarks} marks) and proctoring telemetry will be removed.`,
                             onConfirmDelete: async () => {
                               await deleteAttempt(r.attemptId);
                             },

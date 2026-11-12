@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { AdminDeleteWith2FADialog, type AdminDeleteTarget } from "@/components/admin/AdminDeleteWith2FADialog";
 
 interface NotificationItem {
   id: string;
@@ -78,6 +79,8 @@ export default function AdminNotifications() {
   const [filter, setFilter] = useState<"all" | "company" | "test" | "security">("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<AdminDeleteTarget | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const storageKey = useMemo(() => `ipms_admin_notifications_${user?.id || "default"}`, [user?.id]);
   const dismissedKey = useMemo(() => `ipms_admin_dismissed_${user?.id || "default"}`, [user?.id]);
@@ -478,6 +481,11 @@ export default function AdminNotifications() {
         )}
       </div>
 
+      <AdminDeleteWith2FADialog
+        target={deleteTarget}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
     </div>
   );
 }

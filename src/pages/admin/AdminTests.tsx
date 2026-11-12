@@ -29,6 +29,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
 import { generateQuestionsAI, extractQuestionsFromTextAI } from "@/lib/gemini";
+import { AdminDeleteWith2FADialog, type AdminDeleteTarget } from "@/components/admin/AdminDeleteWith2FADialog";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 

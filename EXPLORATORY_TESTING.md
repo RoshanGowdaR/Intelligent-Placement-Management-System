@@ -431,3 +431,20 @@ Exploratory testing was conducted following timeboxed session charters to examin
   2. Switched primary COCO-SSD model to `mobilenet_v2` (matching `configs/proctor.config.json`) with `lite_mobilenet_v2` fallback.
   3. Removed `"remote"`, `"keyboard"`, `"mouse"`, `"clock"`, `"camera"` from prohibited device triggers and enforced confidence floors (`>= 0.55` for `cell phone`, `>= 0.68` for `laptop`/`tablet`/`tv`/`book`), bounding-box geometry sanity checks, and `>= 3` consecutive frames before alerting.
   4. Updated `AdminTests.tsx` defaults (`confidence_threshold: 0.58`, `consecutive_frames: 3`) and added unit tests in `src/test/ProctorEval.test.ts`.
+
+
+---
+
+### BUG-025: Admin Reports White-Screen Crash (`AdminDeleteWith2FADialog is not defined`) & Analytics 400 Query Error
+- **Severity**: Critical / Runtime Crash
+- **Components**: `src/pages/admin/AdminReports.tsx`, `src/pages/admin/AdminTests.tsx`, `src/pages/admin/AdminNotifications.tsx`, `src/pages/admin/AdminAnalytics.tsx`, `src/pages/admin/AdminSettings.tsx`
+- **Root Cause**:
+  1. `AdminReports.tsx`, `AdminTests.tsx`, and `AdminNotifications.tsx` referenced `<AdminDeleteWith2FADialog>` / `AdminDeleteTarget` / `deleteTarget` without importing or declaring the component & modal state, causing an immediate `Uncaught ReferenceError: AdminDeleteWith2FADialog is not defined` white-screen crash on `/admin/reports`.
+  2. `AdminReports.tsx` also referenced misnamed `ReportRow` fields (`r.name`, `r.attempt`, `r.score` instead of `r.studentName`, `r.attemptNumber`, `r.totalScore`).
+  3. `AdminAnalytics.tsx` queried a nonexistent `category` column on `public.tests`, producing HTTP 400 errors on `/rest/v1/tests` and `/rest/v1/test_attempts`.
+  4. `AdminSettings.tsx` `AuditSection` chained `.catch()` directly on a Supabase Postgrest `PromiseLike`.
+- **Resolution**:
+  - Added missing `AdminDeleteWith2FADialog` / `AdminDeleteTarget` imports and modal state across `AdminReports.tsx`, `AdminTests.tsx`, and `AdminNotifications.tsx`, plus rendered `<AdminDeleteWith2FADialog />` in `AdminNotifications.tsx`.
+  - Fixed `ReportRow` property names in `AdminReports.tsx`.
+  - Removed nonexistent `category` column from `AdminAnalytics.tsx` Supabase `select()` projections.
+  - Replaced `.then(...).catch(...)` in `AdminSettings.tsx` `AuditSection` with `async/await` `try/catch`.

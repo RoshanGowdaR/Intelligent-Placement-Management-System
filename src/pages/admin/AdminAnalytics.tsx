@@ -40,8 +40,8 @@ export default function AdminAnalytics() {
       setLoading(true);
       try {
         const [attemptsRes, testsRes, compRes, profilesRes, roundsRes] = await Promise.all([
-          supabase.from("test_attempts").select("id, student_id, test_id, total_score, passed, tab_switches, auto_submitted, proctor_events, completed_at, tests(id, title, category, company_id, companies(name))"),
-          supabase.from("tests").select("id, title, company_id, category, companies(name)").order("title"),
+          supabase.from("test_attempts").select("id, student_id, test_id, total_score, passed, tab_switches, auto_submitted, proctor_events, completed_at, tests(id, title, company_id, companies(name))"),
+          supabase.from("tests").select("id, title, company_id, companies(name)").order("title"),
           supabase.from("companies").select("id, name").order("name"),
           supabase.from("profiles").select("id, name, branch, cgpa, year_of_passing"),
           supabase.from("drive_rounds").select("*, round_participants(*)"),
