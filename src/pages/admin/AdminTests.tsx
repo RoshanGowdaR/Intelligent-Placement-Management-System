@@ -104,7 +104,7 @@ export default function AdminTests() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attempts, setAttempts] = useState<Tables<"test_attempts">[]>([]);
 
-  const GADGET_CLASS_OPTIONS = ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"];
+  const GADGET_CLASS_OPTIONS = ["cell phone", "laptop", "tablet", "book"];
 
   const [form, setForm] = useState(() => {
     try {
@@ -124,9 +124,9 @@ export default function AdminTests() {
       warning_delay_seconds: "5",
       second_offense_action: "submit" as "submit" | "warn",
       detection_interval_ms: "800",
-      confidence_threshold: "0.35",
-      consecutive_frames: "1",
-      watched_classes: ["cell phone", "laptop", "tv", "remote", "keyboard", "mouse", "tablet", "book"],
+      confidence_threshold: "0.58",
+      consecutive_frames: "3",
+      watched_classes: ["cell phone", "laptop", "tablet", "book"],
     };
   });
 
@@ -191,8 +191,8 @@ export default function AdminTests() {
       warning_delay_seconds: "5",
       second_offense_action: "submit",
       detection_interval_ms: "800",
-      confidence_threshold: "0.35",
-      consecutive_frames: "1",
+      confidence_threshold: "0.58",
+      consecutive_frames: "3",
       watched_classes: [...GADGET_CLASS_OPTIONS],
     });
     setQuestions([]);
@@ -485,8 +485,8 @@ export default function AdminTests() {
       warning_delay_seconds: String(proctorCfg.warning_delay_seconds ?? 5),
       second_offense_action: (proctorCfg.second_offense_action ?? "submit"),
       detection_interval_ms: String(proctorCfg.detection_interval_ms ?? 800),
-      confidence_threshold: String(proctorCfg.confidence_threshold ?? 0.35),
-      consecutive_frames: String(proctorCfg.consecutive_frames ?? 1),
+      confidence_threshold: String(proctorCfg.confidence_threshold ?? 0.58),
+      consecutive_frames: String(proctorCfg.consecutive_frames ?? 3),
       watched_classes: Array.isArray(proctorCfg.watched_classes) && proctorCfg.watched_classes.length ? proctorCfg.watched_classes : [...GADGET_CLASS_OPTIONS],
     });
     setQuestions(((t.question_bank as unknown as Question[]) ?? []));

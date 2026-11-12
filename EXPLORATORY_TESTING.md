@@ -416,3 +416,18 @@ Exploratory testing was conducted following timeboxed session charters to examin
   3. Updated `AdminSettings.tsx` (`sendRecruiterInvite` & `manuallyActivateAdmin`) so the admin pre-provisions `companies` and links `user_roles` whenever the invited email already exists in `profiles`.
   4. Fixed `useAuth.tsx` (`recruiterInvite?.company_name` typo, `.limit(1)` instead of `.maybeSingle()`, and verified pending invite tokens against `company_invites`), plus updated `Login.tsx` and `Signup.tsx` to preserve recruiter invite links end-to-end.
   5. Added idempotent migration `supabase/migrations/20261112000000_fix_recruiter_onboarding_rls.sql` updating RLS policies for `companies`, `user_roles`, `company_invites`, `notifications`, and ensuring `audit_logs` exists.
+
+
+---
+
+### BUG-024: False Positive "Mobile Phone / Smartphone" Flagging in WebcamProctor
+- **Severity**: High / Integrity & Exam UX
+- **Components**: `src/components/WebcamProctor.tsx`, `src/lib/proctorDetection.ts`, `src/pages/admin/AdminTests.tsx`, `src/test/ProctorEval.test.ts`
+- **Root Cause**:
+  1. `WebcamProctor` bypassed `proctor_config` thresholds and ran COCO-SSD `lite_mobilenet_v2` at `minScore = 0.05`, triggering `"Mobile Phone / Smartphone"` at `0.06` (`cell phone`) and `0.08` (`remote`) confidence on a single noisy frame (`gadgetFramesRef >= 1`).
+  2. `"remote"`, `"keyboard"`, `"mouse"`, `"clock"`, `"camera"`, and huge background surfaces (ceiling lights, doors, walls) were treated as prohibited mobile gadgets.
+- **Resolution**:
+  1. Extracted pure detection filter (`findProhibitedGadget`, `isPlausibleDeviceBox`, `getGadgetDisplayName`) into `src/lib/proctorDetection.ts`.
+  2. Switched primary COCO-SSD model to `mobilenet_v2` (matching `configs/proctor.config.json`) with `lite_mobilenet_v2` fallback.
+  3. Removed `"remote"`, `"keyboard"`, `"mouse"`, `"clock"`, `"camera"` from prohibited device triggers and enforced confidence floors (`>= 0.55` for `cell phone`, `>= 0.68` for `laptop`/`tablet`/`tv`/`book`), bounding-box geometry sanity checks, and `>= 3` consecutive frames before alerting.
+  4. Updated `AdminTests.tsx` defaults (`confidence_threshold: 0.58`, `consecutive_frames: 3`) and added unit tests in `src/test/ProctorEval.test.ts`.

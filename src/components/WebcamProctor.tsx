@@ -5,18 +5,13 @@ import "@tensorflow/tfjs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert, Video, VideoOff, Eye, Users, Smartphone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { findProhibitedGadget, getGadgetDisplayName } from "@/lib/proctorDetection";
 
 export const DEFAULT_GADGET_CLASSES: string[] = [
   "cell phone",
-  "remote",
   "laptop",
-  "tv",
   "tablet",
   "book",
-  "camera",
-  "keyboard",
-  "mouse",
-  "clock",
 ];
 
 export interface ProctorEvent {
@@ -44,9 +39,9 @@ interface WebcamProctorProps {
 const DEFAULT_CONFIG: ProctorConfig = {
   warning_delay_seconds: 6,
   second_offense_action: "submit",
-  detection_interval_ms: 350,
-  confidence_threshold: 0.06,
-  consecutive_frames: 1,
+  detection_interval_ms: 450,
+  confidence_threshold: 0.58,
+  consecutive_frames: 3,
   watched_classes: DEFAULT_GADGET_CLASSES,
 };
 
@@ -161,23 +156,23 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           }
         }
 
-        // Tier 2: COCO-SSD Object & Gadget & Person Detector (Load lite_mobilenet_v2 first for instant 500ms startup)
-        cocoSsd.load({ base: "lite_mobilenet_v2" })
+        // Tier 2: COCO-SSD Object & Gadget & Person Detector (mobilenet_v2 primary for low false-positives)
+        cocoSsd.load({ base: "mobilenet_v2" })
           .then((model) => {
             if (!cancelled) {
               cocoModelRef.current = model;
               setModelsLoaded(true);
-              console.log("[WebcamProctor] COCO-SSD lite_mobilenet_v2 loaded successfully");
+              console.log("[WebcamProctor] COCO-SSD mobilenet_v2 loaded successfully");
             }
           })
           .catch((err) => {
-            console.warn("[WebcamProctor] lite_mobilenet_v2 load failed, falling back to mobilenet_v2...", err);
-            cocoSsd.load({ base: "mobilenet_v2" })
-              .then((v2Model) => {
+            console.warn("[WebcamProctor] mobilenet_v2 load failed, falling back to lite_mobilenet_v2...", err);
+            cocoSsd.load({ base: "lite_mobilenet_v2" })
+              .then((liteModel) => {
                 if (!cancelled) {
-                  cocoModelRef.current = v2Model;
+                  cocoModelRef.current = liteModel;
                   setModelsLoaded(true);
-                  console.log("[WebcamProctor] COCO-SSD mobilenet_v2 loaded successfully");
+                  console.log("[WebcamProctor] COCO-SSD lite_mobilenet_v2 loaded successfully");
                 }
               })
               .catch((e2) => {
@@ -254,10 +249,8 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
   useEffect(() => {
     if (!active || !cameraReady) return;
 
-    // High sensitivity thresholds for immediate gadget detection
-    const phoneThreshold = 0.06;
-    const remoteThreshold = 0.08;
-    const gadgetThreshold = 0.10;
+    const consecutiveRequired = Math.max(3, cfg.consecutive_frames || 3);
+    const minDetectScore = Math.max(0.45, Math.min(0.65, cfg.confidence_threshold || 0.58));
 
     const runDetection = async () => {
       const video = videoRef.current;
@@ -268,10 +261,9 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       const boxesToDraw: DetectedBox[] = [];
 
       try {
-        // CRITICAL FIX: Pass minScore = 0.05 and maxNumBoxes = 25 to detect()
-        // Default detect() without args drops everything below 0.50 confidence, causing phones to be missed!
+        // Filter low-confidence background noise inside TF.js while allowing person detection >= 0.35
         const cocoPromise = cocoModelRef.current
-          ? (cocoModelRef.current as any).detect(video, 25, 0.05).catch(() => [])
+          ? (cocoModelRef.current as any).detect(video, 10, Math.min(0.35, minDetectScore)).catch(() => [])
           : Promise.resolve([]);
 
         const blazePromise = blazeModelRef.current
@@ -291,39 +283,17 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
         let detectedViol: ViolationState | null = null;
 
         // ---- CHECK 1: DIGITAL GADGETS & SMARTPHONES (COCO-SSD) ----
-        // Handheld mobile phones are classified by COCO-SSD as "cell phone" or "remote"
-        const foundGadget = cocoPreds.find((p: any) => {
-          const cls = (p.class || "").toLowerCase();
-          const isPhone = cls === "cell phone";
-          const isRemote = cls === "remote"; // Handheld phones frequently classify as remote
-          const isLaptop = cls === "laptop" || cls === "tv" || cls === "tablet";
-          const isMouseOrKb = cls === "mouse" || cls === "keyboard";
-          const isBookOrOther = cls === "book" || cls === "camera" || cls === "clock";
-
-          if (isPhone && p.score >= phoneThreshold) return true;
-          if (isRemote && p.score >= remoteThreshold) return true;
-          if (isLaptop && p.score >= gadgetThreshold) return true;
-          if (isMouseOrKb && p.score >= 0.12) return true;
-          if (isBookOrOther && p.score >= 0.14) return true;
-          return false;
+        const foundGadget = findProhibitedGadget(cocoPreds, {
+          confidenceThreshold: cfg.confidence_threshold,
+          watchedClasses: cfg.watched_classes,
+          videoW,
+          videoH,
         });
 
         if (foundGadget) {
-          const cls = (foundGadget.class || "").toLowerCase();
-          const gadgetName = (cls === "cell phone" || cls === "remote")
-            ? "Mobile Phone / Smartphone"
-            : cls === "laptop"
-            ? "Secondary Laptop / Screen"
-            : cls === "tablet"
-            ? "Tablet / Digital Device"
-            : cls === "tv"
-            ? "External Monitor / TV"
-            : cls === "mouse" || cls === "keyboard"
-            ? "External Input Device"
-            : foundGadget.class;
-
+          const gadgetName = getGadgetDisplayName(foundGadget.class);
           gadgetFramesRef.current += 1;
-          if (gadgetFramesRef.current >= 1) {
+          if (gadgetFramesRef.current >= consecutiveRequired) {
             detectedViol = {
               type: "gadget",
               name: `Prohibited Device (${gadgetName})`,
@@ -343,7 +313,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
 
         // ---- CHECK 2: MULTIPLE PEOPLE IN CAMERA FRAME ----
         // Cross-verified via COCO-SSD persons + BlazeFace faces + Native FaceDetector
-        const cocoPersons = cocoPreds.filter((p: any) => p.class === "person" && p.score >= 0.08);
+        const cocoPersons = cocoPreds.filter((p: any) => p.class === "person" && p.score >= 0.35);
         const personCountCoco = cocoPersons.length;
         const nativeFaceCount = nativeFaces.length;
         const blazeFaceCount = blazeFaces.length;
@@ -499,7 +469,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
     return () => {
       if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
     };
-  }, [active, cameraReady, onAutoSubmit, cfg.detection_interval_ms, cfg.second_offense_action, drawOverlayBoxes]);
+  }, [active, cameraReady, onAutoSubmit, cfg.detection_interval_ms, cfg.second_offense_action, cfg.confidence_threshold, cfg.consecutive_frames, cfg.watched_classes, drawOverlayBoxes]);
 
   // 3. Grace Period Countdown & Auto-Submit Timer
   useEffect(() => {
