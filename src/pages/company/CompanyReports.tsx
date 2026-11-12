@@ -190,26 +190,26 @@ export default function CompanyReports() {
                         </Badge>
                       </td>
                       <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-wrap items-center gap-1 max-w-[170px]">
+                        <div className="flex items-center justify-between gap-2 min-w-[200px]">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {isClean ? (
-                              <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs">
-                                <CheckCircle2 className="h-3 w-3 mr-1 inline" /> Clean
+                              <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs whitespace-nowrap">
+                                <CheckCircle2 className="h-3 w-3 mr-1 inline shrink-0" /> Clean
                               </Badge>
                             ) : (
                               <>
                                 {tabSwitches > 0 && (
-                                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px]">
-                                    {tabSwitches} switch{tabSwitches > 1 ? "es" : ""}
+                                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] whitespace-nowrap">
+                                    {tabSwitches} tab switch{tabSwitches > 1 ? "es" : ""}
                                   </Badge>
                                 )}
                                 {gadgets.length > 0 && (
-                                  <Badge variant="destructive" className="text-[10px]">
+                                  <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
                                     {gadgets.length} gadget{gadgets.length > 1 ? "s" : ""}
                                   </Badge>
                                 )}
                                 {row.auto_submitted && (
-                                  <Badge variant="destructive" className="text-[10px]">
+                                  <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
                                     Auto-submitted
                                   </Badge>
                                 )}

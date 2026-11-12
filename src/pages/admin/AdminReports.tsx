@@ -529,26 +529,26 @@ export default function AdminReports() {
                   </TableRow>
                 ) : filteredRows.map((r) => (
                   <TableRow key={r.attemptId} className="hover:bg-muted/40 transition-colors">
-                    <TableCell className="font-semibold text-foreground">{r.studentName}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.email}</TableCell>
-                    <TableCell>
-                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground font-semibold">
+                    <TableCell className="font-semibold text-foreground whitespace-nowrap">{r.studentName}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{r.email}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground font-semibold whitespace-nowrap">
                         {r.usn}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[11px] font-medium bg-primary/5 text-primary border-primary/20">
+                    <TableCell className="whitespace-nowrap">
+                      <Badge variant="outline" className="text-[11px] font-medium bg-primary/5 text-primary border-primary/20 whitespace-nowrap">
                         {r.branch}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-medium">
+                    <TableCell className="text-xs font-medium whitespace-nowrap">
                       {r.yearOfPassing ? `Batch of ${r.yearOfPassing}` : "—"}
                     </TableCell>
-                    <TableCell className="font-mono text-xs font-semibold">{r.cgpa ?? "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-mono text-xs font-semibold whitespace-nowrap">{r.cgpa ?? "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       {r.totalScore != null ? (
                         <div className="flex flex-col">
-                          <span className="font-bold text-foreground text-xs">
+                          <span className="font-bold text-foreground text-xs whitespace-nowrap">
                             {r.earnedMarks} / {r.totalMarks}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-mono">
@@ -559,12 +559,12 @@ export default function AdminReports() {
                         "—"
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={r.passed ? "default" : "destructive"} className="text-[11px]">
+                    <TableCell className="whitespace-nowrap">
+                      <Badge variant={r.passed ? "default" : "destructive"} className="text-[11px] whitespace-nowrap">
                         {r.passed ? "Passed" : "Failed"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-semibold">
+                    <TableCell className="text-xs font-semibold whitespace-nowrap">
                       #{r.attemptNumber}
                       {r.retakeReason && <span title={r.retakeReason} className="ml-1 text-[10px] text-amber-500 font-normal">(retake)</span>}
                     </TableCell>
@@ -573,26 +573,26 @@ export default function AdminReports() {
                         const isClean = r.tabSwitches === 0 && r.proctorEvents.length === 0 && !r.autoSubmitted;
                         const gadgets = [...new Set(r.proctorEvents.filter((e) => e.gadget !== "tab_switch").map((e) => e.gadget))];
                         return (
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-wrap items-center gap-1 max-w-[200px]">
+                          <div className="flex items-center justify-between gap-2 min-w-[220px]">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               {isClean ? (
-                                <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs">
-                                  <CheckCircle2 className="h-3 w-3 mr-1 inline" /> Clean
+                                <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs whitespace-nowrap">
+                                  <CheckCircle2 className="h-3 w-3 mr-1 inline shrink-0" /> Clean
                                 </Badge>
                               ) : (
                                 <>
                                   {r.tabSwitches > 0 && (
-                                    <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px]">
+                                    <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] whitespace-nowrap">
                                       {r.tabSwitches} tab switch{r.tabSwitches > 1 ? "es" : ""}
                                     </Badge>
                                   )}
                                   {gadgets.length > 0 && (
-                                    <Badge variant="destructive" className="text-[10px]">
+                                    <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
                                       {gadgets.length} gadget{gadgets.length > 1 ? "s" : ""}
                                     </Badge>
                                   )}
                                   {r.autoSubmitted && (
-                                    <Badge variant="destructive" className="text-[10px]">
+                                    <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
                                       Auto-submitted
                                     </Badge>
                                   )}
@@ -602,7 +602,7 @@ export default function AdminReports() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 px-2.5 text-xs font-medium ml-auto"
+                              className="h-7 px-2.5 text-xs font-medium shrink-0"
                               onClick={() => setSelectedAuditRow(r)}
                             >
                               View
