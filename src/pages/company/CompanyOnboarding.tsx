@@ -131,11 +131,25 @@ export default function CompanyOnboarding() {
     async function loadCompanyData() {
       if (!user) return;
       try {
-        const { data: comp } = await supabase
+        let comp: any = null;
+
+        const { data: byUserId } = await supabase
           .from("companies")
           .select("*")
           .eq("user_id", user.id)
-          .maybeSingle();
+          .order("created_at", { ascending: false })
+          .limit(1);
+        comp = byUserId?.[0] ?? null;
+
+        if (!comp && user.email) {
+          const { data: byEmail } = await supabase
+            .from("companies")
+            .select("*")
+            .ilike("email", user.email)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          comp = byEmail?.[0] ?? null;
+        }
 
         if (comp) {
           setCompanyId(comp.id);
@@ -144,9 +158,10 @@ export default function CompanyOnboarding() {
           if (comp.industry) setIndustry(comp.industry);
           if (comp.description) setDescription(comp.description);
           if (comp.email) setHrEmail(comp.email);
+          else if (user.email) setHrEmail(user.email);
           if (comp.job_role) setJobRole(comp.job_role);
           if (comp.job_location) setJobLocation(comp.job_location);
-          if (comp.max_backlogs !== null) setMaxBacklogs(String(comp.max_backlogs));
+          if (comp.max_backlogs !== null && comp.max_backlogs !== undefined) setMaxBacklogs(String(comp.max_backlogs));
           if (comp.allowed_branches && comp.allowed_branches.length > 0) {
             setAllowedBranches(comp.allowed_branches);
           }
@@ -176,10 +191,24 @@ export default function CompanyOnboarding() {
           if (elig.min_tenth_pct) setMinTenthPct(String(elig.min_tenth_pct));
           if (elig.min_twelfth_pct) setMinTwelfthPct(String(elig.min_twelfth_pct));
         } else {
-          // Prefill email from auth user if available
+          // Prefill email, HR name, and invited company name if available
           if (user.email) setHrEmail(user.email);
           if (user.user_metadata?.name) setHrName(user.user_metadata.name);
           if (user.user_metadata?.company_name) setCompanyName(user.user_metadata.company_name);
+
+          if (user.email) {
+            const { data: invites } = await supabase
+              .from("company_invites" as any)
+              .select("company_name")
+              .ilike("email", user.email)
+              .neq("company_name", "Placement Admin")
+              .order("created_at", { ascending: false })
+              .limit(1);
+            const invitedName = (invites?.[0] as any)?.company_name;
+            if (invitedName && !user.user_metadata?.company_name) {
+              setCompanyName(invitedName);
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to load company profile:", err);
@@ -428,7 +457,16 @@ Extract the data and return ONLY a valid JSON object without markdown code block
     setIsSaving(true);
 
     try {
-      const activeUserId = user?.id;
+      const activeUserId = user?.id || (await supabase.auth.getUser()).data.user?.id;
+      if (!activeUserId) {
+        toast.error("Your session has expired. Please sign in again.");
+        navigate("/login");
+        return;
+      }
+
+      const cleanEmail = hrEmail.trim().toLowerCase();
+      const loginEmail = (user?.email || cleanEmail).trim().toLowerCase();
+      const cleanCompanyName = companyName.trim();
       const salaryPackageStr = `${totalLpa || fixedLpa} LPA`;
 
       const eligibilityCriteriaObj = {
@@ -451,56 +489,89 @@ Extract the data and return ONLY a valid JSON object without markdown code block
 
       const selectionProcessArr = rounds.map((r, i) => `${i + 1}. ${r.name} (${r.platform})`);
 
+      const companyPayload = {
+        name: cleanCompanyName,
+        email: cleanEmail,
+        website: website.trim() || null,
+        industry: industry.trim() || null,
+        description: description.trim() || null,
+        hr_name: hrName.trim() || null,
+        hr_phone: hrPhone.trim() || null,
+        job_role: jobRole.trim(),
+        job_location: jobLocation.trim() || null,
+        salary_package: salaryPackageStr,
+        max_backlogs: parseInt(maxBacklogs) || 0,
+        allowed_branches: allowedBranches,
+        skills_priority: skills,
+        selection_process: selectionProcessArr,
+        contact_info: contactInfoObj,
+        eligibility_criteria: eligibilityCriteriaObj,
+        user_id: activeUserId,
+      };
+
       let savedCompanyId = companyId;
 
-      // 1. Check or Upsert Company Record
-      if (savedCompanyId) {
-        const { error: updateErr } = await supabase
+      // 0. Lookup existing company by user_id, email, or name so we update rather than duplicate
+      if (!savedCompanyId) {
+        const { data: byUser } = await supabase
           .from("companies")
-          .update({
-            name: companyName.trim(),
-            email: hrEmail.trim().toLowerCase(),
-            website: website.trim() || null,
-            industry: industry.trim() || null,
-            description: description.trim() || null,
-            job_role: jobRole.trim(),
-            job_location: jobLocation.trim() || null,
-            salary_package: salaryPackageStr,
-            max_backlogs: parseInt(maxBacklogs) || 0,
-            allowed_branches: allowedBranches,
-            skills_priority: skills,
-            selection_process: selectionProcessArr,
-            contact_info: contactInfoObj,
-            eligibility_criteria: eligibilityCriteriaObj,
-            user_id: activeUserId,
-          })
-          .eq("id", savedCompanyId);
+          .select("id")
+          .eq("user_id", activeUserId)
+          .limit(1);
+        if (byUser && byUser.length > 0) {
+          savedCompanyId = byUser[0].id;
+        } else {
+          const { data: byEmail } = await supabase
+            .from("companies")
+            .select("id, user_id")
+            .ilike("email", loginEmail)
+            .limit(1);
+          if (byEmail && byEmail.length > 0 && (!byEmail[0].user_id || byEmail[0].user_id === activeUserId)) {
+            savedCompanyId = byEmail[0].id;
+          } else {
+            const { data: byName } = await supabase
+              .from("companies")
+              .select("id, user_id")
+              .ilike("name", cleanCompanyName)
+              .limit(1);
+            if (byName && byName.length > 0 && (!byName[0].user_id || byName[0].user_id === activeUserId)) {
+              savedCompanyId = byName[0].id;
+            }
+          }
+        }
+      }
+
+      // 1. Update existing company or Insert new company record
+      let updatedSuccessfully = false;
+      if (savedCompanyId) {
+        const { data: updatedRows, error: updateErr } = await supabase
+          .from("companies")
+          .update(companyPayload)
+          .eq("id", savedCompanyId)
+          .select("id");
 
         if (updateErr) throw updateErr;
-      } else {
+        if (updatedRows && updatedRows.length > 0) {
+          updatedSuccessfully = true;
+          setCompanyId(savedCompanyId);
+        }
+      }
+
+      if (!updatedSuccessfully) {
         const { data: newComp, error: insertErr } = await supabase
           .from("companies")
-          .insert({
-            name: companyName.trim(),
-            email: hrEmail.trim().toLowerCase(),
-            website: website.trim() || null,
-            industry: industry.trim() || null,
-            description: description.trim() || null,
-            job_role: jobRole.trim(),
-            job_location: jobLocation.trim() || null,
-            salary_package: salaryPackageStr,
-            max_backlogs: parseInt(maxBacklogs) || 0,
-            allowed_branches: allowedBranches,
-            skills_priority: skills,
-            selection_process: selectionProcessArr,
-            contact_info: contactInfoObj,
-            eligibility_criteria: eligibilityCriteriaObj,
-            user_id: activeUserId,
-          })
-          .select()
+          .insert(companyPayload)
+          .select("id")
           .single();
 
-        if (insertErr) throw insertErr;
+        if (insertErr) {
+          if (insertErr.code === "42501" || (insertErr as any).status === 403) {
+            throw new Error(
+              "Permission denied (403) saving company profile. Please ensure the latest SQL security migration (20261112000000_fix_recruiter_onboarding_rls.sql) has been executed in Supabase SQL Editor."
+            );
+          }
+          throw insertErr;
+        }
         savedCompanyId = newComp.id;
         setCompanyId(newComp.id);
       }
@@ -508,7 +579,6 @@ Extract the data and return ONLY a valid JSON object without markdown code block
       // 2. Sync Drive Rounds into drive_rounds table
       if (savedCompanyId) {
         try {
-          // Delete existing rounds to rebuild accurately
           await supabase.from("drive_rounds").delete().eq("company_id", savedCompanyId);
 
           const roundsToInsert = rounds.map((r, idx) => ({
@@ -523,19 +593,32 @@ Extract the data and return ONLY a valid JSON object without markdown code block
             created_by: activeUserId,
           }));
 
-          await supabase.from("drive_rounds").insert(roundsToInsert);
+          const { error: roundInsertErr } = await supabase.from("drive_rounds").insert(roundsToInsert);
+          if (roundInsertErr) console.warn("Drive rounds insert warning:", roundInsertErr);
         } catch (roundErr) {
           console.warn("Drive rounds sync notice:", roundErr);
         }
       }
 
-      // 3. Mark User Role as company in user_roles
-      if (activeUserId) {
+      // 3. Ensure User Role & accepted_at invite timestamp
+      try {
         await supabase.from("user_roles").upsert(
-          { user_id: activeUserId, role: "company" as any, email: hrEmail.trim().toLowerCase() },
+          { user_id: activeUserId, role: "company" as any, email: loginEmail },
           { onConflict: "user_id,role" }
         );
+      } catch (roleErr) {
+        console.warn("User role sync notice:", roleErr);
       }
+
+      try {
+        if (user?.email) {
+          await supabase
+            .from("company_invites" as any)
+            .update({ accepted_at: new Date().toISOString() })
+            .ilike("email", user.email)
+            .neq("company_name", "Placement Admin");
+        }
+      } catch (_) {}
 
       // 4. Broadcast Notification to all Students
       try {

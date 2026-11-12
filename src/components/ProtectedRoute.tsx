@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchCompanyForUser } from "@/lib/companyLookup";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -32,11 +32,11 @@ export function ProtectedRoute({ children, requiredRole }: Props) {
       }
 
       try {
-        const { data: comp } = await supabase
-          .from("companies")
-          .select("id, name, job_role, salary_package, contact_info")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const comp = await fetchCompanyForUser(
+          user.id,
+          user.email,
+          "id, name, job_role, salary_package, contact_info"
+        );
 
         const contact = (comp?.contact_info as any) || {};
         const isComplete = Boolean(

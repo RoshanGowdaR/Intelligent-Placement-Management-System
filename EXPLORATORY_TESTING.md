@@ -398,3 +398,21 @@ Exploratory testing was conducted following timeboxed session charters to examin
      - Step 2: Explicitly requires the 6-digit TOTP code from `gowdaroshan49@gmail.com`'s Google Authenticator app.
      - Challenges and verifies via `supabase.auth.mfa.verify`. Rejects deletion with explicit feedback if the code is invalid or unverified.
 - **Verification**: Typecheck passes with 0 errors; full Vitest suite (15 files, 71 tests) passed; production bundle built cleanly in 42.15s. Status: **RESOLVED**.
+
+
+---
+
+### BUG-023: Recruiter Onboarding HTTP 403 (`companies?select=*`) & Multi-Row Lookup Fix
+- **Severity**: High / Functional Blocker
+- **Components**: `src/pages/company/CompanyOnboarding.tsx`, `src/lib/companyLookup.ts`, `src/pages/admin/AdminSettings.tsx`, `src/hooks/useAuth.tsx`, `src/pages/Login.tsx`, `src/pages/Signup.tsx`, `src/components/ProtectedRoute.tsx`, `src/pages/company/CompanyDashboard.tsx`, `src/pages/company/CompanyCandidates.tsx`, `src/pages/company/CompanyDriveRounds.tsx`, `src/pages/company/CompanyReports.tsx`, `src/pages/company/CompanyTests.tsx`, `src/pages/company/CompanyRegister.tsx`, `supabase/migrations/20261112000000_fix_recruiter_onboarding_rls.sql`
+- **Root Cause**:
+  1. On the live Supabase database, `public.companies` INSERT and `public.user_roles` INSERT/UPDATE still enforced `has_role(auth.uid(), 'admin')`, returning HTTP 403 (`42501`) when an invited non-admin recruiter submitted `/company/onboarding`.
+  2. `AdminSettings.tsx` only wrote to `company_invites` without pre-provisioning the company row or linking an existing user profile's `company` role.
+  3. Multiple `.maybeSingle()` lookups on `companies` and `company_invites` failed (`PGRST116`) whenever duplicate rows existed for an email or `user_id`, causing `companyId` to stay `null` and forcing repeated `INSERT` calls.
+  4. Clicking "Sign up" from an invite login link dropped the `?company_invite=...` query string, and `Signup.tsx` did not persist company invite tokens or route `"company"` users to `/company`.
+- **Resolution**:
+  1. Added `src/lib/companyLookup.ts` (`fetchCompanyForUser`) using `.limit(1)` ordered by `created_at DESC` across `user_id` and `email`, eliminating `PGRST116` failures across `ProtectedRoute`, `Login`, and all company pages.
+  2. Updated `CompanyOnboarding.tsx` to prefill invited company name from `company_invites`, look up existing company records before updating (`select("id")` verified) vs inserting, wrap secondary steps cleanly, and surface clear guidance if DB RLS migration is missing.
+  3. Updated `AdminSettings.tsx` (`sendRecruiterInvite` & `manuallyActivateAdmin`) so the admin pre-provisions `companies` and links `user_roles` whenever the invited email already exists in `profiles`.
+  4. Fixed `useAuth.tsx` (`recruiterInvite?.company_name` typo, `.limit(1)` instead of `.maybeSingle()`, and verified pending invite tokens against `company_invites`), plus updated `Login.tsx` and `Signup.tsx` to preserve recruiter invite links end-to-end.
+  5. Added idempotent migration `supabase/migrations/20261112000000_fix_recruiter_onboarding_rls.sql` updating RLS policies for `companies`, `user_roles`, `company_invites`, `notifications`, and ensuring `audit_logs` exists.

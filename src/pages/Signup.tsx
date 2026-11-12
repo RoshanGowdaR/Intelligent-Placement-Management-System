@@ -55,17 +55,27 @@ export default function Signup() {
   const [searchParams] = useSearchParams();
 
   const adminInviteToken = searchParams.get("admin_invite") || searchParams.get("invite");
+  const companyInviteToken = searchParams.get("company_invite") || searchParams.get("token");
+  const requestedRole = searchParams.get("role");
   const inviteEmail = searchParams.get("email");
 
   useEffect(() => {
     if (adminInviteToken) {
       localStorage.setItem("pending_admin_invite", adminInviteToken);
     }
+    if (companyInviteToken) {
+      localStorage.setItem("pending_company_invite", companyInviteToken);
+    }
+    if (requestedRole === "company" || companyInviteToken) {
+      localStorage.setItem("pending_company_role", "company");
+    }
     if (inviteEmail) {
       setEmail(inviteEmail);
-      localStorage.setItem("pending_admin_email", inviteEmail.toLowerCase());
+      if (adminInviteToken) {
+        localStorage.setItem("pending_admin_email", inviteEmail.toLowerCase());
+      }
     }
-  }, [adminInviteToken, inviteEmail]);
+  }, [adminInviteToken, companyInviteToken, requestedRole, inviteEmail]);
 
   const handleOAuthSignIn = async (provider: "google" | "apple") => {
     if (provider === "google") setIsGoogleLoading(true);
@@ -88,7 +98,7 @@ export default function Signup() {
 
   useEffect(() => {
     if (!loading && user && role) {
-      navigate(role === "admin" ? "/admin" : "/dashboard", { replace: true });
+      navigate(role === "admin" ? "/admin" : role === "company" ? "/company" : "/dashboard", { replace: true });
     }
   }, [loading, user, role, navigate]);
 

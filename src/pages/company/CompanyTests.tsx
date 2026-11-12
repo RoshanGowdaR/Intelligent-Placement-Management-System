@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCompanyForUser } from "@/lib/companyLookup";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard } from "@/components/3d/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -74,11 +75,7 @@ export default function CompanyTests() {
     setLoading(true);
 
     try {
-      const { data: comp } = await supabase
-        .from("companies")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const comp = await fetchCompanyForUser(user.id, user.email, "id, name");
 
       let query = supabase.from("tests").select("*, schedules(count)");
       if (comp?.id) {
@@ -108,11 +105,7 @@ export default function CompanyTests() {
     setIsSubmitting(true);
 
     try {
-      const { data: comp } = await supabase
-        .from("companies")
-        .select("id, name")
-        .eq("user_id", user?.id)
-        .maybeSingle();
+      const comp = user ? await fetchCompanyForUser(user.id, user.email, "id, name") : null;
 
       // Sample standardized questions bank
       const sampleQuestionBank = [

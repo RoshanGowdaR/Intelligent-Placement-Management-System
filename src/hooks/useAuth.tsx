@@ -132,46 +132,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const pendingCompanyRole = localStorage.getItem("pending_company_role");
 
       if (pendingInviteToken || pendingCompanyRole === "company") {
-        let compName = "Visiting Company";
-        if (pendingInviteToken) {
-          const { data: inv } = await supabase
-            .from("company_invites" as any)
-            .select("company_name, id")
-            .eq("token", pendingInviteToken)
-            .maybeSingle();
+        let verifiedInv: any = null;
 
-          if (inv?.company_name) compName = inv.company_name;
-          if (inv) {
+        if (pendingInviteToken) {
+          const { data: tokenInv } = await supabase
+            .from("company_invites" as any)
+            .select("company_name, id, email")
+            .eq("token", pendingInviteToken)
+            .neq("company_name", "Placement Admin")
+            .limit(1);
+          if (tokenInv && tokenInv.length > 0) verifiedInv = tokenInv[0];
+        }
+
+        if (!verifiedInv && normalizedEmail) {
+          const { data: emailInv } = await supabase
+            .from("company_invites" as any)
+            .select("company_name, id, email")
+            .ilike("email", normalizedEmail)
+            .neq("company_name", "Placement Admin")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (emailInv && emailInv.length > 0) verifiedInv = emailInv[0];
+        }
+
+        localStorage.removeItem("pending_company_invite");
+        localStorage.removeItem("pending_company_role");
+
+        if (verifiedInv) {
+          const compName = verifiedInv.company_name || "Visiting Company";
+          try {
             await supabase
               .from("company_invites" as any)
               .update({ accepted_at: new Date().toISOString() })
-              .eq("id", inv.id);
-          }
-          localStorage.removeItem("pending_company_invite");
+              .eq("id", verifiedInv.id);
+          } catch (_) {}
+
+          try {
+            await supabase.from("user_roles").upsert(
+              { user_id: userId, role: "company" as AppRole, email: normalizedEmail },
+              { onConflict: "user_id,role" }
+            );
+          } catch (_) {}
+
+          try {
+            const { data: existingComps } = await supabase
+              .from("companies")
+              .select("id")
+              .eq("user_id", userId)
+              .limit(1);
+
+            if (!existingComps || existingComps.length === 0) {
+              const safeName = compName.replace(/,/g, "");
+              const filterExpr = normalizedEmail
+                ? `email.ilike.${normalizedEmail},name.ilike.${safeName}`
+                : `name.ilike.${safeName}`;
+              const { data: byNameOrEmail } = await supabase
+                .from("companies")
+                .select("id")
+                .or(filterExpr)
+                .limit(1);
+
+              if (byNameOrEmail && byNameOrEmail.length > 0) {
+                await supabase
+                  .from("companies")
+                  .update({ user_id: userId, email: normalizedEmail })
+                  .eq("id", byNameOrEmail[0].id);
+              } else {
+                await supabase.from("companies").insert({
+                  user_id: userId,
+                  email: normalizedEmail,
+                  name: compName,
+                });
+              }
+            }
+          } catch (_) {}
+
+          setRole("company");
+          return "company";
         }
-        localStorage.removeItem("pending_company_role");
-
-        await supabase.from("user_roles").upsert(
-          { user_id: userId, role: "company" as AppRole, email: normalizedEmail },
-          { onConflict: "user_id,role" }
-        );
-
-        const { data: existingComp } = await supabase
-          .from("companies")
-          .select("id")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (!existingComp) {
-          await supabase.from("companies").insert({
-            user_id: userId,
-            email: normalizedEmail,
-            name: compName,
-          });
-        }
-
-        setRole("company");
-        return "company";
       }
 
       // 2. Check existing assigned roles in user_roles
@@ -195,12 +233,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Verify secondary admin role against active company_invites
       if (existingRoles.includes("admin") || cachedRole === "admin") {
         if (normalizedEmail !== "gowdaroshan49@gmail.com") {
-          const { data: activeAdminInv } = await supabase
+          const { data: activeAdminInvList } = await supabase
             .from("company_invites" as any)
             .select("id")
             .ilike("email", normalizedEmail)
             .eq("company_name", "Placement Admin")
-            .maybeSingle();
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const activeAdminInv = activeAdminInvList?.[0] ?? null;
 
           if (!activeAdminInv) {
             // Admin invite was revoked/deleted! Strip admin role, save user account as student
@@ -219,12 +259,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Verify recruiter role against active company_invites
       if (existingRoles.includes("company")) {
-        const { data: activeRecruiterInv } = await supabase
+        const { data: activeRecruiterInvList } = await supabase
           .from("company_invites" as any)
           .select("id, company_name")
           .ilike("email", normalizedEmail)
           .neq("company_name", "Placement Admin")
-          .maybeSingle();
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const activeRecruiterInv = activeRecruiterInvList?.[0] ?? null;
 
         if (!activeRecruiterInv) {
           // Recruiter invite was revoked/deleted! Strip recruiter role, delete company row, save user account as student
@@ -299,11 +341,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const recruiterInvite = (invitesList || []).find((i: any) => i.company_name !== "Placement Admin");
 
-        const { data: matchedComp } = await supabase
+        const { data: matchedComps } = await supabase
           .from("companies")
           .select("id, name")
           .or(`user_id.eq.${userId},email.ilike.${normalizedEmail}`)
-          .maybeSingle();
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const matchedComp = matchedComps?.[0] ?? null;
 
         // If there is an orphaned company profile without an active recruiter invite, purge it
         if (!recruiterInvite && matchedComp) {
@@ -328,11 +372,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .eq("id", matchedComp.id);
           } else if (recruiterInvite) {
             // Check if company exists by name
-            const { data: compByName } = await supabase
+            const { data: compByNames } = await supabase
               .from("companies")
               .select("id")
               .ilike("name", recruiterInvite.company_name || "")
-              .maybeSingle();
+              .order("created_at", { ascending: false })
+              .limit(1);
+            const compByName = compByNames?.[0] ?? null;
 
             if (compByName) {
               await supabase
@@ -364,7 +410,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               sessionStorage.removeItem("pending_company_details");
               await supabase.from("companies").upsert({
                 user_id: userId,
-                name: pending.name || invite?.company_name || "Visiting Company",
+                name: pending.name || recruiterInvite?.company_name || "Visiting Company",
                 website: pending.website || null,
                 industry: pending.industry || null,
                 description: pending.description || null,

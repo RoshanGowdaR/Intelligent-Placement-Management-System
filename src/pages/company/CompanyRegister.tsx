@@ -283,11 +283,14 @@ export default function CompanyRegister() {
 
       // 3. Upsert into public.companies
       try {
-        const { data: existingComp } = await supabase
+        const safeCompName = cleanCompanyName.replace(/,/g, "");
+        const { data: existingComps } = await supabase
           .from("companies")
           .select("id")
-          .or(`user_id.eq.${activeUserId},name.ilike.${cleanCompanyName}`)
-          .maybeSingle();
+          .or(`user_id.eq.${activeUserId},email.ilike.${cleanEmail},name.ilike.${safeCompName}`)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const existingComp = existingComps?.[0] ?? null;
 
         if (existingComp) {
           await supabase

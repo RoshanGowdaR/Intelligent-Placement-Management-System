@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCompanyForUser } from "@/lib/companyLookup";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard } from "@/components/3d/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -105,11 +106,7 @@ export default function CompanyDriveRounds() {
 
     try {
       // 1. Fetch company record
-      const { data: comp } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const comp = await fetchCompanyForUser(user.id, user.email, "*");
 
       setCompany(comp);
 

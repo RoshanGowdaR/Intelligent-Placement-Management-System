@@ -577,6 +577,22 @@ function AdminInviteSection({ onRequestRevoke }: { onRequestRevoke: (target: Rev
         .eq("id", inv.id);
 
       const cleanEmail = (inv.email || "").toLowerCase();
+      if (cleanEmail) {
+        try {
+          const { data: profList } = await supabase
+            .from("profiles")
+            .select("id")
+            .ilike("email", cleanEmail)
+            .limit(1);
+          const existingProfileId = profList?.[0]?.id;
+          if (existingProfileId) {
+            await supabase.from("user_roles").upsert(
+              { user_id: existingProfileId, role: "admin" as any, email: cleanEmail },
+              { onConflict: "user_id,role" }
+            );
+          }
+        } catch (_) {}
+      }
       try {
         localStorage.setItem(`verified_role_${cleanEmail}`, "admin");
       } catch (_) {}
@@ -797,6 +813,46 @@ function RecruiterInviteSection({ onRequestRevoke }: { onRequestRevoke: (target:
         if (error) { toast.error(error.message); setSending(false); return; }
         record = data;
       }
+
+      // Admin pre-provisioning: link existing profile role and ensure companies row exists
+      try {
+        const { data: profList } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("email", cleanEmail)
+          .limit(1);
+        const existingProfileId = profList?.[0]?.id ?? null;
+
+        if (existingProfileId) {
+          await supabase.from("user_roles").upsert(
+            { user_id: existingProfileId, role: "company" as any, email: cleanEmail },
+            { onConflict: "user_id,role" }
+          );
+        }
+
+        const safeCompany = cleanCompany.replace(/,/g, "");
+        const { data: existingComps } = await supabase
+          .from("companies")
+          .select("id, user_id")
+          .or(`email.ilike.${cleanEmail},name.ilike.${safeCompany}`)
+          .limit(1);
+
+        if (existingComps && existingComps.length > 0) {
+          await supabase
+            .from("companies")
+            .update({
+              email: cleanEmail,
+              ...(existingProfileId ? { user_id: existingProfileId } : {}),
+            })
+            .eq("id", existingComps[0].id);
+        } else {
+          await supabase.from("companies").insert({
+            name: cleanCompany,
+            email: cleanEmail,
+            ...(existingProfileId ? { user_id: existingProfileId } : {}),
+          });
+        }
+      } catch (_) {}
 
       const inviteLink = `${window.location.origin}/login?company_invite=${token}&role=company&email=${encodeURIComponent(cleanEmail)}`;
 

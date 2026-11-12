@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCompanyForUser } from "@/lib/companyLookup";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard } from "@/components/3d/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -35,32 +36,34 @@ export default function CompanyDashboard() {
     setLoading(true);
 
     try {
-      // 1. Fetch current company record linked to user_id
-      let { data: compData } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // 1. Fetch current company record linked to user_id or email
+      let compData = await fetchCompanyForUser(user.id, user.email, "*");
 
-      // If not linked yet, look up company by invite email or company_name
+      // If not linked yet, look up company by invite company_name
       if (!compData && user.email) {
-        const { data: invite } = await supabase
+        const { data: inviteList } = await supabase
           .from("company_invites" as any)
           .select("company_name")
           .ilike("email", user.email)
-          .maybeSingle();
+          .neq("company_name", "Placement Admin")
+          .order("created_at", { ascending: false })
+          .limit(1);
 
-        const targetCompanyName = invite?.company_name || user.user_metadata?.company_name;
+        const targetCompanyName = (inviteList?.[0] as any)?.company_name || user.user_metadata?.company_name;
 
         if (targetCompanyName) {
-          const { data: matchedComp } = await supabase
+          const { data: matchedComps } = await supabase
             .from("companies")
             .select("*")
             .ilike("name", targetCompanyName)
-            .maybeSingle();
+            .order("created_at", { ascending: false })
+            .limit(1);
 
+          const matchedComp = matchedComps?.[0];
           if (matchedComp) {
-            await supabase.from("companies").update({ user_id: user.id }).eq("id", matchedComp.id);
+            try {
+              await supabase.from("companies").update({ user_id: user.id }).eq("id", matchedComp.id);
+            } catch (_) {}
             compData = { ...matchedComp, user_id: user.id };
           }
         }

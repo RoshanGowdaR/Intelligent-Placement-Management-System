@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCompanyForUser } from "@/lib/companyLookup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,7 @@ export default function Login() {
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const { signIn, user, role, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const companyInviteToken = searchParams.get("company_invite") || searchParams.get("token");
@@ -117,11 +119,11 @@ export default function Login() {
       navigate("/admin", { replace: true });
     } else if (isCompany) {
       // Check if recruiter has completed onboarding
-      const { data: comp } = await supabase
-        .from("companies")
-        .select("id, job_role, salary_package, contact_info")
-        .eq("user_id", userData.user.id)
-        .maybeSingle();
+      const comp = await fetchCompanyForUser(
+        userData.user.id,
+        userData.user.email,
+        "id, job_role, salary_package, contact_info"
+      );
 
       const contact = (comp?.contact_info as any) || {};
       const isComplete = Boolean(
@@ -165,12 +167,11 @@ export default function Login() {
       if (role === "admin") {
         checkMfaAndNavigate();
       } else if (role === "company") {
-        supabase
-          .from("companies")
-          .select("id, job_role, salary_package, contact_info")
-          .eq("user_id", user.id)
-          .maybeSingle()
-          .then(({ data: comp }) => {
+        fetchCompanyForUser(
+          user.id,
+          user.email,
+          "id, job_role, salary_package, contact_info"
+        ).then((comp) => {
             const contact = (comp?.contact_info as any) || {};
             const isComplete = Boolean(
               comp && (contact.onboarding_completed === true || (comp.job_role && comp.salary_package))
@@ -487,7 +488,7 @@ export default function Login() {
             </motion.div>
             <p className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
-              <Link to="/signup" className="font-medium text-foreground hover:underline transition-colors">Sign up</Link>
+              <Link to={location.search ? `/signup${location.search}` : "/signup"} className="font-medium text-foreground hover:underline transition-colors">Sign up</Link>
             </p>
           </form>
         </GlassCard>
