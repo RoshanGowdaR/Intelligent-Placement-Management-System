@@ -46,27 +46,31 @@ export function NotificationCenter() {
 
     fetchNotifications();
 
-    // Realtime subscription
-    const channel = supabase
-      .channel("notifications-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
-        }
-      )
-      .subscribe();
+    // Defer realtime subscription slightly so transient route unmounts don't abort handshakes
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const timer = setTimeout(() => {
+      channel = supabase
+        .channel(`notifications-realtime-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            setNotifications((prev) => [payload.new as Notification, ...prev]);
+          }
+        )
+        .subscribe();
+    }, 200);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearTimeout(timer);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const markAsRead = async (id: string) => {
     await supabase

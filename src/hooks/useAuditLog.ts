@@ -2,7 +2,13 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-let isAuditLogEnabled = true;
+let isAuditLogEnabled = (() => {
+  try {
+    return sessionStorage.getItem("ipms_audit_logs_disabled") !== "1";
+  } catch {
+    return true;
+  }
+})();
 
 export function useAuditLog() {
   const { user } = useAuth();
@@ -20,14 +26,22 @@ export function useAuditLog() {
         }]);
 
         if (error) {
-          // If table does not exist (404/PGRST204) or permission blocked, disable further attempts to keep console clean
-          if (error.code === "42P01" || error.message?.includes("does not exist") || (error as any).status === 404) {
+          // If table does not exist (PGRST205 / 42P01 / 404), disable further attempts for this session
+          const msg = error.message || "";
+          if (
+            error.code === "PGRST205" ||
+            error.code === "42P01" ||
+            msg.includes("Could not find") ||
+            msg.includes("does not exist") ||
+            (error as any).status === 404
+          ) {
             isAuditLogEnabled = false;
+            try { sessionStorage.setItem("ipms_audit_logs_disabled", "1"); } catch {}
           }
         }
       } catch {
-        // Silently tolerate if audit_logs table is unavailable
         isAuditLogEnabled = false;
+        try { sessionStorage.setItem("ipms_audit_logs_disabled", "1"); } catch {}
       }
     },
     [user]

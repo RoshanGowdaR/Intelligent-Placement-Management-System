@@ -143,8 +143,6 @@ export default function CompanyTests() {
 
       let payload: Record<string, any> = {
         title: title.trim(),
-        round_number: roundNumber,
-        round_name: roundName,
         scheduled_date: new Date(scheduledDate).toISOString(),
         duration: Number(duration) || 60,
         max_participants: Number(maxParticipants) || 100,
@@ -166,7 +164,7 @@ export default function CompanyTests() {
       for (let attempt = 0; attempt < 5; attempt++) {
         const { data, error: insertError } = await supabase
           .from("tests")
-          .insert(payload)
+          .insert(payload as any)
           .select()
           .single();
 
@@ -244,7 +242,7 @@ export default function CompanyTests() {
 
       const { error } = await supabase
         .from("tests")
-        .update({ registration_deadline: newDeadline })
+        .update({ registration_deadline: newDeadline } as any)
         .eq("id", testId);
 
       if (error) throw error;

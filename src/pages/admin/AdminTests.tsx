@@ -359,8 +359,6 @@ export default function AdminTests() {
 
     const payload = {
       title: form.title,
-      round_number: parseInt(form.round_number) || 1,
-      round_name: form.round_name || "Round 1: Online Technical Assessment (OA)",
       scheduled_date: scheduledISO,
       duration: parseInt(form.duration) || 60,
       max_participants: parseInt(form.max_participants) || null,
@@ -505,7 +503,8 @@ export default function AdminTests() {
   };
 
   const handleToggleRegistration = async (t: Test) => {
-    const isCurrentlyOpen = t.registration_deadline ? !isPast(new Date(t.registration_deadline)) : true;
+    const regDeadline = (t as any).registration_deadline;
+    const isCurrentlyOpen = regDeadline ? !isPast(new Date(regDeadline)) : true;
     const newDeadline = isCurrentlyOpen
       ? new Date(Date.now() - 60000).toISOString()
       : new Date(Date.now() + 7 * 86400000).toISOString();
@@ -537,7 +536,7 @@ export default function AdminTests() {
   const filtered = tests.filter((t) => t.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Test Management</h1>
@@ -923,7 +922,7 @@ export default function AdminTests() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -938,46 +937,47 @@ export default function AdminTests() {
             <TableBody>
               {filtered.map((t) => {
                 const qCount = ((t.question_bank as unknown as Question[]) ?? []).length;
-                const isRegOpen = !t.registration_deadline || !isPast(new Date(t.registration_deadline));
+                const regDeadline = (t as any).registration_deadline;
+                const isRegOpen = !regDeadline || !isPast(new Date(regDeadline));
                 const comp = companies.find((c) => c.id === t.company_id);
                 const round = (t as any).round_name || (t.pass_criteria as any)?.round_name;
 
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-[260px]">
                         <CompanyLogo name={comp?.name || t.title} logoUrl={(comp as any)?.contact_info?.logo_url} size="md" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span>{t.title}</span>
+                        <div className="space-y-0.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold whitespace-nowrap">{t.title}</span>
                             {round && (
-                              <Badge variant="outline" className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20">
+                              <Badge variant="outline" className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20 whitespace-nowrap">
                                 {round}
                               </Badge>
                             )}
                           </div>
-                          {comp?.name && <span className="text-xs text-muted-foreground">{comp.name}</span>}
+                          {comp?.name && <span className="text-xs text-muted-foreground whitespace-nowrap">{comp.name}</span>}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{formatToIST12hr(t.scheduled_date)}</TableCell>
-                    <TableCell>{t.duration} min</TableCell>
-                    <TableCell>{qCount} in bank / {t.questions_per_student ?? qCount} per student</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">{formatToIST12hr(t.scheduled_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">{t.duration} min</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">{qCount} in bank / {t.questions_per_student ?? qCount} per student</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {isRegOpen ? (
-                          <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs font-semibold">
+                          <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 text-xs font-semibold whitespace-nowrap">
                             Open
                           </Badge>
                         ) : (
-                          <Badge variant="destructive" className="text-xs font-semibold">
+                          <Badge variant="destructive" className="text-xs font-semibold whitespace-nowrap">
                             Closed
                           </Badge>
                         )}
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] px-2"
+                          className="h-7 text-[11px] px-2 whitespace-nowrap shrink-0"
                           onClick={() => handleToggleRegistration(t)}
                         >
                           {isRegOpen ? "Close Reg" : "Open Reg"}
