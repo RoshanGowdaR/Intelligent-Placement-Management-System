@@ -206,3 +206,293 @@ export function computeReportVisualizationData(rows: VisualizableReportRow[]) {
     attemptOutcomesData,
   };
 }
+
+
+export type CustomChartType = "bar" | "line" | "area" | "pie" | "scatter";
+
+export interface CustomChartSeries {
+  key: string;
+  label: string;
+  color: string;
+}
+
+export interface CustomAIChartSpec {
+  id: string;
+  title: string;
+  subtitle: string;
+  chartType: CustomChartType;
+  xKey: string;
+  yKeys: CustomChartSeries[];
+  data: Record<string, string | number | boolean>[];
+  sourcePrompt: string;
+}
+
+const CHART_PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
+
+export function buildAIChartSystemPrompt(rows: VisualizableReportRow[]): string {
+  const compactRows = rows.slice(0, 60).map((r) => ({
+    studentName: r.studentName,
+    usn: r.usn || "—",
+    branch: r.branch || "General",
+    batch: r.yearOfPassing ?? null,
+    cgpa: r.cgpa ?? null,
+    scorePct: Math.round(Number(r.totalScore ?? 0)),
+    earnedMarks: r.earnedMarks ?? null,
+    totalMarks: r.totalMarks ?? null,
+    passed: Boolean(r.passed),
+    attemptNumber: r.attemptNumber || 1,
+    tabSwitches: r.tabSwitches || 0,
+    cameraFlags: (r.proctorEvents || []).filter((e) => e.gadget !== "tab_switch").length,
+    flaggedGadgets: (r.proctorEvents || [])
+      .filter((e) => e.gadget !== "tab_switch")
+      .map((e) => e.gadget),
+    autoSubmitted: Boolean(r.autoSubmitted),
+  }));
+
+  return `You are a Data Visualization Architect for an Institutional Placement Management System.
+Given the candidate assessment report dataset below (${rows.length} total records, up to 60 shown), generate a SINGLE valid JSON object describing the exact chart the user requested.
+
+REPORT DATA (JSON):
+${JSON.stringify(compactRows)}
+
+STRICT OUTPUT FORMAT (return ONLY raw JSON, no markdown code blocks or prose):
+{
+  "title": "Concise chart title",
+  "subtitle": "1-sentence takeaway or explanation of what the chart displays",
+  "chartType": "bar" | "line" | "area" | "pie" | "scatter",
+  "xKey": "categoryOrXFieldName",
+  "yKeys": [
+    { "key": "numericMetricFieldName", "label": "Display Label", "color": "#6366f1" }
+  ],
+  "data": [
+    { "categoryOrXFieldName": "Value", "numericMetricFieldName": 75 }
+  ]
+}
+
+Rules:
+- Honor the user's requested chartType ("bar", "line", "area", "pie", or "scatter").
+- For "pie", include exactly 1 yKey (e.g. "value") and ensure data has { "name": "...", "value": number } with xKey = "name".
+- For "scatter", xKey must be numeric in data (e.g. "cgpa" or "tabSwitches") and yKeys[0].key numeric (e.g. "scorePct").
+- Every number in "data" must be computed accurately from the actual REPORT DATA above. Never invent candidates or numbers.`;
+}
+
+export function buildFallbackCustomChart(
+  userPrompt: string,
+  rows: VisualizableReportRow[]
+): CustomAIChartSpec {
+  const q = userPrompt.toLowerCase();
+  const preferredType: CustomChartType = q.includes("pie") || q.includes("donut")
+    ? "pie"
+    : q.includes("line") || q.includes("trend")
+    ? "line"
+    : q.includes("area")
+    ? "area"
+    : q.includes("scatter") || q.includes("correlation")
+    ? "scatter"
+    : "bar";
+
+  const id = `custom-${Date.now()}`;
+
+  if (preferredType === "pie") {
+    if (q.includes("branch")) {
+      const branchCounts = new Map<string, number>();
+      for (const r of rows) {
+        const b = r.branch || "General";
+        branchCounts.set(b, (branchCounts.get(b) || 0) + 1);
+      }
+      return {
+        id,
+        title: "Candidates by Branch",
+        subtitle: `Distribution across ${branchCounts.size} branches from ${rows.length} report rows`,
+        chartType: "pie",
+        xKey: "name",
+        yKeys: [{ key: "value", label: "Candidates", color: "#6366f1" }],
+        data: Array.from(branchCounts.entries()).map(([name, value]) => ({ name, value })),
+        sourcePrompt: userPrompt,
+      };
+    }
+    const clean = rows.filter((r) => r.tabSwitches === 0 && r.proctorEvents.length === 0 && !r.autoSubmitted).length;
+    const flagged = rows.length - clean;
+    if (q.includes("proctor") || q.includes("cheat") || q.includes("gadget") || q.includes("integrity")) {
+      return {
+        id,
+        title: "Integrity Split (Clean vs Flagged)",
+        subtitle: "Ratio of clean assessment attempts to flagged attempts",
+        chartType: "pie",
+        xKey: "name",
+        yKeys: [{ key: "value", label: "Attempts", color: "#10b981" }],
+        data: [
+          { name: "Clean", value: clean },
+          { name: "Flagged / Auto-Submitted", value: flagged },
+        ].filter((d) => d.value > 0),
+        sourcePrompt: userPrompt,
+      };
+    }
+    const passed = rows.filter((r) => r.passed).length;
+    const failed = rows.length - passed;
+    return {
+      id,
+      title: "Custom Qualification Split",
+      subtitle: `${passed} Passed vs ${failed} Failed`,
+      chartType: "pie",
+      xKey: "name",
+      yKeys: [{ key: "value", label: "Candidates", color: "#10b981" }],
+      data: [
+        { name: "Passed", value: passed },
+        { name: "Failed", value: failed },
+      ].filter((d) => d.value > 0),
+      sourcePrompt: userPrompt,
+    };
+  }
+
+  if (preferredType === "scatter") {
+    const useTab = q.includes("tab") || q.includes("switch") || q.includes("proctor");
+    const xKey = useTab ? "tabSwitches" : "cgpa";
+    const scatterRows = rows
+      .filter((r) => (useTab ? true : typeof r.cgpa === "number" && r.cgpa > 0))
+      .map((r) => ({
+        name: r.studentName,
+        [xKey]: useTab ? r.tabSwitches : Number(r.cgpa),
+        scorePct: Math.round(Number(r.totalScore ?? 0)),
+      }));
+    return {
+      id,
+      title: useTab ? "Tab Switches vs Score (%)" : "CGPA vs Score (%)",
+      subtitle: `Correlation across ${scatterRows.length} records`,
+      chartType: "scatter",
+      xKey,
+      yKeys: [{ key: "scorePct", label: "Score (%)", color: "#6366f1" }],
+      data: scatterRows.length > 0 ? scatterRows : rows.map((r, i) => ({ name: r.studentName, [xKey]: i + 1, scorePct: Math.round(Number(r.totalScore ?? 0)) })),
+      sourcePrompt: userPrompt,
+    };
+  }
+
+  if (q.includes("tab") || q.includes("proctor") || q.includes("gadget") || q.includes("violation")) {
+    return {
+      id,
+      title: "Candidate Proctoring & Tab Switch Activity",
+      subtitle: "Tab switches and camera/gadget alerts recorded per candidate",
+      chartType: preferredType,
+      xKey: "student",
+      yKeys: [
+        { key: "tabSwitches", label: "Tab Switches", color: "#f59e0b" },
+        { key: "gadgetFlags", label: "Gadget Flags", color: "#ef4444" },
+      ],
+      data: rows.slice(0, 15).map((r) => ({
+        student: r.studentName.length > 14 ? r.studentName.slice(0, 12) + "…" : r.studentName,
+        tabSwitches: r.tabSwitches,
+        gadgetFlags: (r.proctorEvents || []).filter((e) => e.gadget !== "tab_switch").length,
+      })),
+      sourcePrompt: userPrompt,
+    };
+  }
+
+  if (q.includes("branch")) {
+    const agg = computeReportVisualizationData(rows);
+    return {
+      id,
+      title: "Branch-Wise Scores & Pass Rate",
+      subtitle: "Average percentage and pass rate per branch",
+      chartType: preferredType,
+      xKey: "branch",
+      yKeys: [
+        { key: "avgScore", label: "Avg Score (%)", color: "#6366f1" },
+        { key: "passRate", label: "Pass Rate (%)", color: "#10b981" },
+      ],
+      data: agg.branchPerfData,
+      sourcePrompt: userPrompt,
+    };
+  }
+
+  return {
+    id,
+    title: "Candidate Earned Marks & Score (%)",
+    subtitle: `Custom ${preferredType} visualization generated from ${rows.length} candidate results`,
+    chartType: preferredType,
+    xKey: "student",
+    yKeys: [
+      { key: "scorePct", label: "Score (%)", color: "#6366f1" },
+      { key: "earnedMarks", label: "Earned Marks", color: "#10b981" },
+    ],
+    data: [...rows]
+      .sort((a, b) => Number(b.totalScore ?? 0) - Number(a.totalScore ?? 0))
+      .slice(0, 15)
+      .map((r) => ({
+        student: r.studentName.length > 14 ? r.studentName.slice(0, 12) + "…" : r.studentName,
+        scorePct: Math.round(Number(r.totalScore ?? 0)),
+        earnedMarks: Number(r.earnedMarks ?? 0),
+      })),
+    sourcePrompt: userPrompt,
+  };
+}
+
+export function parseOrFallbackAIChartSpec(
+  rawText: string,
+  userPrompt: string,
+  rows: VisualizableReportRow[]
+): CustomAIChartSpec {
+  try {
+    const cleaned = (rawText || "")
+      .replace(/^```json\s*/gim, "")
+      .replace(/^```\s*/gim, "")
+      .replace(/```$/gm, "")
+      .trim();
+
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace === -1 || lastBrace <= firstBrace) {
+      return buildFallbackCustomChart(userPrompt, rows);
+    }
+
+    const parsed = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+    const validTypes: CustomChartType[] = ["bar", "line", "area", "pie", "scatter"];
+    const chartType: CustomChartType = validTypes.includes(parsed.chartType)
+      ? parsed.chartType
+      : "bar";
+
+    if (!Array.isArray(parsed.data) || parsed.data.length === 0) {
+      return buildFallbackCustomChart(userPrompt, rows);
+    }
+
+    const sampleRow = parsed.data[0] || {};
+    const keys = Object.keys(sampleRow);
+    const xKey = typeof parsed.xKey === "string" && parsed.xKey in sampleRow
+      ? parsed.xKey
+      : keys[0] || "name";
+
+    let yKeys: CustomChartSeries[] = Array.isArray(parsed.yKeys)
+      ? parsed.yKeys
+          .filter((y: any) => y && typeof y.key === "string" && y.key in sampleRow)
+          .map((y: any, idx: number) => ({
+            key: y.key,
+            label: typeof y.label === "string" ? y.label : y.key,
+            color: typeof y.color === "string" ? y.color : CHART_PALETTE[idx % CHART_PALETTE.length],
+          }))
+      : [];
+
+    if (yKeys.length === 0) {
+      const numericKeys = keys.filter((k) => k !== xKey && typeof sampleRow[k] === "number");
+      if (numericKeys.length === 0) {
+        return buildFallbackCustomChart(userPrompt, rows);
+      }
+      yKeys = numericKeys.map((k, idx) => ({
+        key: k,
+        label: k,
+        color: CHART_PALETTE[idx % CHART_PALETTE.length],
+      }));
+    }
+
+    return {
+      id: `custom-${Date.now()}`,
+      title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : "AI Custom Visualization",
+      subtitle: typeof parsed.subtitle === "string" && parsed.subtitle.trim() ? parsed.subtitle.trim() : userPrompt,
+      chartType,
+      xKey,
+      yKeys,
+      data: parsed.data,
+      sourcePrompt: userPrompt,
+    };
+  } catch {
+    return buildFallbackCustomChart(userPrompt, rows);
+  }
+}

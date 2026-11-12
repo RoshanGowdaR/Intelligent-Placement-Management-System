@@ -93,3 +93,76 @@ describe("Report Visualizations Data Aggregation", () => {
     expect(VISUALIZATION_OPTIONS.length).toBeGreaterThanOrEqual(5);
   });
 });
+
+
+import { parseOrFallbackAIChartSpec, buildFallbackCustomChart } from "@/lib/reportVisualizations";
+
+describe("Custom AI Report Visualizations Parser & Fallback", () => {
+  const sampleRows = [
+    {
+      attemptId: "1",
+      studentName: "Aarav Sharma",
+      usn: "4MC24CS001",
+      branch: "Computer Science",
+      cgpa: 8.9,
+      totalScore: 88,
+      earnedMarks: 8,
+      totalMarks: 9,
+      passed: true,
+      attemptNumber: 1,
+      tabSwitches: 0,
+      proctorEvents: [],
+      autoSubmitted: false,
+    },
+    {
+      attemptId: "2",
+      studentName: "Hemanth Gowda",
+      usn: "4MC24CS405",
+      branch: "Electronics",
+      cgpa: 7.4,
+      totalScore: 22,
+      earnedMarks: 2,
+      totalMarks: 9,
+      passed: false,
+      attemptNumber: 1,
+      tabSwitches: 2,
+      proctorEvents: [{ timestamp: "2026-11-12T08:00:00Z", gadget: "Prohibited Device (Mobile Phone / Smartphone)", action: "warning" }],
+      autoSubmitted: true,
+    },
+  ];
+
+  it("parses valid fenced JSON chart specification from AI output", () => {
+    const rawAI = `\`\`\`json
+{
+  "title": "Scores by Candidate",
+  "subtitle": "Comparison across candidates",
+  "chartType": "line",
+  "xKey": "student",
+  "yKeys": [{ "key": "score", "label": "Score (%)", "color": "#6366f1" }],
+  "data": [
+    { "student": "Aarav Sharma", "score": 88 },
+    { "student": "Hemanth Gowda", "score": 22 }
+  ]
+}
+\`\`\``;
+    const spec = parseOrFallbackAIChartSpec(rawAI, "Show scores as a line chart", sampleRows);
+    expect(spec.title).toBe("Scores by Candidate");
+    expect(spec.chartType).toBe("line");
+    expect(spec.xKey).toBe("student");
+    expect(spec.data).toHaveLength(2);
+  });
+
+  it("falls back gracefully to deterministic custom chart matching user prompt intent", () => {
+    const pieSpec = buildFallbackCustomChart("pie chart of candidates by branch", sampleRows);
+    expect(pieSpec.chartType).toBe("pie");
+    expect(pieSpec.data).toEqual([
+      { name: "Computer Science", value: 1 },
+      { name: "Electronics", value: 1 },
+    ]);
+
+    const proctorBar = parseOrFallbackAIChartSpec("not valid json", "bar chart of tab switches and gadget flags", sampleRows);
+    expect(proctorBar.chartType).toBe("bar");
+    expect(proctorBar.yKeys.some((k) => k.key === "tabSwitches")).toBe(true);
+    expect(proctorBar.yKeys.some((k) => k.key === "gadgetFlags")).toBe(true);
+  });
+});

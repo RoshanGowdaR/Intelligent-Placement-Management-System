@@ -3,18 +3,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, ScatterChart, Scatter, ZAxis
 } from "recharts";
-import { BarChart3, PieChart as PieChartIcon, Sparkles, SlidersHorizontal, X, CheckSquare } from "lucide-react";
+import { BarChart3, PieChart as PieChartIcon, Sparkles, SlidersHorizontal, X, CheckSquare, Loader2, Wand2 } from "lucide-react";
 import {
+  buildAIChartSystemPrompt,
   computeReportVisualizationData,
+  parseOrFallbackAIChartSpec,
   VISUALIZATION_OPTIONS,
+  type CustomAIChartSpec,
   type VisualizableReportRow,
   type VisualizationId,
 } from "@/lib/reportVisualizations";
+import { askGemini } from "@/lib/gemini";
 import { toast } from "sonner";
 
 interface ReportVisualizationsSectionProps {
@@ -30,11 +35,136 @@ const TOOLTIP_STYLE = {
   fontSize: "12px",
 };
 
+const PIE_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"];
+
+const AI_CHART_SUGGESTIONS = [
+  "Bar chart comparing tab switches and gadget flags per student",
+  "Pie chart of candidate distribution by branch",
+  "Line chart of top candidate scores and earned marks",
+  "Scatter plot comparing tab switches vs score percentage",
+];
+
+function CustomAIChartRenderer({ spec }: { spec: CustomAIChartSpec }) {
+  if (spec.chartType === "pie") {
+    const valKey = spec.yKeys[0]?.key || "value";
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={spec.data}
+            dataKey={valKey}
+            nameKey={spec.xKey}
+            cx="50%"
+            cy="50%"
+            innerRadius={52}
+            outerRadius={86}
+            paddingAngle={3}
+            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+          >
+            {spec.data.map((_, idx) => (
+              <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Legend wrapperStyle={{ fontSize: "12px" }} />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (spec.chartType === "line") {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={spec.data} margin={{ top: 10, right: 16, left: -10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+          <XAxis dataKey={spec.xKey} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Legend wrapperStyle={{ fontSize: "12px" }} />
+          {spec.yKeys.map((series) => (
+            <Line
+              key={series.key}
+              type="monotone"
+              dataKey={series.key}
+              name={series.label}
+              stroke={series.color}
+              strokeWidth={2.5}
+              dot={{ r: 4 }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (spec.chartType === "area") {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={spec.data} margin={{ top: 10, right: 16, left: -10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+          <XAxis dataKey={spec.xKey} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Legend wrapperStyle={{ fontSize: "12px" }} />
+          {spec.yKeys.map((series) => (
+            <Area
+              key={series.key}
+              type="monotone"
+              dataKey={series.key}
+              name={series.label}
+              stroke={series.color}
+              fill={series.color}
+              fillOpacity={0.22}
+            />
+          ))}
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (spec.chartType === "scatter") {
+    const yKey = spec.yKeys[0]?.key || "scorePct";
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <ScatterChart margin={{ top: 10, right: 20, left: -10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+          <XAxis type="number" dataKey={spec.xKey} name={spec.xKey} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis type="number" dataKey={yKey} name={spec.yKeys[0]?.label || yKey} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <ZAxis range={[60, 120]} />
+          <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={TOOLTIP_STYLE} />
+          <Scatter name={spec.title} data={spec.data} fill={spec.yKeys[0]?.color || "#6366f1"} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={spec.data} margin={{ top: 10, right: 16, left: -10, bottom: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+        <XAxis dataKey={spec.xKey} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+        {spec.yKeys.map((series) => (
+          <Bar key={series.key} dataKey={series.key} name={series.label} fill={series.color} radius={[6, 6, 0, 0]} />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisualizationsSectionProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedCharts, setSelectedCharts] = useState<VisualizationId[]>([]);
   const [pendingCharts, setPendingCharts] = useState<VisualizationId[]>(["pass_fail", "score_bins", "branch_perf"]);
   const [showVisualizations, setShowVisualizations] = useState(false);
+
+  // Ask AI for custom visualizations
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [customAICharts, setCustomAICharts] = useState<CustomAIChartSpec[]>([]);
 
   const data = useMemo(() => computeReportVisualizationData(rows), [rows]);
 
@@ -54,8 +184,8 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
   };
 
   const handleApplySelection = () => {
-    if (pendingCharts.length === 0) {
-      toast.error("Please select at least one chart or visualization to display.");
+    if (pendingCharts.length === 0 && customAICharts.length === 0) {
+      toast.error("Please select at least one chart or use Ask AI to generate a custom visualization.");
       return;
     }
     setSelectedCharts(pendingCharts);
@@ -67,12 +197,44 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
     setShowVisualizations(false);
   };
 
+  const handleGenerateAIChart = async () => {
+    const cleanPrompt = aiPrompt.trim();
+    if (!cleanPrompt) {
+      toast.error("Please describe the chart or visualization you want.");
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      let spec: CustomAIChartSpec;
+      try {
+        const systemPrompt = buildAIChartSystemPrompt(rows);
+        const rawText = await askGemini(cleanPrompt, systemPrompt);
+        spec = parseOrFallbackAIChartSpec(rawText, cleanPrompt, rows);
+      } catch {
+        spec = parseOrFallbackAIChartSpec("", cleanPrompt, rows);
+      }
+
+      setCustomAICharts((prev) => [spec, ...prev]);
+      setShowVisualizations(true);
+      setAiDialogOpen(false);
+      setPickerOpen(false);
+      setAiPrompt("");
+      toast.success(`Generated custom visualization: "${spec.title}"`);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const totalShownCount =
+    (showVisualizations ? selectedCharts.length : 0) + (showVisualizations ? customAICharts.length : 0);
+
   return (
     <div className="space-y-4">
-      {/* Visualization Trigger Bar directly below the Report Table */}
+      {/* Visualization Trigger Bar directly below Report Table — left-aligned actions avoid overlapping bottom-right Admin AI pill */}
       <Card className="border-primary/20 bg-card/80 backdrop-blur-sm">
-        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-4 px-5">
-          <div className="flex items-center gap-3">
+        <CardContent className="flex flex-col gap-3.5 py-4 px-5 sm:pr-52">
+          <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary border border-primary/25 shrink-0">
               <BarChart3 className="h-5 w-5" />
             </div>
@@ -81,24 +243,14 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
                 Visual Analytics for Above Report
               </h3>
               <p className="text-xs text-muted-foreground">
-                {showVisualizations && selectedCharts.length > 0
-                  ? `Showing ${selectedCharts.length} selected visualization${selectedCharts.length > 1 ? "s" : ""} built from ${rows.length} report record${rows.length > 1 ? "s" : ""}.`
-                  : `Generate custom charts from the ${rows.length} candidate record${rows.length > 1 ? "s" : ""} shown above.`}
+                {showVisualizations && totalShownCount > 0
+                  ? `Showing ${totalShownCount} visualization${totalShownCount > 1 ? "s" : ""} built from ${rows.length} report record${rows.length > 1 ? "s" : ""}.`
+                  : `Generate custom charts or ask AI for tailored visualizations using the ${rows.length} candidate record${rows.length > 1 ? "s" : ""} above.`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            {showVisualizations && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleHideVisualizations}
-                className="text-xs h-9 gap-1.5"
-              >
-                <X className="h-3.5 w-3.5" /> Hide Charts
-              </Button>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               onClick={openPicker}
@@ -107,13 +259,64 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
               <SlidersHorizontal className="h-3.5 w-3.5" />
               {showVisualizations ? "Select / Change Charts" : "Visualize Report"}
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAiDialogOpen(true)}
+              className="text-xs h-9 font-semibold gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Ask AI for More
+            </Button>
+            {showVisualizations && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleHideVisualizations}
+                className="text-xs h-9 gap-1.5 text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" /> Hide Charts
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Rendered Visualizations Grid */}
-      {showVisualizations && selectedCharts.length > 0 && (
+      {showVisualizations && totalShownCount > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {customAICharts.map((spec) => (
+            <Card key={spec.id} className="border-primary/30">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                      <span>{spec.title}</span>
+                      <Badge variant="secondary" className="text-[10px] uppercase">
+                        AI {spec.chartType}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-xs">{spec.subtitle}</CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => setCustomAICharts((prev) => prev.filter((c) => c.id !== spec.id))}
+                    title="Remove AI chart"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <CustomAIChartRenderer spec={spec} />
+              </CardContent>
+            </Card>
+          ))}
+
           {selectedCharts.includes("pass_fail") && (
             <Card>
               <CardHeader className="pb-2">
@@ -363,7 +566,7 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
         </div>
       )}
 
-      {/* Chart Selection Modal */}
+      {/* Chart Selection Modal (with Ask AI for More shortcut) */}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -371,15 +574,27 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
               <BarChart3 className="h-5 w-5 text-primary" /> Choose Visualizations for Your Report
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Select the charts and visualizations you want to generate from the {rows.length} candidate records in the report above.
+              Select the charts and visualizations you want to generate from the {rows.length} candidate records in the report above, or ask AI for custom charts.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center justify-between pt-1 pb-2 border-b">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-2 border-b">
             <span className="text-xs text-muted-foreground font-medium">
               Selected: <strong className="text-foreground">{pendingCharts.length}</strong> of {VISUALIZATION_OPTIONS.length}
             </span>
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                onClick={() => {
+                  setPickerOpen(false);
+                  setAiDialogOpen(true);
+                }}
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Ask AI for More
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -443,11 +658,69 @@ export function ReportVisualizationsSection({ rows, reportLabel }: ReportVisuali
             <Button
               type="button"
               onClick={handleApplySelection}
-              disabled={pendingCharts.length === 0}
+              disabled={pendingCharts.length === 0 && customAICharts.length === 0}
               className="font-bold gap-1.5"
             >
               <BarChart3 className="h-4 w-4" />
               Show Selected Visualizations ({pendingCharts.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ask AI for Custom Visualizations Dialog */}
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Sparkles className="h-5 w-5 text-primary" /> Ask AI for Custom Visualization
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Describe what chart type and metrics you want from the {rows.length} candidate results above, and AI will generate it automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            <Textarea
+              placeholder="e.g., Create a bar chart comparing tab switches and gadget flags per student, or a pie chart of candidates by branch..."
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              rows={3}
+              className="text-xs rounded-xl"
+            />
+
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-muted-foreground">Try an example:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {AI_CHART_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setAiPrompt(suggestion)}
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors text-left"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setAiDialogOpen(false)} disabled={aiGenerating}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleGenerateAIChart}
+              disabled={!aiPrompt.trim() || aiGenerating}
+              className="font-bold gap-1.5"
+            >
+              {aiGenerating ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating Chart…</>
+              ) : (
+                <><Wand2 className="h-4 w-4" /> Generate AI Visualization</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
