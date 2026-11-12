@@ -40,8 +40,8 @@ const DEFAULT_CONFIG: ProctorConfig = {
   warning_delay_seconds: 6,
   second_offense_action: "submit",
   detection_interval_ms: 450,
-  confidence_threshold: 0.58,
-  consecutive_frames: 3,
+  confidence_threshold: 0.52,
+  consecutive_frames: 2,
   watched_classes: DEFAULT_GADGET_CLASSES,
 };
 
@@ -103,6 +103,7 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
   const noFaceFramesRef = useRef(0);
   const multiPersonFramesRef = useRef(0);
   const gadgetFramesRef = useRef(0);
+  const cleanGadgetFramesRef = useRef(0);
 
   const onEventRef = useRef(onEvent);
   useEffect(() => { onEventRef.current = onEvent; }, [onEvent]);
@@ -249,8 +250,8 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
   useEffect(() => {
     if (!active || !cameraReady) return;
 
-    const consecutiveRequired = Math.max(3, cfg.consecutive_frames || 3);
-    const minDetectScore = Math.max(0.45, Math.min(0.65, cfg.confidence_threshold || 0.58));
+    const consecutiveRequired = Math.max(2, cfg.consecutive_frames || 2);
+    const minDetectScore = Math.max(0.45, Math.min(0.65, cfg.confidence_threshold || 0.52));
 
     const runDetection = async () => {
       const video = videoRef.current;
@@ -292,8 +293,9 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
 
         if (foundGadget) {
           const gadgetName = getGadgetDisplayName(foundGadget.class);
+          cleanGadgetFramesRef.current = 0;
           gadgetFramesRef.current += 1;
-          if (gadgetFramesRef.current >= consecutiveRequired) {
+          if (gadgetFramesRef.current >= consecutiveRequired || activeViolationRef.current?.type === "gadget") {
             detectedViol = {
               type: "gadget",
               name: `Prohibited Device (${gadgetName})`,
@@ -309,6 +311,11 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
           }
         } else {
           gadgetFramesRef.current = 0;
+          if (activeViolationRef.current?.type === "gadget") {
+            cleanGadgetFramesRef.current += 1;
+          } else {
+            cleanGadgetFramesRef.current = 0;
+          }
         }
 
         // ---- CHECK 2: MULTIPLE PEOPLE IN CAMERA FRAME ----
@@ -437,28 +444,37 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
         // Draw overlays onto the webcam canvas
         drawOverlayBoxes(boxesToDraw, videoW, videoH);
 
-        // Apply detected violation or clear
+        // Apply detected violation ONLY on state transitions (flag ONCE when sighted, stop when gone)
+        const currentViol = activeViolationRef.current;
         if (detectedViol) {
-          const now = Date.now();
-          if (now - lastSoundRef.current > 3500) {
-            playProctorAlertSound();
-            lastSoundRef.current = now;
-          }
+          const isSameActiveViolation =
+            currentViol &&
+            currentViol.type === detectedViol.type &&
+            currentViol.name === detectedViol.name;
 
-          if (warnedOnceRef.current && !activeViolationRef.current) {
-            if (cfg.second_offense_action === "submit" && !submittedRef.current) {
-              submittedRef.current = true;
-              onEventRef.current?.({ timestamp: new Date().toISOString(), gadget: detectedViol.name, action: "auto_submit" });
-              toast.error(`🚫 Repeated integrity violation (${detectedViol.name}). Auto-submitting assessment.`);
-              onAutoSubmit();
-              return;
+          if (!isSameActiveViolation) {
+            if (warnedOnceRef.current && !currentViol) {
+              if (cfg.second_offense_action === "submit" && !submittedRef.current) {
+                submittedRef.current = true;
+                onEventRef.current?.({ timestamp: new Date().toISOString(), gadget: detectedViol.name, action: "auto_submit" });
+                toast.error(`🚫 Repeated integrity violation (${detectedViol.name}). Auto-submitting assessment.`);
+                onAutoSubmit();
+                return;
+              }
             }
+            setActiveViolation(detectedViol);
           }
-
-          setActiveViolation(detectedViol);
         } else {
-          setActiveViolation(null);
-          setPreviewStatus("ok");
+          // Hold brief 2-frame hysteresis for gadget only so 1 dropped frame does not cause false auto-submit
+          const waitingGadgetClear =
+            currentViol?.type === "gadget" && cleanGadgetFramesRef.current < 2;
+
+          if (!waitingGadgetClear && currentViol) {
+            setActiveViolation(null);
+            setPreviewStatus("ok");
+          } else if (!currentViol) {
+            setPreviewStatus("ok");
+          }
         }
       } catch (err) {
         console.warn("[WebcamProctor] Detection frame drop:", err);
@@ -483,6 +499,11 @@ export default function WebcamProctor({ active, onAutoSubmit, onEvent, config }:
       return;
     }
 
+    const now = Date.now();
+    if (now - lastSoundRef.current > 1500) {
+      playProctorAlertSound();
+      lastSoundRef.current = now;
+    }
     warnedOnceRef.current = true;
     onEventRef.current?.({ timestamp: new Date().toISOString(), gadget: activeViolation.name, action: "warning" });
     toast.warning(`⚠️ Integrity alert: ${activeViolation.name}! Correct within ${graceSeconds}s.`, { duration: 5000 });

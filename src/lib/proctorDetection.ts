@@ -80,7 +80,7 @@ export function findProhibitedGadget(
     videoH,
   } = options;
 
-  const phoneFloor = Math.max(0.55, confidenceThreshold);
+  const phoneFloor = Math.max(0.50, confidenceThreshold);
   const secondaryFloor = Math.max(0.68, confidenceThreshold);
   const watchedSet = new Set(watchedClasses.map((c) => c.toLowerCase()));
 

@@ -9,6 +9,7 @@ import { Download, Printer, Loader2, ShieldAlert, AlertTriangle, Monitor, Smartp
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { ReportVisualizationsSection } from "@/components/reports/ReportVisualizationsSection";
 
 export default function CompanyReports() {
   const { user } = useAuth();
@@ -32,7 +33,7 @@ export default function CompanyReports() {
 
       let attemptsQuery = supabase
         .from("test_attempts")
-        .select("id, total_score, scores, passed, tab_switches, auto_submitted, proctor_events, completed_at, profiles(name, email, usn, branch, cgpa), tests(id, title, scheduled_date, pass_criteria, question_bank, round_number, round_name)")
+        .select("id, total_score, scores, passed, tab_switches, auto_submitted, proctor_events, completed_at, profiles(name, email, usn, branch, cgpa), tests(id, title, scheduled_date, pass_criteria, question_bank)")
         .order("completed_at", { ascending: false });
 
       if (comp?.id) {
@@ -171,9 +172,9 @@ export default function CompanyReports() {
                       </td>
                       <td className="p-3">
                         <div className="font-semibold text-foreground">{row.tests?.title || "Test"}</div>
-                        {row.tests?.round_name && (
+                        {row.tests?.pass_criteria?.round_name && (
                           <Badge variant="outline" className="text-[9px] mt-0.5 px-1.5 py-0 border-primary/30 text-primary">
-                            {row.tests.round_name}
+                            {row.tests.pass_criteria.round_name}
                           </Badge>
                         )}
                       </td>
@@ -236,6 +237,30 @@ export default function CompanyReports() {
           </div>
         )}
       </GlassCard>
+
+      {reportData.length > 0 && (
+        <ReportVisualizationsSection
+          rows={reportData.map((r) => {
+            const { earnedMarks, totalMarks } = getMarksBreakdown(r);
+            return {
+              attemptId: r.id,
+              studentName: r.profiles?.name || r.profiles?.email || "Candidate",
+              usn: r.profiles?.usn || "—",
+              branch: r.profiles?.branch || "General",
+              cgpa: typeof r.profiles?.cgpa === "number" ? r.profiles.cgpa : null,
+              totalScore: r.total_score ?? 0,
+              earnedMarks,
+              totalMarks,
+              passed: Boolean(r.passed),
+              attemptNumber: r.attempt_number || 1,
+              tabSwitches: typeof r.tab_switches === "number" ? r.tab_switches : 0,
+              proctorEvents: Array.isArray(r.proctor_events) ? r.proctor_events : [],
+              autoSubmitted: Boolean(r.auto_submitted),
+            };
+          })}
+          reportLabel={company?.name || "Recruitment Drive"}
+        />
+      )}
 
       {/* Proctoring & Integrity Detail Dialog */}
       <Dialog open={!!selectedAuditRow} onOpenChange={(open) => !open && setSelectedAuditRow(null)}>

@@ -7,6 +7,7 @@ import { AnimatedBackground } from "@/components/3d/AnimatedBackground";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Building2, ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck, Upload, Image as ImageIcon, Check } from "lucide-react";
 import CompanyLogo, { KNOWN_COMPANY_LOGOS } from "@/components/CompanyLogo";
 import { toast } from "sonner";

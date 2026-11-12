@@ -448,3 +448,13 @@ Exploratory testing was conducted following timeboxed session charters to examin
   - Fixed `ReportRow` property names in `AdminReports.tsx`.
   - Removed nonexistent `category` column from `AdminAnalytics.tsx` Supabase `select()` projections.
   - Replaced `.then(...).catch(...)` in `AdminSettings.tsx` `AuditSection` with `async/await` `try/catch`.
+
+
+---
+
+### FEAT-026 & BUG-026: Interactive Report Visualizations, Single-Sighting Proctor Debounce, & Codebase Health Audit
+- **Components**: `src/lib/reportVisualizations.ts`, `src/components/reports/ReportVisualizationsSection.tsx`, `src/pages/admin/AdminReports.tsx`, `src/pages/company/CompanyReports.tsx`, `src/components/WebcamProctor.tsx`, `src/lib/proctorDetection.ts`, `src/components/assistant/StudentAIAssistant.tsx`, `src/pages/student/StudentDashboard.tsx`, `src/pages/company/CompanyRegister.tsx`, `src/pages/ai/PlacementAIChat.tsx`, `src/test/ReportVisualizations.test.ts`
+- **Features & Fixes**:
+  1. **Interactive Report Visualizations**: Added a **Visualize Report** action bar directly below Candidate Assessment Results (`AdminReports.tsx` and `CompanyReports.tsx`). Selecting it opens a multi-select chart picker modal (`Pass vs. Fail Distribution`, `Score Distribution Histogram`, `Branch-Wise Performance`, `Candidate Score Comparison`, `Proctoring & Integrity Breakdown`, `CGPA vs. Assessment Score`, `Attempt & Retake Breakdown`), then renders ONLY the user-selected charts dynamically from the live report rows.
+  2. **Proctor Flagging Precision & Hysteresis**: Fixed `WebcamProctor.tsx` re-allocating `activeViolation` state every 450ms tick (which previously spammed warning toasts and duplicate `proctor_events` logs). Now flags **once** per distinct sighting, logs accurately to `proctor_events`, removes bounding boxes immediately when the phone leaves view, stops continuous flagging cleanly after 2 clean confirmation ticks, and uses a `0.50` `cell phone` confidence floor on `mobilenet_v2`.
+  3. **End-to-End Runtime Reference Audit**: Removed nonexistent `round_number`/`round_name` columns from `CompanyReports.tsx` `tests` query and resolved all missing-symbol `TS2304` issues across `StudentAIAssistant.tsx` (`askGemini`), `StudentDashboard.tsx` (`toast`), `CompanyRegister.tsx` (`Textarea`), and `PlacementAIChat.tsx` (`currentSession?.messages`).

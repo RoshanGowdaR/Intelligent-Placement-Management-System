@@ -19,6 +19,7 @@ import CompanyLogo from "@/components/CompanyLogo";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { AdminDeleteWith2FADialog, type AdminDeleteTarget } from "@/components/admin/AdminDeleteWith2FADialog";
+import { ReportVisualizationsSection } from "@/components/reports/ReportVisualizationsSection";
 
 type Test = Tables<"tests">;
 
@@ -637,6 +638,14 @@ export default function AdminReports() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Interactive Report Visualizations (below Candidate Assessment Results) */}
+      {rows.length > 0 && (
+        <ReportVisualizationsSection
+          rows={filteredRows}
+          reportLabel={tests.find((t) => t.id === selectedTest)?.title}
+        />
       )}
 
       {/* Proctoring & Integrity Audit Modal */}

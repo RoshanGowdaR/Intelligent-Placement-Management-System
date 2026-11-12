@@ -1091,7 +1091,7 @@ Act as an expert placement tutor and interview coach. Help this student master t
                             // Interactive Telemetry Bar Chart
                             if (lang === "chart") {
                               try {
-                                const lastUserMsg = messages.filter((m) => m.sender === "user").slice(-1)[0]?.text || "";
+                                const lastUserMsg = (currentSession?.messages || []).filter((m) => m.sender === "user").slice(-1)[0]?.text || "";
                                 const explicitChart = /\b(chart|graph|plot|visual|diagram|visualize|bar chart|pie chart|histogram)\b/i.test(lastUserMsg);
                                 if (!explicitChart) {
                                   return null;
