@@ -80,20 +80,14 @@ export function LandingHero() {
           {/* 3D Container with Glass Highlights & Campus Photograph */}
           <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-white/20 bg-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.45)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)] min-h-[320px] md:min-h-[440px] flex items-center justify-center">
             <img
-              src="/mce-campus.jpg"
-              alt="Malnad College of Engineering Campus Building, Hassan"
+              src="/mce-entrance.jpg"
+              alt="Malnad College of Engineering Grand Entrance Arch, Hassan"
               className="w-full h-full object-cover min-h-[320px] md:min-h-[440px] transform group-hover:scale-[1.03] transition-transform duration-700 ease-out"
               loading="eager"
             />
             
-            {/* Dark gradient scrim at top and bottom for readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/60 pointer-events-none" />
-
-            {/* Overlay status tag */}
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 rounded-full border border-emerald-500/40 bg-[#0a0a0f]/85 px-3.5 py-1.5 text-[11px] font-mono text-emerald-300 backdrop-blur-md shadow-lg">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="font-semibold tracking-wider uppercase">MALNAD COLLEGE OF ENGINEERING</span>
-            </div>
+            {/* Subtle gradient scrim at bottom for text readability without covering the entrance arch */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-black/30 pointer-events-none" />
 
             {/* Bottom Live Placement & AI Proctoring Card */}
             <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-white/15 bg-[#0a0a0f]/90 p-3.5 shadow-2xl backdrop-blur-xl">

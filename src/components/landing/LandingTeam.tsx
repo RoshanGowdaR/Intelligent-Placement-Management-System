@@ -16,7 +16,7 @@ const teamMembers: TeamMember[] = [
     role: "SOFTWARE DEVELOPER AND TEAM LEAD",
     description: "Leading core placement architecture, full-stack ecosystem engineering, and autonomous proctoring intelligence.",
     image: "/team/roshan-gowda.jpg",
-    objectPosition: "center center",
+    objectPosition: "center 15%",
     linkedin: "https://linkedin.com",
   },
   {
@@ -24,7 +24,7 @@ const teamMembers: TeamMember[] = [
     role: "SOFTWARE DEVELOPER",
     description: "Engineered candidate evaluation engines, test authoring workflows, and secure database telemetry.",
     image: "/team/hemanth-gowda.jpg",
-    objectPosition: "center center",
+    objectPosition: "center 15%",
     linkedin: "https://linkedin.com",
   },
   {
@@ -32,7 +32,7 @@ const teamMembers: TeamMember[] = [
     role: "FRONTEND DEVELOPER",
     description: "Designing dynamic analytics dashboards, recruiter onboarding flows, and seamless animated interactions.",
     image: "/team/druthika-yb.jpg",
-    objectPosition: "top center",
+    objectPosition: "center 15%",
     linkedin: "https://linkedin.com",
   },
   {
@@ -40,7 +40,7 @@ const teamMembers: TeamMember[] = [
     role: "FRONTEND DEVELOPER",
     description: "Crafting intuitive, accessible responsive interfaces, dark/light theme precision, and candidate experience.",
     image: "/team/disha-n-jain.jpg",
-    objectPosition: "top center",
+    objectPosition: "center 15%",
     linkedin: "https://linkedin.com",
   },
 ];
@@ -64,7 +64,7 @@ export function LandingTeam() {
         </p>
       </div>
 
-      {/* 4 Team Cards Grid showcasing all members */}
+      {/* 4 Team Cards Grid showcasing all members with full clear photos */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {teamMembers.map((member, idx) => (
           <motion.div
@@ -75,25 +75,15 @@ export function LandingTeam() {
             transition={{ duration: 0.5, delay: idx * 0.1 }}
             className="rounded-3xl bg-card border border-slate-200/80 dark:border-border/70 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#5b51d8]/40 transition-all duration-300 flex flex-col group"
           >
-            {/* Image Container with portrait aspect ratio */}
-            <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center">
+            {/* Image Container with portrait aspect ratio - fully unobstructed */}
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
               <img
                 src={member.image}
                 alt={member.name}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = "none";
-                }}
+                loading="eager"
                 className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                style={{ objectPosition: member.objectPosition || "center center" }}
+                style={{ objectPosition: member.objectPosition || "center 15%" }}
               />
-
-              {/* Initials Fallback if image fails */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center -z-0 pointer-events-none">
-                <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-[#5b51d8] to-purple-600 text-white font-display text-2xl font-extrabold flex items-center justify-center shadow-lg">
-                  {member.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </div>
-                <span className="text-xs font-semibold text-foreground/80 mt-2 font-display">{member.name}</span>
-              </div>
             </div>
 
             {/* Card Body: Name, Role, Description & LinkedIn */}
