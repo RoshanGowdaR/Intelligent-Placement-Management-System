@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Linkedin } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Linkedin } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface TeamMember {
   name: string;
   role: string;
-  description?: string;
+  description: string;
   image: string;
+  objectPosition?: string;
   linkedin: string;
 }
 
@@ -15,75 +15,43 @@ const teamMembers: TeamMember[] = [
     name: "Roshan Gowda R M",
     role: "SOFTWARE DEVELOPER AND TEAM LEAD",
     description: "Leading core placement architecture, full-stack ecosystem engineering, and autonomous proctoring intelligence.",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=80",
+    image: "/team/roshan-gowda.jpg",
+    objectPosition: "center center",
     linkedin: "https://linkedin.com",
   },
   {
     name: "Hemanth Gowda B D",
     role: "SOFTWARE DEVELOPER",
     description: "Engineered candidate evaluation engines, test authoring workflows, and secure database telemetry.",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=80",
-    linkedin: "https://linkedin.com",
-  },
-  {
-    name: "Disha N Jain",
-    role: "FRONTEND DEVELOPER",
-    description: "Crafting intuitive, accessible responsive interfaces, dark/light theme precision, and candidate experience.",
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80",
+    image: "/team/hemanth-gowda.jpg",
+    objectPosition: "center center",
     linkedin: "https://linkedin.com",
   },
   {
     name: "Druthika Y B",
     role: "FRONTEND DEVELOPER",
     description: "Designing dynamic analytics dashboards, recruiter onboarding flows, and seamless animated interactions.",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=500&auto=format&fit=crop&q=80",
+    image: "/team/druthika-yb.jpg",
+    objectPosition: "top center",
+    linkedin: "https://linkedin.com",
+  },
+  {
+    name: "Disha N Jain",
+    role: "FRONTEND DEVELOPER",
+    description: "Crafting intuitive, accessible responsive interfaces, dark/light theme precision, and candidate experience.",
+    image: "/team/disha-n-jain.jpg",
+    objectPosition: "top center",
     linkedin: "https://linkedin.com",
   },
 ];
 
 export function LandingTeam() {
-  const [startIndex, setStartIndex] = useState(0);
-  const [direction, setDirection] = useState<1 | -1>(1);
-  const [isPaused, setIsPaused] = useState(false);
-
-  const prev = () => {
-    setDirection(-1);
-    setStartIndex((current) => (current === 0 ? teamMembers.length - 1 : current - 1));
-  };
-
-  const next = () => {
-    setDirection(1);
-    setStartIndex((current) => (current >= teamMembers.length - 1 ? 0 : current + 1));
-  };
-
-  // Auto-advance every 5 seconds
-  useEffect(() => {
-    if (isPaused) return;
-    const interval = setInterval(() => {
-      setDirection(1);
-      setStartIndex((current) => (current >= teamMembers.length - 1 ? 0 : current + 1));
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isPaused, startIndex]);
-
-  // Compute 3 visible members with wrap-around
-  const visibleMembers: { member: TeamMember; key: string }[] = [];
-  for (let i = 0; i < 3; i++) {
-    const memberIndex = (startIndex + i) % teamMembers.length;
-    visibleMembers.push({
-      member: teamMembers[memberIndex],
-      key: `${teamMembers[memberIndex].name}-${startIndex}-${i}`,
-    });
-  }
-
   return (
     <section id="team" className="py-20 px-5 md:px-16 max-w-7xl mx-auto relative">
-      
       {/* Header Section */}
       <div className="text-center space-y-3 mb-14">
         <div className="inline-block">
-          <span className="text-[10px] md:text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#5b51d8] bg-[#5b51d8]/10 border border-[#5b51d8]/20 px-3 py-1 rounded-full">
+          <span className="text-[10px] md:text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#5b51d8] bg-[#5b51d8]/10 border border-[#5b51d8]/20 px-3.5 py-1.5 rounded-full">
             OUR CORE LEADERSHIP
           </span>
         </div>
@@ -91,127 +59,73 @@ export function LandingTeam() {
         <h2 className="font-display text-3xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Meet Our <span className="text-[#5b51d8]">Visionaries</span>
         </h2>
-        <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
-          Passionate innovators building next-generation campus placement automation, proctored assessments, and recruiter ecosystems.
+        <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+          Passionate innovators from Malnad College of Engineering building next-generation campus placement automation, proctored assessments, and recruiter ecosystems.
         </p>
       </div>
 
-      {/* Carousel Container with Left/Right arrow controls */}
-      <div
-        className="relative"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-      >
-        
-        {/* Left Arrow Button */}
-        <button
-          onClick={prev}
-          aria-label="Previous team members"
-          className="absolute -left-4 md:-left-6 top-1/2 -translate-y-1/2 z-20 h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-slate-200 dark:border-border/80 text-foreground shadow-lg flex items-center justify-center hover:bg-muted hover:scale-105 active:scale-95 transition-all cursor-pointer"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+      {/* 4 Team Cards Grid showcasing all members */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {teamMembers.map((member, idx) => (
+          <motion.div
+            key={member.name}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: idx * 0.1 }}
+            className="rounded-3xl bg-card border border-slate-200/80 dark:border-border/70 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#5b51d8]/40 transition-all duration-300 flex flex-col group"
+          >
+            {/* Image Container with portrait aspect ratio */}
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center">
+              <img
+                src={member.image}
+                alt={member.name}
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                style={{ objectPosition: member.objectPosition || "center center" }}
+              />
 
-        {/* 3 Team Cards Grid with Smooth Framer Motion Transition */}
-        <div className="overflow-hidden py-2 px-1">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={startIndex}
-              initial={{ opacity: 0, x: direction * 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction * -40 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="grid md:grid-cols-3 gap-6"
-            >
-              {visibleMembers.map(({ member }) => (
-                <div
-                  key={member.name}
-                  className="rounded-3xl bg-card border border-slate-200/80 dark:border-border/70 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#5b51d8]/40 transition-all duration-300 flex flex-col group"
-                >
-                  {/* Image Container */}
-                  <div className="relative h-72 md:h-80 w-full overflow-hidden bg-gradient-to-tr from-[#5b51d8]/30 via-primary/20 to-muted flex items-center justify-center">
-                    <img
-                      src={member.image}
-                      alt={member.name}
-                      onError={(e) => {
-                        // Hide broken image and reveal gradient initials fallback
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                      className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    />
-
-                    {/* Initials Fallback if image fails or loading */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center -z-0 pointer-events-none">
-                      <div className="h-24 w-24 rounded-full bg-gradient-to-tr from-[#5b51d8] to-purple-600 text-white font-display text-3xl font-extrabold flex items-center justify-center shadow-lg">
-                        {member.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                      </div>
-                      <span className="text-xs font-semibold text-foreground/80 mt-3 font-display">{member.name}</span>
-                    </div>
-
-                    {/* Floating description banner */}
-                    {member.description && (
-                      <div className="absolute inset-x-3 bottom-3 p-3 rounded-2xl bg-black/85 backdrop-blur-md text-white text-[11px] leading-relaxed border border-white/15 shadow-md z-10">
-                        {member.description}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Footer: Name, Role & LinkedIn */}
-                  <div className="p-5 flex items-center justify-between gap-3 bg-card mt-auto border-t border-slate-100 dark:border-border/40">
-                    <div>
-                      <h3 className="font-display text-base font-extrabold text-slate-900 dark:text-white group-hover:text-[#5b51d8] transition-colors">
-                        {member.name}
-                      </h3>
-                      <p className="text-[10px] font-bold tracking-wider uppercase text-[#5b51d8] mt-0.5">
-                        {member.role}
-                      </p>
-                    </div>
-
-                    <a
-                      href={member.linkedin}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`${member.name} LinkedIn`}
-                      className="h-8 w-8 rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-600 hover:text-white flex items-center justify-center transition-colors shrink-0"
-                    >
-                      <Linkedin className="h-4 w-4" />
-                    </a>
-                  </div>
+              {/* Initials Fallback if image fails */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center -z-0 pointer-events-none">
+                <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-[#5b51d8] to-purple-600 text-white font-display text-2xl font-extrabold flex items-center justify-center shadow-lg">
+                  {member.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                 </div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+                <span className="text-xs font-semibold text-foreground/80 mt-2 font-display">{member.name}</span>
+              </div>
+            </div>
 
-        {/* Right Arrow Button */}
-        <button
-          onClick={next}
-          aria-label="Next team members"
-          className="absolute -right-4 md:-right-6 top-1/2 -translate-y-1/2 z-20 h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-slate-200 dark:border-border/80 text-foreground shadow-lg flex items-center justify-center hover:bg-muted hover:scale-105 active:scale-95 transition-all cursor-pointer"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      </div>
+            {/* Card Body: Name, Role, Description & LinkedIn */}
+            <div className="p-5 flex flex-col flex-grow bg-card border-t border-slate-100 dark:border-border/40">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-display text-base font-extrabold text-slate-900 dark:text-white group-hover:text-[#5b51d8] transition-colors leading-snug">
+                    {member.name}
+                  </h3>
+                  <p className="text-[10px] font-bold tracking-wider uppercase text-[#5b51d8] mt-1">
+                    {member.role}
+                  </p>
+                </div>
 
-      {/* Slide Indicator Dots */}
-      <div className="flex items-center justify-center gap-2 mt-8">
-        {teamMembers.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => {
-              setDirection(idx > startIndex ? 1 : -1);
-              setStartIndex(idx);
-            }}
-            aria-label={`Go to slide ${idx + 1}`}
-            className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-              startIndex === idx
-                ? "w-8 bg-[#5b51d8]"
-                : "w-2 bg-slate-300 dark:bg-white/20 hover:bg-slate-400"
-            }`}
-          />
+                <a
+                  href={member.linkedin}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${member.name} LinkedIn`}
+                  className="h-8 w-8 rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-600 hover:text-white flex items-center justify-center transition-colors shrink-0 mt-0.5"
+                >
+                  <Linkedin className="h-4 w-4" />
+                </a>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mt-3 flex-grow">
+                {member.description}
+              </p>
+            </div>
+          </motion.div>
         ))}
       </div>
-
     </section>
   );
 }

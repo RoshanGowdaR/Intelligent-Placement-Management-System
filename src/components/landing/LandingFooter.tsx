@@ -18,7 +18,7 @@ export function LandingFooter() {
                 Intelligent Placement Management System
               </div>
               <div className="text-[10px] font-bold tracking-widest text-[#5b51d8] uppercase">
-                IPMS ELITE
+                IPMS • Malnad College of Engineering
               </div>
             </div>
           </div>

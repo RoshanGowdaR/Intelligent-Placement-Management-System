@@ -89,8 +89,9 @@ export default function Login() {
           .eq("token", companyInviteToken)
           .maybeSingle()
           .then(({ data }) => {
-            if (data?.company_name) setInvitedCompanyName(data.company_name);
-            if (data?.email && !email) setEmail(data.email);
+            const inviteData = data as any;
+            if (inviteData?.company_name) setInvitedCompanyName(inviteData.company_name);
+            if (inviteData?.email && !email) setEmail(inviteData.email);
           });
       }
       localStorage.setItem("pending_company_role", "company");
@@ -401,97 +402,207 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 md:py-12">
       <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-md">
-        <GlassCard>
-          <Link
-            to="/"
-            className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+      <div className="relative z-10 w-full max-w-5xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          
+          {/* Left Column: Malnad College of Engineering Campus Showcase (Desktop) */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="hidden lg:flex lg:col-span-5 flex-col justify-between rounded-3xl overflow-hidden border border-white/20 dark:border-white/10 shadow-2xl relative min-h-[620px] bg-slate-900 group"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Home
-          </Link>
+            {/* Campus Background Image with Subtle Hover Zoom */}
+            <img
+              src="/mce-campus.jpg"
+              alt="Malnad College of Engineering, Hassan Campus"
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
+            />
+            {/* Elegant Gradient Scrim for Text Readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/40 backdrop-blur-[1px]" />
 
-          <div className="text-center">
-            <motion.div
-              className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary border border-border"
-              whileHover={{ rotateY: 20, rotateX: -10, scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
-              <GraduationCap className="h-8 w-8 text-foreground" />
-            </motion.div>
-            <h2 className="font-display text-2xl font-bold text-foreground">Welcome back</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Sign in to your placement platform</p>
-
-            {(companyInviteToken || requestedRole === "company" || invitedCompanyName) && (
-              <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 text-center text-xs">
-                <span className="font-bold text-primary flex items-center justify-center gap-1.5">
-                  <Building2 className="h-4 w-4" />
-                  Verified Recruiter Invitation{invitedCompanyName ? `: ${invitedCompanyName}` : ""}
-                </span>
-                <p className="mt-1 text-muted-foreground text-[11px]">
-                  Sign in with Google or your email to complete your company profile and launch campus recruitment drives.
+            {/* Top Brand Tag with Official MCE Crest */}
+            <div className="relative z-10 p-7 flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-2 flex items-center justify-center shadow-lg">
+                <img
+                  src="/mce.png"
+                  alt="MCE Hassan Logo"
+                  className="h-full w-full object-contain"
+                  onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-wide leading-tight">
+                  Malnad College of Engineering
+                </h3>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Autonomous Institution • Hassan, Karnataka
                 </p>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* OAuth Sign In */}
-          <div className="mt-6 space-y-3">
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-              <Button type="button" variant="outline" className="w-full h-12 font-medium gap-3"
-                onClick={() => handleOAuthSignIn("google")} disabled={isGoogleLoading}>
-                {isGoogleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
-                Continue with Google
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-              <Button type="button" variant="outline" className="w-full h-12 font-medium gap-3"
-                onClick={() => handleOAuthSignIn("apple")} disabled={isAppleLoading}>
-                {isAppleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <AppleIcon />}
-                Continue with Apple
-              </Button>
-            </motion.div>
-          </div>
-
-          {isAdminInvite && (
-            <div className="mb-4 rounded-2xl border-2 border-primary/50 bg-primary/10 p-3.5 text-xs text-left shadow-sm">
-              <div className="flex items-center gap-2 font-bold text-sm text-primary">
-                <Shield className="h-4 w-4 text-primary" /> Placement Admin Invitation
+            {/* Middle Institutional Highlights */}
+            <div className="relative z-10 p-7 space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Training &amp; Placement Department
               </div>
-              <p className="mt-1 text-foreground/90 leading-relaxed text-[12px]">
-                You have an active Administrator invitation. Sign in to link your account and access the Admin Portal.
+              <h2 className="font-display text-2xl font-extrabold text-white leading-snug">
+                Accelerating careers through intelligent placement workflows.
+              </h2>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Affiliated to VTU, Belagavi. Approved by AICTE, New Delhi. Connecting ambitious engineering talent with industry leaders through unified evaluations.
               </p>
             </div>
-          )}
 
-          <Divider />
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-muted-foreground text-xs uppercase tracking-wider">Email</Label>
-              <Input id="email" type="email" placeholder="you@college.edu" className="h-12"
-                value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-muted-foreground text-xs uppercase tracking-wider">Password</Label>
-                <Link to="/forgot-password" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">Forgot password?</Link>
+            {/* Bottom Campus Credentials */}
+            <div className="relative z-10 p-7 pt-0">
+              <div className="grid grid-cols-2 gap-2.5 text-white/90">
+                <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 p-3 text-center">
+                  <div className="font-display text-lg font-bold text-white">Estd. 1960</div>
+                  <div className="text-[10px] text-slate-300 mt-0.5">Heritage of Excellence</div>
+                </div>
+                <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 p-3 text-center">
+                  <div className="font-display text-lg font-bold text-emerald-400">NBA / NAAC</div>
+                  <div className="text-[10px] text-slate-300 mt-0.5">Accredited Programs</div>
+                </div>
               </div>
-              <Input id="password" type="password" className="h-12"
-                value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-              <Button type="submit" className="w-full h-12 font-bold" disabled={isLoading}>
-                {isLoading ? "Signing in…" : "Sign in"}
-              </Button>
-            </motion.div>
-            <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to={location.search ? `/signup${location.search}` : "/signup"} className="font-medium text-foreground hover:underline transition-colors">Sign up</Link>
-            </p>
-          </form>
-        </GlassCard>
+          </motion.div>
+
+          {/* Right Column: Sign In Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-7 w-full max-w-lg mx-auto flex flex-col justify-center"
+          >
+            <GlassCard>
+              <Link
+                to="/"
+                className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to Home
+              </Link>
+
+              {/* Mobile College Header Banner (shown only on mobile/tablet) */}
+              <div className="lg:hidden mb-6 rounded-2xl overflow-hidden relative border border-white/15 h-32 bg-slate-900 flex items-end p-3.5 shadow-md group">
+                <img
+                  src="/mce-campus.jpg"
+                  alt="Malnad College of Engineering, Hassan Campus"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+                <div className="relative z-10 flex items-center gap-3">
+                  <div className="h-10 w-10 shrink-0 rounded-xl bg-white/20 backdrop-blur-md p-1.5 border border-white/30 flex items-center justify-center">
+                    <img
+                      src="/mce.png"
+                      alt="MCE Logo"
+                      className="h-full w-full object-contain"
+                      onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                    />
+                  </div>
+                  <div className="text-left text-white">
+                    <p className="text-xs font-bold leading-tight">Malnad College of Engineering</p>
+                    <p className="text-[10px] text-slate-300 mt-0.5">Training &amp; Placement Cell • Hassan</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <motion.div
+                  className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary border border-border p-2 shadow-sm"
+                  whileHover={{ rotateY: 20, rotateX: -10, scale: 1.1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  <img
+                    src="/mce.png"
+                    alt="MCE Crest"
+                    className="h-full w-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                      const cap = document.getElementById("login-cap-icon");
+                      if (cap) cap.style.display = "block";
+                    }}
+                  />
+                  <GraduationCap id="login-cap-icon" className="h-8 w-8 text-foreground hidden" />
+                </motion.div>
+                <h2 className="font-display text-2xl font-bold text-foreground">Welcome back</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Sign in to Malnad College of Engineering IPMS</p>
+
+                {(companyInviteToken || requestedRole === "company" || invitedCompanyName) && (
+                  <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 text-center text-xs">
+                    <span className="font-bold text-primary flex items-center justify-center gap-1.5">
+                      <Building2 className="h-4 w-4" />
+                      Verified Recruiter Invitation{invitedCompanyName ? `: ${invitedCompanyName}` : ""}
+                    </span>
+                    <p className="mt-1 text-muted-foreground text-[11px]">
+                      Sign in with Google or your email to complete your company profile and launch campus recruitment drives.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* OAuth Sign In */}
+              <div className="mt-6 space-y-3">
+                <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                  <Button type="button" variant="outline" className="w-full h-12 font-medium gap-3"
+                    onClick={() => handleOAuthSignIn("google")} disabled={isGoogleLoading}>
+                    {isGoogleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+                    Continue with Google
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                  <Button type="button" variant="outline" className="w-full h-12 font-medium gap-3"
+                    onClick={() => handleOAuthSignIn("apple")} disabled={isAppleLoading}>
+                    {isAppleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <AppleIcon />}
+                    Continue with Apple
+                  </Button>
+                </motion.div>
+              </div>
+
+              {isAdminInvite && (
+                <div className="mb-4 rounded-2xl border-2 border-primary/50 bg-primary/10 p-3.5 text-xs text-left shadow-sm">
+                  <div className="flex items-center gap-2 font-bold text-sm text-primary">
+                    <Shield className="h-4 w-4 text-primary" /> Placement Admin Invitation
+                  </div>
+                  <p className="mt-1 text-foreground/90 leading-relaxed text-[12px]">
+                    You have an active Administrator invitation. Sign in to link your account and access the Admin Portal.
+                  </p>
+                </div>
+              )}
+
+              <Divider />
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-muted-foreground text-xs uppercase tracking-wider">Email</Label>
+                  <Input id="email" type="email" placeholder="you@college.edu" className="h-12"
+                    value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-muted-foreground text-xs uppercase tracking-wider">Password</Label>
+                    <Link to="/forgot-password" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">Forgot password?</Link>
+                  </div>
+                  <Input id="password" type="password" className="h-12"
+                    value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
+                <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                  <Button type="submit" className="w-full h-12 font-bold" disabled={isLoading}>
+                    {isLoading ? "Signing in…" : "Sign in"}
+                  </Button>
+                </motion.div>
+                <p className="text-center text-sm text-muted-foreground">
+                  Don't have an account?{" "}
+                  <Link to={location.search ? `/signup${location.search}` : "/signup"} className="font-medium text-foreground hover:underline transition-colors">Sign up</Link>
+                </p>
+              </form>
+            </GlassCard>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

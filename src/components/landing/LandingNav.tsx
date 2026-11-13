@@ -23,7 +23,7 @@ export function LandingNav() {
             Intelligent Placement Management System
           </div>
           <div className="text-[11px] font-medium tracking-widest text-primary uppercase">
-            IPMS v3.0 Elite Edition
+            IPMS • Malnad College of Engineering
           </div>
         </div>
       </div>

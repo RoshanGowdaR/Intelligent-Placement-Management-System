@@ -66,7 +66,7 @@ export function LandingHero() {
         </div>
       </motion.div>
 
-      {/* Right Column: 3D Isometric Render with Glass Framing */}
+      {/* Right Column: Malnad College of Engineering Campus Showcase */}
       <motion.div
         className="relative lg:col-span-6 flex items-center justify-center"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -75,34 +75,49 @@ export function LandingHero() {
       >
         <div className="relative w-full group">
           {/* Ambient Glow behind image */}
-          <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary/30 to-secondary/20 blur-2xl opacity-70 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary/30 to-[#5b51d8]/20 blur-2xl opacity-70 group-hover:opacity-100 transition-opacity" />
 
-          {/* 3D Container with Glass Highlights */}
-          <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-white/20 bg-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.45)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)] min-h-[300px] md:min-h-[420px] flex items-center justify-center">
+          {/* 3D Container with Glass Highlights & Campus Photograph */}
+          <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-white/20 bg-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.45)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)] min-h-[320px] md:min-h-[440px] flex items-center justify-center">
             <img
-              src="/ipms_hero_3d_dashboard.jpg"
-              alt="Intelligent Placement Management System 3D Futuristic Telemetry Interface"
-              className="w-full h-full object-cover min-h-[300px] md:min-h-[420px] transform group-hover:scale-[1.02] transition-transform duration-700 ease-out"
+              src="/mce-campus.jpg"
+              alt="Malnad College of Engineering Campus Building, Hassan"
+              className="w-full h-full object-cover min-h-[320px] md:min-h-[440px] transform group-hover:scale-[1.03] transition-transform duration-700 ease-out"
               loading="eager"
             />
             
+            {/* Dark gradient scrim at top and bottom for readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/60 pointer-events-none" />
+
             {/* Overlay status tag */}
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 rounded-full border border-emerald-500/40 bg-[#0a0a0f]/80 px-3 py-1 text-[11px] font-mono text-emerald-400 backdrop-blur-md">
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-              <span>v3.0 ELITE ENGINE READY</span>
+            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 rounded-full border border-emerald-500/40 bg-[#0a0a0f]/85 px-3.5 py-1.5 text-[11px] font-mono text-emerald-300 backdrop-blur-md shadow-lg">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="font-semibold tracking-wider uppercase">MALNAD COLLEGE OF ENGINEERING</span>
             </div>
 
-            {/* Bottom Live Proctoring Chip */}
-            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a0a0f]/90 p-3 shadow-2xl backdrop-blur-xl">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-destructive/20 text-destructive">
-                <Video className="h-4 w-4 animate-pulse" />
+            {/* Bottom Live Placement & AI Proctoring Card */}
+            <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-white/15 bg-[#0a0a0f]/90 p-3.5 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 p-1.5 border border-white/20">
+                  <img
+                    src="/mce.png"
+                    alt="MCE Logo"
+                    className="h-full w-full object-contain"
+                    onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                  />
+                </div>
+                <div className="text-left">
+                  <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
+                    Training &amp; Placement Cell
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </p>
+                  <p className="text-[10px] text-slate-300">Autonomous Institution • Hassan, Karnataka</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-[11px] font-semibold text-white flex items-center gap-1">
-                  AI Proctoring Active
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                </p>
-                <p className="text-[9px] text-slate-400">0 anomalies • Multi-face detection ON</p>
+
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 text-[11px] text-emerald-300 font-semibold self-start sm:self-auto">
+                <Video className="h-3.5 w-3.5 text-emerald-400" />
+                <span>AI Proctor Active</span>
               </div>
             </div>
           </div>
